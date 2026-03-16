@@ -1,0 +1,593 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum DataSource {
+  moodle
+  manual
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  completed
+  overdue
+}
+
+enum TaskScope {
+  student
+  class_group
+  general
+}
+
+enum RecurrenceFrequency {
+  daily
+  weekly
+  biweekly
+  monthly
+}
+
+enum ServiceRequestType {
+  new_shipment
+  study_partner
+  exam_retake
+  material_request
+  schedule_change
+  other
+}
+
+enum ServiceRequestStatus {
+  open
+  in_progress
+  resolved
+  cancelled
+}
+
+enum EnrollmentStatus {
+  active
+  suspended
+  completed
+  withdrawn
+}
+
+enum CompletionState {
+  not_started
+  in_progress
+  complete
+  complete_with_pass
+  complete_with_fail
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+// ============================================================
+// ADMIN USERS
+// ============================================================
+
+model Admin {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String
+  hashedPassword String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  notes                 Note[]
+  taskAssignments       Task[]           @relation("AssignedTo")
+  tasksCreated          Task[]           @relation("CreatedBy")
+  syncLogs              SyncLog[]
+  serviceRequestActions ServiceRequest[] @relation("HandledBy")
+
+  @@map("admins")
+}
+
+// ============================================================
+// STUDENTS (synced from Moodle + manual overrides)
+// ============================================================
+
+model Student {
+  id           String @id @default(cuid())
+  moodleUserId Int?   @unique
+
+  // Override pattern fields
+  firstNameMoodle   String?
+  firstNameOverride String?
+  firstNameSource   DataSource @default(moodle)
+
+  lastNameMoodle   String?
+  lastNameOverride String?
+  lastNameSource   DataSource @default(moodle)
+
+  emailMoodle   String?
+  emailOverride String?
+  emailSource   DataSource @default(moodle)
+
+  phoneMoodle   String?
+  phoneOverride String?
+  phoneSource   DataSource @default(moodle)
+
+  idNumberMoodle   String?
+  idNumberOverride String?
+  idNumberSource   DataSource @default(moodle)
+
+  // Local-only fields
+  hebrewName  String?
+  city        String?
+  address     String?
+  dateOfBirth DateTime?
+  notes       String?
+
+  // Moodle metadata
+  moodleUsername   String?
+  moodleLastAccess DateTime?
+  moodleRawData    Json?
+
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  enrollments         Enrollment[]
+  activityCompletions ActivityCompletion[]
+  grades              Grade[]
+  attendanceRecords   Attendance[]
+  tasks               TaskStudent[]
+  serviceRequests     ServiceRequest[]
+  studentNotes        Note[]
+
+  @@map("students")
+}
+
+// ============================================================
+// COURSES
+// ============================================================
+
+model Course {
+  id             String @id @default(cuid())
+  moodleCourseId Int?   @unique
+
+  fullNameMoodle   String?
+  fullNameOverride String?
+  fullNameSource   DataSource @default(moodle)
+
+  shortNameMoodle   String?
+  shortNameOverride String?
+  shortNameSource   DataSource @default(moodle)
+
+  description String?
+  isActive    Boolean @default(true)
+
+  moodleRawData Json?
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  semesters         Semester[]
+  classGroups       ClassGroup[]
+  enrollments       Enrollment[]
+  syllabusItems     SyllabusItem[]
+  grades            Grade[]
+  attendanceRecords Attendance[]
+  calendarEvents    CalendarEvent[]
+  tasks             Task[]
+
+  @@map("courses")
+}
+
+// ============================================================
+// SEMESTERS
+// ============================================================
+
+model Semester {
+  id        String    @id @default(cuid())
+  courseId   String
+  name      String
+  startDate DateTime?
+  endDate   DateTime?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  course        Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  syllabusItems SyllabusItem[]
+  grades        Grade[]
+
+  @@map("semesters")
+}
+
+// ============================================================
+// CLASS GROUPS
+// ============================================================
+
+model ClassGroup {
+  id            String @id @default(cuid())
+  courseId       String
+  moodleGroupId Int?   @unique
+  name          String
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  course            Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollments       Enrollment[]
+  tasks             TaskClassGroup[]
+  attendanceRecords Attendance[]
+
+  @@map("class_groups")
+}
+
+// ============================================================
+// ENROLLMENTS
+// ============================================================
+
+model Enrollment {
+  id           String @id @default(cuid())
+  studentId    String
+  courseId      String
+  classGroupId String?
+
+  statusMoodle   EnrollmentStatus?
+  statusOverride EnrollmentStatus?
+  statusSource   DataSource        @default(moodle)
+
+  moodleEnrolId Int?
+  enrolledAt    DateTime @default(now())
+  completedAt   DateTime?
+
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+
+  @@unique([studentId, courseId])
+  @@map("enrollments")
+}
+
+// ============================================================
+// SYLLABUS
+// ============================================================
+
+model SyllabusItem {
+  id          String  @id @default(cuid())
+  courseId     String
+  semesterId   String?
+  title       String
+  description String?
+  type        String // exam, assignment, quiz, lesson, activity, other
+  weight      Float?
+  maxScore    Float?
+  sortOrder   Int    @default(0)
+
+  moodleCmId         Int?
+  moodleActivityType String?
+  isMapped           Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course              Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semester            Semester?            @relation(fields: [semesterId], references: [id])
+  grades              Grade[]
+  activityCompletions ActivityCompletion[]
+
+  @@map("syllabus_items")
+}
+
+// ============================================================
+// ACTIVITY COMPLETION
+// ============================================================
+
+model ActivityCompletion {
+  id             String @id @default(cuid())
+  studentId      String
+  syllabusItemId String
+
+  completionStateMoodle   CompletionState?
+  completionStateOverride CompletionState?
+  completionStateSource   DataSource       @default(moodle)
+
+  completedAtMoodle   DateTime?
+  completedAtOverride DateTime?
+
+  moodleTimestamp Int?
+  moodleTracking  Int?
+  moodleRawData   Json?
+
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  syllabusItem SyllabusItem @relation(fields: [syllabusItemId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, syllabusItemId])
+  @@map("activity_completions")
+}
+
+// ============================================================
+// GRADES
+// ============================================================
+
+model Grade {
+  id             String  @id @default(cuid())
+  studentId      String
+  courseId        String
+  syllabusItemId String?
+  semesterId     String?
+
+  scoreMoodle   Float?
+  scoreOverride Float?
+  scoreSource   DataSource @default(moodle)
+
+  maxScore   Float?
+  percentage Float?
+
+  gradeType String    @default("regular") // regular, written_exam, oral_exam, moed_b
+  examDate  DateTime?
+  comments  String?
+
+  moodleGradeId Int?
+  moodleRawData Json?
+
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  syllabusItem SyllabusItem? @relation(fields: [syllabusItemId], references: [id])
+  semester     Semester?     @relation(fields: [semesterId], references: [id])
+
+  @@unique([studentId, syllabusItemId, gradeType])
+  @@map("grades")
+}
+
+// ============================================================
+// ATTENDANCE
+// ============================================================
+
+model Attendance {
+  id           String @id @default(cuid())
+  studentId    String
+  courseId      String
+  classGroupId String?
+  date         DateTime @db.Date
+
+  statusMoodle   AttendanceStatus?
+  statusOverride AttendanceStatus?
+  statusSource   DataSource        @default(manual)
+
+  comments   String?
+  recordedBy String?
+
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup? @relation(fields: [classGroupId], references: [id])
+
+  @@unique([studentId, courseId, date])
+  @@map("attendance")
+}
+
+// ============================================================
+// TASKS
+// ============================================================
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus @default(open)
+  scope       TaskScope  @default(general)
+  priority    Int        @default(0)
+
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  courseId         String?
+  recurringTaskId String?
+  assignedToId    String?
+  createdById     String
+
+  notifyOnCreate Boolean  @default(false)
+  notifyEmails   String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course        Course?        @relation(fields: [courseId], references: [id])
+  recurringTask RecurringTask? @relation(fields: [recurringTaskId], references: [id])
+  assignedTo    Admin?         @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdBy     Admin          @relation("CreatedBy", fields: [createdById], references: [id])
+  students      TaskStudent[]
+  classGroups   TaskClassGroup[]
+
+  @@map("tasks")
+}
+
+model TaskStudent {
+  taskId    String
+  studentId String
+
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, studentId])
+  @@map("task_students")
+}
+
+model TaskClassGroup {
+  taskId       String
+  classGroupId String
+
+  task       Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  classGroup ClassGroup @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, classGroupId])
+  @@map("task_class_groups")
+}
+
+// ============================================================
+// RECURRING TASKS
+// ============================================================
+
+model RecurringTask {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  frequency   RecurrenceFrequency
+  dayOfWeek   Int?
+  dayOfMonth  Int?
+  time        String?
+
+  isActive  Boolean   @default(true)
+  nextRunAt DateTime?
+  lastRunAt DateTime?
+
+  scope        TaskScope @default(general)
+  courseId      String?
+  assignedToId String?
+  notifyEmails String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  generatedTasks Task[]
+
+  @@map("recurring_tasks")
+}
+
+// ============================================================
+// SERVICE REQUESTS
+// ============================================================
+
+model ServiceRequest {
+  id        String               @id @default(cuid())
+  studentId String
+  type      ServiceRequestType
+  status    ServiceRequestStatus @default(open)
+
+  title       String
+  description String?
+
+  dueDate         DateTime?
+  calendarEventId String?
+
+  resolution String?
+  resolvedAt DateTime?
+  handledById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  handledBy Admin?  @relation("HandledBy", fields: [handledById], references: [id])
+
+  @@map("service_requests")
+}
+
+// ============================================================
+// NOTES
+// ============================================================
+
+model Note {
+  id        String   @id @default(cuid())
+  studentId String
+  authorId  String
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  author  Admin   @relation(fields: [authorId], references: [id])
+
+  @@map("notes")
+}
+
+// ============================================================
+// CALENDAR EVENTS
+// ============================================================
+
+model CalendarEvent {
+  id            String  @id @default(cuid())
+  courseId       String?
+  moodleEventId Int?    @unique
+
+  title       String
+  description String?
+  eventType   String // moodle, task, service_request, custom
+  startDate   DateTime
+  endDate     DateTime?
+  allDay      Boolean  @default(false)
+
+  sourceType String?
+  sourceId   String?
+
+  moodleRawData Json?
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  course Course? @relation(fields: [courseId], references: [id])
+
+  @@map("calendar_events")
+}
+
+// ============================================================
+// SYNC LOG
+// ============================================================
+
+model SyncLog {
+  id         String   @id @default(cuid())
+  syncType   String
+  status     String
+  triggeredBy String?
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  recordsProcessed Int @default(0)
+  recordsCreated   Int @default(0)
+  recordsUpdated   Int @default(0)
+  recordsSkipped   Int @default(0)
+  errors           Int @default(0)
+
+  errorDetails Json?
+  metadata     Json?
+
+  triggeredByAdmin Admin? @relation(fields: [triggeredBy], references: [id])
+
+  @@map("sync_logs")
+}
+
+// ============================================================
+// APP SETTINGS
+// ============================================================
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
