@@ -4,6 +4,10 @@ import { resolveField, formatDateHe } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+export function generateStaticParams() {
+  return [];
+}
+
 export default async function StudentDetailPage({
   params,
 }: {
