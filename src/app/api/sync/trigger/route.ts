@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     | "calendar";
 
   try {
-    const result = await runSync(type, session?.user?.id);
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    const result = await runSync(type, userId);
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
