@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: lms-dashboard
+    runtime: node
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: MOODLE_BASE_URL
+        sync: false
+      - key: MOODLE_TOKEN
+        sync: false
+      - key: SYNC_SECRET
+        sync: false
