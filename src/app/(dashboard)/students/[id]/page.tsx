@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveField, formatDateHe } from "@/lib/utils";
+import { AcademicOverview } from "@/components/students/academic-overview";
 
 export const dynamic = "force-dynamic";
 
@@ -164,6 +165,9 @@ export default async function StudentDetailPage({
           </div>
         )}
       </div>
+
+      {/* Academic Overview from Moodle */}
+      <AcademicOverview studentId={id} />
 
       {/* Grades */}
       <div className="rounded-lg border border-border bg-card p-6">
