@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
+import { CourseRequirementsForm } from "@/components/courses/course-requirements-form";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,14 @@ export default async function CourseDetailPage({
           <p className="text-2xl font-bold">{course.semesters.length}</p>
         </div>
       </div>
+
+      {/* Course Requirements */}
+      <CourseRequirementsForm
+        courseId={course.id}
+        initialExams={course.reqExamsCount}
+        initialGrade={course.reqGradeAverage}
+        initialAttendance={course.reqAttendancePercent}
+      />
 
       {/* Class Groups */}
       <div className="space-y-4">

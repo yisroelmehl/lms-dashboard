@@ -13,6 +13,7 @@ interface ActivityItem {
   grade: number | null;
   gradeMax: number | null;
   gradePercentage: number | null;
+  isOverride?: boolean;
 }
 
 interface CourseAcademicData {
@@ -24,6 +25,9 @@ interface CourseAcademicData {
   lessonCompleted: number;
   examCount: number;
   examCompleted: number;
+  reqExamsCount: number;
+  reqGradeAverage: number;
+  reqAttendancePercent: number;
 }
 
 function ProgressBar({ value, max, color = "blue" }: { value: number; max: number; color?: string }) {
@@ -70,9 +74,12 @@ function GradeBadge({ grade, gradeMax, percentage }: { grade: number | null; gra
   );
 }
 
-function ActivityRow({ activity }: { activity: ActivityItem }) {
+function ActivityRow({ activity, studentId, courseId, onUpdate }: { activity: ActivityItem, studentId: string, courseId: string, onUpdate: () => void }) {
   const isLesson = activity.type === "lesson";
   const isExam = activity.type === "exam" && activity.isRealExam;
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editGrade, setEditGrade] = useState(activity.grade?.toString() || "");
 
   const icon = isLesson
     ? activity.modname === "bigbluebuttonbn"
@@ -84,12 +91,49 @@ function ActivityRow({ activity }: { activity: ActivityItem }) {
     ? "📝"
     : "📄";
 
+  async function handleToggleAttendance() {
+    try {
+      await fetch(`/api/students/${studentId}/academic/override`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cmid: activity.cmid,
+          type: "lesson",
+          courseId,
+          attended: !activity.completed,
+        }),
+      });
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleSaveGrade() {
+    try {
+      await fetch(`/api/students/${studentId}/academic/override`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cmid: activity.cmid,
+          type: "exam",
+          courseId,
+          grade: parseFloat(editGrade) || 0,
+        }),
+      });
+      setIsEditing(false);
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   return (
-    <div className={`flex items-center gap-3 rounded-md px-3 py-2 ${activity.completed ? "bg-green-50" : "bg-slate-50"}`}>
+    <div className={`flex items-center gap-3 rounded-md px-3 py-2 ${activity.completed ? "bg-green-50" : "bg-slate-50"} hover:bg-slate-100 transition-colors`}>
       <span className="text-base">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm" title={activity.name}>
-          {activity.name}
+          {activity.name} {activity.isOverride && <span className="text-[10px] text-amber-600 font-medium ml-1 bg-amber-100 px-1 rounded">ידני</span>}
         </p>
         {activity.completedAt && activity.completedAt > 0 && (
           <p className="text-xs text-muted-foreground">
@@ -99,21 +143,47 @@ function ActivityRow({ activity }: { activity: ActivityItem }) {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {isExam && (
-          <GradeBadge
-            grade={activity.grade}
-            gradeMax={activity.gradeMax}
-            percentage={activity.gradePercentage}
-          />
+          isEditing ? (
+            <div className="flex items-center gap-1">
+              <input 
+                type="number" 
+                value={editGrade} 
+                onChange={e => setEditGrade(e.target.value)}
+                className="w-16 h-6 text-xs px-1 border border-input rounded" 
+                autoFocus
+              />
+              <button onClick={handleSaveGrade} className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded">שמור</button>
+              <button onClick={() => setIsEditing(false)} className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded">בטל</button>
+            </div>
+          ) : (
+            <div className="cursor-pointer" onClick={() => setIsEditing(true)}>
+              <GradeBadge
+                grade={activity.grade}
+                gradeMax={activity.gradeMax}
+                percentage={activity.gradePercentage}
+              />
+            </div>
+          )
         )}
-        <span className={`shrink-0 text-lg ${activity.completed ? "text-green-500" : "text-slate-300"}`}>
-          {activity.completed ? "✓" : "○"}
-        </span>
+        {isLesson ? (
+          <button 
+            onClick={handleToggleAttendance}
+            className={`shrink-0 text-lg hover:scale-110 transition-transform ${activity.completed ? "text-green-500" : "text-slate-300"}`}
+            title="לחץ לעדכון נוכחות ידנית"
+          >
+            {activity.completed ? "✓" : "○"}
+          </button>
+        ) : (
+          <span className={`shrink-0 text-lg ${activity.completed ? "text-green-500" : "text-slate-300"}`}>
+            {activity.completed ? "✓" : "○"}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-function CourseCard({ course }: { course: CourseAcademicData }) {
+function CourseCard({ course, studentId, onUpdate }: { course: CourseAcademicData, studentId: string, onUpdate: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"lessons" | "exams" | "all">("lessons");
 
@@ -131,6 +201,20 @@ function CourseCard({ course }: { course: CourseAcademicData }) {
   const lessonPct = course.lessonCount === 0 ? 100 : Math.round((course.lessonCompleted / course.lessonCount) * 100);
   const examPct = course.examCount === 0 ? 100 : Math.round((course.examCompleted / course.examCount) * 100);
 
+  // Graduation status calculation
+  let hasGradeIssue = false;
+  if (course.reqGradeAverage > 0 && course.examCount > 0) {
+    const gradesSum = realExams.reduce((sum, e) => sum + (e.gradePercentage || 0), 0);
+    const avg = gradesSum / course.examCount;
+    if (avg < course.reqGradeAverage) hasGradeIssue = true;
+  }
+  const meetsAttendance = course.reqAttendancePercent === 0 || lessonPct >= course.reqAttendancePercent;
+  const meetsExams = course.reqExamsCount === 0 || course.examCompleted >= course.reqExamsCount;
+  const meetsGrades = !hasGradeIssue;
+  
+  const isEligible = meetsAttendance && meetsExams && meetsGrades;
+  const hasReqs = course.reqAttendancePercent > 0 || course.reqExamsCount > 0 || course.reqGradeAverage > 0;
+
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       {/* Course Header */}
@@ -140,7 +224,14 @@ function CourseCard({ course }: { course: CourseAcademicData }) {
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-sm truncate">{course.courseName}</h3>
+            <h3 className="font-semibold text-sm flex items-center gap-2 truncate">
+              {course.courseName}
+              {hasReqs && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded ${isEligible ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  {isEligible ? "זכאי לתעודה" : "לא זכאי"}
+                </span>
+              )}
+            </h3>
             <div className="mt-2 space-y-1.5">
               {course.lessonCount > 0 && (
                 <div className="flex items-center gap-2">
@@ -155,6 +246,25 @@ function CourseCard({ course }: { course: CourseAcademicData }) {
                 </div>
               )}
             </div>
+            {hasReqs && (
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {course.reqAttendancePercent > 0 && (
+                  <span className={`${meetsAttendance ? "text-green-600" : "text-red-500"}`}>
+                    נוכחות: {lessonPct}% (דרוש {course.reqAttendancePercent}%) {meetsAttendance ? "✓" : "✗"}
+                  </span>
+                )}
+                {course.reqExamsCount > 0 && (
+                  <span className={`${meetsExams ? "text-green-600" : "text-red-500"}`}>
+                    מבחנים: {course.examCompleted} (דרוש {course.reqExamsCount}) {meetsExams ? "✓" : "✗"}
+                  </span>
+                )}
+                {course.reqGradeAverage > 0 && (
+                  <span className={`${meetsGrades ? "text-green-600" : "text-red-500"}`}>
+                    ממוצע דרוש: {course.reqGradeAverage} {meetsGrades ? "✓" : "✗"}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-center gap-1 shrink-0">
             {course.lessonCount > 0 && (
@@ -204,7 +314,7 @@ function CourseCard({ course }: { course: CourseAcademicData }) {
               <p className="text-center text-sm text-muted-foreground py-4">אין פעילויות בקטגוריה זו</p>
             ) : (
               displayedActivities.map((activity) => (
-                <ActivityRow key={activity.cmid} activity={activity} />
+                <ActivityRow key={activity.cmid} activity={activity} studentId={studentId} courseId={course.courseId} onUpdate={onUpdate} />
               ))
             )}
           </div>
@@ -219,7 +329,7 @@ export function AcademicOverview({ studentId }: { studentId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchOverview = () => {
     fetch(`/api/students/${studentId}/academic`)
       .then((r) => r.json())
       .then((d) => {
@@ -230,6 +340,10 @@ export function AcademicOverview({ studentId }: { studentId: string }) {
         setError("שגיאה בטעינת נתוני לימודים");
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchOverview();
   }, [studentId]);
 
   if (loading) {
@@ -296,7 +410,7 @@ export function AcademicOverview({ studentId }: { studentId: string }) {
       {/* Per-course breakdown */}
       <div className="space-y-3">
         {data.map((course) => (
-          <CourseCard key={course.courseId} course={course} />
+          <CourseCard key={course.courseId} course={course} studentId={studentId} onUpdate={fetchOverview} />
         ))}
       </div>
     </div>

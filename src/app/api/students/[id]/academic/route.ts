@@ -46,6 +46,7 @@ interface ActivityItem {
   grade?: number | null;
   gradeMax?: number | null;
   gradePercentage?: number | null;
+  isOverride?: boolean;
 }
 
 interface CourseAcademicData {
@@ -57,6 +58,9 @@ interface CourseAcademicData {
   lessonCompleted: number;
   examCount: number;
   examCompleted: number;
+  reqExamsCount: number;
+  reqGradeAverage: number;
+  reqAttendancePercent: number;
 }
 
 function classifyActivity(name: string, modname: string): { type: ActivityItem["type"]; isRealExam: boolean } {
@@ -113,6 +117,31 @@ export async function GET(
   }
 
   const results: CourseAcademicData[] = [];
+
+  // Fetch overrides from DB for this student
+  const gradesOverride = await prisma.grade.findMany({
+    where: { studentId: id, moodleCmId: { not: null } },
+  });
+  const attendanceOverride = await prisma.attendance.findMany({
+    where: { studentId: id, moodleCmId: { not: null } },
+  });
+
+  const gradeOverridesMap = new Map<number, { grade: number; maxGrade: number }>();
+  for (const go of gradesOverride) {
+    if (go.moodleCmId && go.scoreOverride !== null) {
+      gradeOverridesMap.set(go.moodleCmId, {
+        grade: go.scoreOverride,
+        maxGrade: go.maxScore || 100,
+      });
+    }
+  }
+
+  const attendanceOverridesMap = new Map<number, boolean>();
+  for (const ao of attendanceOverride) {
+    if (ao.moodleCmId && ao.statusOverride) {
+      attendanceOverridesMap.set(ao.moodleCmId, ao.statusOverride === "present");
+    }
+  }
 
   for (const enrollment of student.enrollments) {
     const course = enrollment.course;
@@ -200,9 +229,38 @@ export async function GET(
         if (mod.completion === 0) continue; // skip activities with no completion tracking
 
         const { type, isRealExam } = classifyActivity(mod.name, mod.modname);
+        
+        // Moodle Data
         const completion = completionMap.get(mod.id);
-        const completed = completion ? completion.state >= 1 : false;
-        const gradeData = gradeItems[mod.id];
+        let completed = completion ? completion.state >= 1 : false;
+        let completedAt = completion?.timecompleted || null;
+        const moodleGradeData = gradeItems[mod.id];
+        
+        let grade = moodleGradeData?.grade ?? null;
+        let gradeMax = moodleGradeData?.gradeMax ?? null;
+        let gradePercentage = moodleGradeData?.percentage ?? null;
+        let isOverride = false;
+
+        // Apply Overrides from DB
+        if (type === "lesson") {
+          if (attendanceOverridesMap.has(mod.id)) {
+            completed = attendanceOverridesMap.get(mod.id) ?? false;
+            completedAt = completed ? Math.floor(Date.now() / 1000) : null;
+            isOverride = true;
+          }
+        } else if (type === "exam") {
+          if (gradeOverridesMap.has(mod.id)) {
+            const overrideData = gradeOverridesMap.get(mod.id);
+            if (overrideData) {
+              grade = overrideData.grade;
+              gradeMax = overrideData.maxGrade;
+              gradePercentage = overrideData.maxGrade ? (grade / overrideData.maxGrade) * 100 : null;
+              completed = gradePercentage !== null && gradePercentage >= 60; // Assumed passing grade for UI
+              completedAt = completed ? Math.floor(Date.now() / 1000) : null;
+              isOverride = true;
+            }
+          }
+        }
 
         activities.push({
           cmid: mod.id,
@@ -211,10 +269,11 @@ export async function GET(
           type,
           isRealExam,
           completed,
-          completedAt: completion?.timecompleted || null,
-          grade: gradeData?.grade ?? null,
-          gradeMax: gradeData?.gradeMax ?? null,
-          gradePercentage: gradeData?.percentage ?? null,
+          completedAt,
+          grade,
+          gradeMax,
+          gradePercentage,
+          isOverride,
         });
       }
     }
@@ -232,6 +291,9 @@ export async function GET(
       lessonCompleted: lessons.filter((l) => l.completed).length,
       examCount: exams.length,
       examCompleted: exams.filter((e) => e.completed).length,
+      reqExamsCount: course.reqExamsCount,
+      reqGradeAverage: course.reqGradeAverage,
+      reqAttendancePercent: course.reqAttendancePercent,
     });
   }
 

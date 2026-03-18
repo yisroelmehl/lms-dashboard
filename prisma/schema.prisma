@@ -170,6 +170,11 @@ model Course {
   description String?
   isActive    Boolean @default(true)
 
+  // Graduation Requirements
+  reqExamsCount       Int   @default(0)
+  reqGradeAverage     Float @default(0)
+  reqAttendancePercent Float @default(0)
+
   moodleRawData Json?
   lastSyncedAt  DateTime?
   createdAt     DateTime  @default(now())
@@ -343,6 +348,7 @@ model Grade {
   comments  String?
 
   moodleGradeId Int?
+  moodleCmId    Int?
   moodleRawData Json?
 
   lastSyncedAt DateTime?
@@ -373,6 +379,7 @@ model Attendance {
   statusOverride AttendanceStatus?
   statusSource   DataSource        @default(manual)
 
+  moodleCmId Int?
   comments   String?
   recordedBy String?
 

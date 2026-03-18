@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useState, FormEvent } from "react";
 
 interface FiltersProps {
   courses: { id: string; name: string }[];
@@ -12,46 +12,41 @@ export function StudentsFilters({ courses, groups }: FiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const currentSearch = searchParams.get("q") || "";
-  const currentCourse = searchParams.get("course") || "";
-  const currentGroup = searchParams.get("group") || "";
+  const [q, setQ] = useState(searchParams.get("q") || "");
+  const [course, setCourse] = useState(searchParams.get("course") || "");
+  const [group, setGroup] = useState(searchParams.get("group") || "");
 
-  const updateFilter = useCallback(
-    (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-      // Reset group when course changes
-      if (key === "course") {
-        params.delete("group");
-      }
-      router.push(`/students?${params.toString()}`);
-    },
-    [router, searchParams]
-  );
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (course) params.set("course", course);
+    if (group) params.set("group", group);
+    
+    router.push(`/students?${params.toString()}`);
+  };
+
+  const handleClear = () => {
+    setQ("");
+    setCourse("");
+    setGroup("");
+    router.push("/students");
+  };
 
   // Filter groups by selected course
-  const filteredGroups = currentCourse
-    ? groups.filter((g) => g.courseName === courses.find((c) => c.id === currentCourse)?.name)
+  const filteredGroups = course
+    ? groups.filter((g) => g.courseName === courses.find((c) => c.id === course)?.name)
     : groups;
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-3">
       {/* Search */}
       <div className="relative flex-1 min-w-[200px]">
         <input
           type="text"
           placeholder="חיפוש לפי שם, אימייל..."
-          defaultValue={currentSearch}
-          onChange={(e) => {
-            // Debounce search
-            const value = e.target.value;
-            const timeout = setTimeout(() => updateFilter("q", value), 300);
-            return () => clearTimeout(timeout);
-          }}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
           className="w-full rounded-md border border-input bg-background px-3 py-2 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -61,8 +56,11 @@ export function StudentsFilters({ courses, groups }: FiltersProps) {
 
       {/* Course filter */}
       <select
-        value={currentCourse}
-        onChange={(e) => updateFilter("course", e.target.value)}
+        value={course}
+        onChange={(e) => {
+          setCourse(e.target.value);
+          setGroup(""); // Reset group when course changes
+        }}
         className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       >
         <option value="">כל הקורסים</option>
@@ -75,8 +73,8 @@ export function StudentsFilters({ courses, groups }: FiltersProps) {
 
       {/* Group filter */}
       <select
-        value={currentGroup}
-        onChange={(e) => updateFilter("group", e.target.value)}
+        value={group}
+        onChange={(e) => setGroup(e.target.value)}
         className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       >
         <option value="">כל הקבוצות</option>
@@ -87,15 +85,24 @@ export function StudentsFilters({ courses, groups }: FiltersProps) {
         ))}
       </select>
 
+      {/* Submit Button */}
+      <button
+        type="submit"
+        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+      >
+        סנן
+      </button>
+
       {/* Clear filters */}
-      {(currentSearch || currentCourse || currentGroup) && (
+      {(searchParams.get("q") || searchParams.get("course") || searchParams.get("group")) && (
         <button
-          onClick={() => router.push("/students")}
+          type="button"
+          onClick={handleClear}
           className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
         >
           נקה סינון ✕
         </button>
       )}
-    </div>
+    </form>
   );
 }
