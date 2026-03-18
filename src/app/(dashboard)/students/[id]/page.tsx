@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveField, formatDateHe } from "@/lib/utils";
 import { AcademicOverview } from "@/components/students/academic-overview";
 import { StudentAdminClassification } from "@/components/students/student-admin-classification";
+import { StudentSemesterEnrollments } from "@/components/students/student-semester-enrollments";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,15 @@ export default async function StudentDetailPage({
     include: {
       enrollments: {
         include: {
-          course: true,
+          course: {
+            include: {
+              semesters: { orderBy: { sortOrder: "asc" } },
+            },
+          },
           classGroup: true,
         },
       },
+      semesterEnrollments: true,
       grades: {
         include: { course: true, syllabusItem: true },
         orderBy: { createdAt: "desc" },
@@ -155,58 +161,81 @@ export default async function StudentDetailPage({
             {student.enrollments.map((enrollment) => (
               <div
                 key={enrollment.id}
-                className="flex items-center justify-between rounded-md border border-border p-3"
+                className="flex flex-col gap-2 rounded-md border border-border p-3"
               >
-                <div>
-                  <p className="text-sm font-medium">
-                    {resolveField(
-                      enrollment.course.fullNameMoodle,
-                      enrollment.course.fullNameOverride
-                    )}
-                  </p>
-                  {enrollment.classGroup && (
-                    <p className="text-xs text-muted-foreground">
-                      {enrollment.classGroup.name}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {resolveField(
+                        enrollment.course.fullNameMoodle,
+                        enrollment.course.fullNameOverride
+                      )}
                     </p>
-                  )}
-                </div>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${
-                    (resolveField(
+                    {enrollment.classGroup && (
+                      <p className="text-xs text-muted-foreground">
+                        {enrollment.classGroup.name}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      (resolveField(
+                        enrollment.statusMoodle,
+                        enrollment.statusOverride
+                      ) ?? "active") === "active"
+                        ? "bg-green-100 text-green-700"
+                        : (resolveField(
+                            enrollment.statusMoodle,
+                            enrollment.statusOverride
+                          )) === "completed"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {(resolveField(
                       enrollment.statusMoodle,
                       enrollment.statusOverride
                     ) ?? "active") === "active"
-                      ? "bg-green-100 text-green-700"
+                      ? "פעיל"
                       : (resolveField(
                           enrollment.statusMoodle,
                           enrollment.statusOverride
                         )) === "completed"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {(resolveField(
-                    enrollment.statusMoodle,
-                    enrollment.statusOverride
-                  ) ?? "active") === "active"
-                    ? "פעיל"
-                    : (resolveField(
-                        enrollment.statusMoodle,
-                        enrollment.statusOverride
-                      )) === "completed"
-                    ? "סיים"
-                    : (resolveField(
-                        enrollment.statusMoodle,
-                        enrollment.statusOverride
-                      )) === "withdrawn"
-                    ? "פרש"
-                    : "מושעה"}
-                </span>
+                      ? "סיים"
+                      : (resolveField(
+                          enrollment.statusMoodle,
+                          enrollment.statusOverride
+                        )) === "withdrawn"
+                      ? "פרש"
+                      : "מושעה"}
+                  </span>
+                </div>
+                
+                {/* Semester breakdown for this enrollment */}
+                <StudentSemesterEnrollments 
+                  studentId={student.id} 
+                  enrollmentId={enrollment.id} 
+                  courseId={enrollment.course.id} 
+                  courseName={resolveField(enrollment.course.fullNameMoodle, enrollment.course.fullNameOverride) || "קורס כללי"}
+                  semesters={enrollment.course.semesters.map(s => {
+                    const se = student.semesterEnrollments.find(se => se.semesterId === s.id && se.enrollmentId === enrollment.id);
+                    return {
+                      id: s.id,
+                      name: s.name,
+                      sortOrder: s.sortOrder,
+                      enrollment: se ? {
+                        id: se.id,
+                        status: se.status,
+                        joinedAt: se.joinedAt ? se.joinedAt.toISOString() : null,
+                      } : undefined
+                    };
+                  })}
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+    </div>
 
       {/* Academic Overview from Moodle */}
       <AcademicOverview studentId={id} />

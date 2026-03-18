@@ -28,6 +28,7 @@ interface CourseAcademicData {
   reqExamsCount: number;
   reqGradeAverage: number;
   reqAttendancePercent: number;
+  activeSemestersCount?: number;
 }
 
 function ProgressBar({ value, max, color = "blue" }: { value: number; max: number; color?: string }) {

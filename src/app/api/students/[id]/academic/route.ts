@@ -61,6 +61,7 @@ interface CourseAcademicData {
   reqExamsCount: number;
   reqGradeAverage: number;
   reqAttendancePercent: number;
+  activeSemestersCount?: number;
 }
 
 function classifyActivity(name: string, modname: string): { type: ActivityItem["type"]; isRealExam: boolean } {
@@ -105,6 +106,7 @@ export async function GET(
         include: { course: true },
         where: { course: { moodleCourseId: { not: null } } },
       },
+      semesterEnrollments: true,
     },
   });
 
@@ -146,6 +148,17 @@ export async function GET(
   for (const enrollment of student.enrollments) {
     const course = enrollment.course;
     if (!course.moodleCourseId) continue;
+
+    // Get active/completed semesters for this student in this course
+    const relevantSemesterIds = new Set(
+      student.semesterEnrollments
+        .filter(se => se.enrollmentId === enrollment.id && (se.status === "active" || se.status === "completed" || se.status === "suspended"))
+        .map(se => se.semesterId)
+    );
+
+    // If the student has specific semester enrollments, we might want to filter activities by semester.
+    // However, Moodle activities don't map directly to semesters strictly in our DB unless we map them via SyllabusItems.
+    // For now, we fetch all activities for the course, but we will pass the relevant semesters count for context.
 
     let sections: MoodleCourseSection[] = [];
     let completionStatuses: MoodleActivityCompletion[] = [];
@@ -294,6 +307,7 @@ export async function GET(
       reqExamsCount: course.reqExamsCount,
       reqGradeAverage: course.reqGradeAverage,
       reqAttendancePercent: course.reqAttendancePercent,
+      activeSemestersCount: relevantSemesterIds.size,
     });
   }
 
