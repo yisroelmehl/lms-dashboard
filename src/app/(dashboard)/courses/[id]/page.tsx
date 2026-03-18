@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
 import { CourseRequirementsForm } from "@/components/courses/course-requirements-form";
+import { CourseSemestersManager } from "@/components/courses/course-semesters-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,12 @@ export default async function CourseDetailPage({
         initialExams={course.reqExamsCount}
         initialGrade={course.reqGradeAverage}
         initialAttendance={course.reqAttendancePercent}
+      />
+
+      {/* Course Semesters Manager */}
+      <CourseSemestersManager 
+        courseId={course.id} 
+        initialSemesters={course.semesters} 
       />
 
       {/* Class Groups */}
