@@ -32,6 +32,7 @@ export function CreateTaskModal({
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState(courseId || "");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(studentId ? [studentId] : []);
+  const [studentSearchInput, setStudentSearchInput] = useState("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -69,6 +70,16 @@ export function CreateTaskModal({
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
   };
+
+  // Filter students based on search input
+  const filteredStudents = students.filter(s => 
+    s.name.toLowerCase().includes(studentSearchInput.toLowerCase())
+  );
+
+  // Get selected student names
+  const selectedStudentNames = students
+    .filter(s => selectedStudentIds.includes(s.id))
+    .map(s => s.name);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +142,10 @@ export function CreateTaskModal({
                 <button
                   key={s}
                   type="button"
-                  onClick={() => setScope(s)}
+                  onClick={() => {
+                    setScope(s);
+                    setStudentSearchInput("");
+                  }}
                   className={`flex-1 py-2 px-3 rounded-md border text-sm font-medium transition-colors ${
                     scope === s
                       ? "bg-blue-600 text-white border-blue-600"
@@ -144,24 +158,57 @@ export function CreateTaskModal({
             </div>
           </div>
 
-          {/* Student picker */}
+          {/* Student picker with search */}
           {scope === "student" && (
-            <div>
-              <label className="mb-1 block text-sm font-medium">בחר תלמיד/ים</label>
-              <div className="max-h-40 overflow-y-auto border rounded-md divide-y text-sm">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">חפש ובחר תלמיד/ים</label>
+              
+              {/* Search input */}
+              <input
+                type="text"
+                placeholder="הקלד שם תלמיד..."
+                value={studentSearchInput}
+                onChange={(e) => setStudentSearchInput(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring"
+              />
+
+              {/* Selected students display */}
+              {selectedStudentNames.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                  {selectedStudentNames.map((name) => (
+                    <div key={name} className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => toggleStudent(students.find(s => s.name === name)?.id || "")}
+                        className="ml-1 hover:text-blue-200"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Student list */}
+              <div className="max-h-48 overflow-y-auto border rounded-md divide-y text-sm bg-background">
                 {students.length === 0 ? (
                   <p className="p-3 text-muted-foreground">טוען תלמידים...</p>
-                ) : students.map(s => (
-                  <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted">
-                    <input
-                      type="checkbox"
-                      checked={selectedStudentIds.includes(s.id)}
-                      onChange={() => toggleStudent(s.id)}
-                      className="rounded"
-                    />
-                    {s.name}
-                  </label>
-                ))}
+                ) : filteredStudents.length === 0 ? (
+                  <p className="p-3 text-muted-foreground">לא נמצאו תלמידים עם שם זה</p>
+                ) : (
+                  filteredStudents.map(s => (
+                    <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(s.id)}
+                        onChange={() => toggleStudent(s.id)}
+                        className="rounded"
+                      />
+                      {s.name}
+                    </label>
+                  ))
+                )}
               </div>
             </div>
           )}
