@@ -39,7 +39,7 @@ export default async function CoursesPage() {
             return (
               <Link
                 key={course.id}
-                href={`/dashboard/courses/${course.id}`}
+                href={`/courses/${course.id}`}
                 className="rounded-lg border border-border bg-card p-6 transition-shadow hover:shadow-md"
               >
                 <h3 className="text-lg font-semibold">{name}</h3>
