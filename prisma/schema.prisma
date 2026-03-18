@@ -52,6 +52,12 @@ enum ServiceRequestStatus {
   cancelled
 }
 
+enum ServiceRequestSource {
+  web    // created via our web form
+  moodle_webhook  // created via Moodle webhook
+  manual // created by admin
+}
+
 enum EnrollmentStatus {
   active
   suspended
@@ -535,6 +541,7 @@ model ServiceRequest {
   studentId String
   type      ServiceRequestType
   status    ServiceRequestStatus @default(open)
+  source    ServiceRequestSource @default(web)
 
   title       String
   description String?
