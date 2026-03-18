@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { resolveField } from "@/lib/utils";
+import { resolveField, formatDateHe } from "@/lib/utils";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { TaskList } from "@/components/tasks/task-list";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -15,36 +19,22 @@ async function getStats() {
   return { studentCount, courseCount, openTaskCount, openRequestCount };
 }
 
-async function getTodayTasks() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
+async function getMyTasks(adminId: string) {
   return prisma.task.findMany({
     where: {
-      OR: [
-        { status: "open" },
-        { status: "in_progress" },
-        {
-          dueDate: {
-            gte: today,
-            lt: tomorrow,
-          },
-        },
-      ],
+      status: { not: "completed" },
+      assignedToId: adminId,
     },
     include: {
-      students: {
-        include: { student: true },
-      },
-      classGroups: {
-        include: { classGroup: true },
-      },
-      course: true,
+      assignedTo: { select: { name: true } },
+      createdBy: { select: { name: true } },
+      students: { include: { student: { select: { id: true, hebrewName: true, firstNameOverride: true, lastNameOverride: true } } } },
     },
-    orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
-    take: 10,
+    orderBy: [
+      { priority: "desc" },
+      { dueDate: "asc" },
+    ],
+    take: 5,
   });
 }
 
@@ -92,9 +82,12 @@ async function getOpenRequests() {
 }
 
 export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  const adminId = (session?.user as any)?.id;
+
   const [stats, tasks, atRiskStudents, openRequests] = await Promise.all([
     getStats(),
-    getTodayTasks(),
+    getMyTasks(adminId),
     getAtRiskStudents(),
     getOpenRequests(),
   ]);
@@ -123,61 +116,13 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Daily Tasks Widget */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">משימות להיום</h2>
-          {tasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">אין משימות פתוחות</p>
-          ) : (
-            <ul className="space-y-3">
-              {tasks.map((task) => (
-                <li
-                  key={task.id}
-                  className="flex items-start justify-between rounded-md border border-border p-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{task.title}</p>
-                    <div className="mt-1 flex gap-2">
-                      {task.students.map((ts) => (
-                        <span
-                          key={ts.studentId}
-                          className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
-                        >
-                          {resolveField(
-                            ts.student.firstNameMoodle,
-                            ts.student.firstNameOverride
-                          )}
-                        </span>
-                      ))}
-                      {task.classGroups.map((tcg) => (
-                        <span
-                          key={tcg.classGroupId}
-                          className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700"
-                        >
-                          {tcg.classGroup.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      task.priority >= 2
-                        ? "bg-red-100 text-red-700"
-                        : task.priority === 1
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {task.status === "open"
-                      ? "פתוח"
-                      : task.status === "in_progress"
-                      ? "בביצוע"
-                      : task.status === "overdue"
-                      ? "באיחור"
-                      : "הושלם"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-800">המשימות שלי</h2>
+            <Link href="/tasks" className="text-sm text-blue-600 hover:underline font-medium">
+              כל המשימות &larr;
+            </Link>
+          </div>
+          <TaskList tasks={tasks as any} />
         </div>
 
         {/* At-Risk Students Widget */}

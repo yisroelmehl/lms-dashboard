@@ -4,6 +4,9 @@ import { resolveField, formatDateHe } from "@/lib/utils";
 import { AcademicOverview } from "@/components/students/academic-overview";
 import { StudentAdminClassification } from "@/components/students/student-admin-classification";
 import { StudentSemesterEnrollments } from "@/components/students/student-semester-enrollments";
+import { StudentTasks } from "@/components/tasks/student-tasks";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +17,9 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await getServerSession(authOptions);
+  const adminId = (session?.user as any)?.id;
+
   const student = await prisma.student.findUnique({
     where: { id },
     include: {
@@ -38,6 +44,18 @@ export default async function StudentDetailPage({
       },
       serviceRequests: {
         orderBy: { createdAt: "desc" },
+      },
+      tasks: {
+        include: {
+          task: {
+            include: {
+              assignedTo: { select: { name: true } },
+              createdBy: { select: { name: true } },
+              students: { include: { student: { select: { hebrewName: true, firstNameOverride: true, lastNameOverride: true } } } },
+            }
+          }
+        },
+        orderBy: { task: { createdAt: "desc" } }
       },
       studentNotes: {
         include: { author: true },
@@ -304,6 +322,13 @@ export default async function StudentDetailPage({
           </table>
         )}
       </div>
+
+      {/* Tasks */}
+      <StudentTasks 
+        studentId={id} 
+        adminId={adminId} 
+        tasks={student.tasks.map(t => t.task)} 
+      />
 
       {/* Service Requests */}
       <div className="rounded-lg border border-border bg-card p-6">
