@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PaymentSyncForm } from "@/components/settings/payment-sync-form";
 
 export default function SettingsPage() {
   const [syncing, setSyncing] = useState(false);
@@ -98,6 +99,8 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      <PaymentSyncForm />
     </div>
   );
 }

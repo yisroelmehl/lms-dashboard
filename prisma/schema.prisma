@@ -124,12 +124,25 @@ model Student {
   idNumberOverride String?
   idNumberSource   DataSource @default(moodle)
 
-  // Local-only fields
-  hebrewName  String?
-  city        String?
-  address     String?
-  dateOfBirth DateTime?
-  notes       String?
+  // Local-only fields (from manual form)
+  hebrewName         String?
+  city               String?
+  address            String?
+  dateOfBirth        DateTime?
+  torahBackground    String? // רקע תורני
+  smichaBackground   String? // רקע בסמיכה
+  studyPreferences   String? // העדפות לימוד
+  hasChavrusa        Boolean @default(false) // האם יש חברותא
+  participationType  String? // אופן השתתפות: פיזי / זום / משולב
+  notes              String?
+
+  // Admin-only classification fields
+  sector             String? // מגזר
+  studyLevel         String? // רמת לימודים (מתקשה, רגיל, מצוין)
+  engagementLevel    String? // רמת פעילות והשתתפות (גבוהה, בינונית, נמוכה)
+  paymentStatus      String? // סטטוס תשלום (תקין, בפיגור, פטור)
+  monthlyPayment     Float?  // תשלום חודשי מדווח (אקסל)
+  paymentNotes       String? // הערות תשלום
 
   // Moodle metadata
   moodleUsername   String?

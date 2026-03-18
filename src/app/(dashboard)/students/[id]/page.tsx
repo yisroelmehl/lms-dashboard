@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveField, formatDateHe } from "@/lib/utils";
 import { AcademicOverview } from "@/components/students/academic-overview";
+import { StudentAdminClassification } from "@/components/students/student-admin-classification";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,16 @@ export default async function StudentDetailPage({
   const email = resolveField(student.emailMoodle, student.emailOverride);
   const phone = resolveField(student.phoneMoodle, student.phoneOverride);
 
+  const adminStudentInfo = {
+    id: student.id,
+    sector: student.sector,
+    studyLevel: student.studyLevel,
+    engagementLevel: student.engagementLevel,
+    paymentStatus: student.paymentStatus,
+    monthlyPayment: student.monthlyPayment,
+    paymentNotes: student.paymentNotes,
+  };
+
   return (
     <div className="space-y-6">
       {/* Student Header */}
@@ -65,13 +77,18 @@ export default async function StudentDetailPage({
                 {firstName} {lastName}
               </p>
             )}
+            <div className="mt-2 text-xs">
+              <Link href={`/public/register/${student.id}`} target="_blank" className="text-blue-600 hover:underline">
+                [העתק קישור לטופס עדכון פרטים לתלמיד]
+              </Link>
+            </div>
           </div>
           <div className="flex gap-2">
             <SourceBadge source={student.firstNameSource} />
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
           <InfoField
             label="אימייל"
             value={email}
@@ -94,6 +111,11 @@ export default async function StudentDetailPage({
             dir="ltr"
           />
           <InfoField label="עיר" value={student.city} />
+          <InfoField label="כתובת מלאה" value={student.address} />
+          <InfoField label="תאריך לידה" value={student.dateOfBirth ? formatDateHe(student.dateOfBirth) : null} />
+          <InfoField label="אופן השתתפות" value={student.participationType} />
+          <InfoField label="חברותא" value={student.hasChavrusa ? "יש חברותא" : "אין / מבקש שידוך"} />
+          
           {student.moodleLastAccess && (
             <InfoField
               label="גישה אחרונה למודל"
@@ -101,7 +123,27 @@ export default async function StudentDetailPage({
             />
           )}
         </div>
+        
+        {(student.torahBackground || student.smichaBackground || student.studyPreferences) && (
+          <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-3 gap-6 text-sm bg-slate-50 p-4 rounded">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1">רקע תורני</p>
+              <p className="whitespace-pre-wrap">{student.torahBackground || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1">רקע בסמיכה/רבנות</p>
+              <p className="whitespace-pre-wrap">{student.smichaBackground || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1">העדפות לימוד</p>
+              <p className="whitespace-pre-wrap">{student.studyPreferences || "—"}</p>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Admin Classification Details */}
+      <StudentAdminClassification student={adminStudentInfo} />
 
       {/* Enrollments */}
       <div className="rounded-lg border border-border bg-card p-6">
