@@ -47,6 +47,7 @@ interface ActivityItem {
   gradeMax?: number | null;
   gradePercentage?: number | null;
   isOverride?: boolean;
+  syllabusItemId?: string;
 }
 
 interface CourseAcademicData {
@@ -149,6 +150,14 @@ export async function GET(
     const course = enrollment.course;
     if (!course.moodleCourseId) continue;
 
+    // Fetch Syllabus Items for this course
+    const syllabusItems = await prisma.syllabusItem.findMany({
+      where: { courseId: course.id },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    const hasSyllabus = syllabusItems.length > 0;
+
     // Get active/completed semesters for this student in this course
     const relevantSemesterIds = new Set(
       student.semesterEnrollments
@@ -234,51 +243,73 @@ export async function GET(
       completionMap.set(cs.cmid, cs);
     }
 
-    // Flatten all modules from sections
-    const activities: ActivityItem[] = [];
+    // Flatten all modules from sections into a quick map
+    const moodleModulesMap = new Map<number, any>();
     for (const section of sections) {
       for (const mod of section.modules || []) {
-        if (mod.visible === 0) continue; // skip hidden modules
-        if (mod.completion === 0) continue; // skip activities with no completion tracking
+        if (mod.visible === 1 && mod.completion > 0) {
+          moodleModulesMap.set(mod.id, { ...mod, sectionName: section.name });
+        }
+      }
+    }
 
-        const { type, isRealExam } = classifyActivity(mod.name, mod.modname);
-        
-        // Moodle Data
-        const completion = completionMap.get(mod.id);
-        let completed = completion ? completion.state >= 1 : false;
-        let completedAt = completion?.timecompleted || null;
-        const moodleGradeData = gradeItems[mod.id];
-        
-        let grade = moodleGradeData?.grade ?? null;
-        let gradeMax = moodleGradeData?.gradeMax ?? null;
-        let gradePercentage = moodleGradeData?.percentage ?? null;
+    const activities: ActivityItem[] = [];
+
+    if (hasSyllabus) {
+      // Use the Syllabus as the source of truth
+      for (const sItem of syllabusItems) {
+        const type = sItem.type as ActivityItem["type"];
+        const isRealExam = type === "exam"; // if it's in syllabus as exam, it's real
+        let completed = false;
+        let completedAt = null;
+        let grade = null;
+        let gradeMax = sItem.maxScore || 100;
+        let gradePercentage = null;
         let isOverride = false;
+        let cmid = sItem.moodleCmId || 0; // Use 0 for unmapped things so we can still show them
 
-        // Apply Overrides from DB
-        if (type === "lesson") {
-          if (attendanceOverridesMap.has(mod.id)) {
-            completed = attendanceOverridesMap.get(mod.id) ?? false;
-            completedAt = completed ? Math.floor(Date.now() / 1000) : null;
-            isOverride = true;
-          }
-        } else if (type === "exam") {
-          if (gradeOverridesMap.has(mod.id)) {
-            const overrideData = gradeOverridesMap.get(mod.id);
-            if (overrideData) {
-              grade = overrideData.grade;
-              gradeMax = overrideData.maxGrade;
-              gradePercentage = overrideData.maxGrade ? (grade / overrideData.maxGrade) * 100 : null;
-              completed = gradePercentage !== null && gradePercentage >= 60; // Assumed passing grade for UI
-              completedAt = completed ? Math.floor(Date.now() / 1000) : null;
-              isOverride = true;
+        // Process Moodle data if mapped
+        if (sItem.isMapped && sItem.moodleCmId) {
+          const mod = moodleModulesMap.get(sItem.moodleCmId);
+          if (mod) {
+            const completion = completionMap.get(sItem.moodleCmId);
+            completed = completion ? completion.state >= 1 : false;
+            completedAt = completion?.timecompleted || null;
+            
+            const moodleGradeData = gradeItems[sItem.moodleCmId];
+            if (moodleGradeData) {
+              grade = moodleGradeData.grade ?? null;
+              gradeMax = sItem.maxScore || moodleGradeData.gradeMax || 100;
+              gradePercentage = moodleGradeData.percentage ?? null;
             }
           }
         }
 
+        // Apply Overrides from DB (Overrides take precedence over Moodle)
+        // For attendance
+        if (type === "lesson" && sItem.moodleCmId && attendanceOverridesMap.has(sItem.moodleCmId)) {
+          completed = attendanceOverridesMap.get(sItem.moodleCmId) ?? false;
+          completedAt = completed ? Math.floor(Date.now() / 1000) : null;
+          isOverride = true;
+        } 
+        
+        // For grades
+        if (type === "exam" && sItem.moodleCmId && gradeOverridesMap.has(sItem.moodleCmId)) {
+          const overrideData = gradeOverridesMap.get(sItem.moodleCmId);
+          if (overrideData) {
+            grade = overrideData.grade;
+            gradeMax = overrideData.maxGrade;
+            gradePercentage = overrideData.maxGrade ? (grade / overrideData.maxGrade) * 100 : null;
+            completed = gradePercentage !== null && gradePercentage >= 60;
+            completedAt = completed ? Math.floor(Date.now() / 1000) : null;
+            isOverride = true;
+          }
+        }
+
         activities.push({
-          cmid: mod.id,
-          name: mod.name,
-          modname: mod.modname,
+          cmid: cmid, // We need cmid for updating
+          name: sItem.title,
+          modname: sItem.moodleActivityType || "",
           type,
           isRealExam,
           completed,
@@ -287,7 +318,63 @@ export async function GET(
           gradeMax,
           gradePercentage,
           isOverride,
+          syllabusItemId: sItem.id, // track it
         });
+      }
+    } else {
+      // Fallback to extracting everything from Moodle (the old way)
+      for (const section of sections) {
+        for (const mod of section.modules || []) {
+          if (mod.visible === 0) continue;
+          if (mod.completion === 0) continue;
+
+          const { type, isRealExam } = classifyActivity(mod.name, mod.modname);
+          
+          const completion = completionMap.get(mod.id);
+          let completed = completion ? completion.state >= 1 : false;
+          let completedAt = completion?.timecompleted || null;
+          const moodleGradeData = gradeItems[mod.id];
+          
+          let grade = moodleGradeData?.grade ?? null;
+          let gradeMax = moodleGradeData?.gradeMax ?? null;
+          let gradePercentage = moodleGradeData?.percentage ?? null;
+          let isOverride = false;
+
+          // Apply Overrides from DB
+          if (type === "lesson") {
+            if (attendanceOverridesMap.has(mod.id)) {
+              completed = attendanceOverridesMap.get(mod.id) ?? false;
+              completedAt = completed ? Math.floor(Date.now() / 1000) : null;
+              isOverride = true;
+            }
+          } else if (type === "exam") {
+            if (gradeOverridesMap.has(mod.id)) {
+              const overrideData = gradeOverridesMap.get(mod.id);
+              if (overrideData) {
+                grade = overrideData.grade;
+                gradeMax = overrideData.maxGrade;
+                gradePercentage = overrideData.maxGrade ? (grade / overrideData.maxGrade) * 100 : null;
+                completed = gradePercentage !== null && gradePercentage >= 60; // Assumed passing grade for UI
+                completedAt = completed ? Math.floor(Date.now() / 1000) : null;
+                isOverride = true;
+              }
+            }
+          }
+
+          activities.push({
+            cmid: mod.id,
+            name: mod.name,
+            modname: mod.modname,
+            type,
+            isRealExam,
+            completed,
+            completedAt,
+            grade,
+            gradeMax,
+            gradePercentage,
+            isOverride,
+          });
+        }
       }
     }
 

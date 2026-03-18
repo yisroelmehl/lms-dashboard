@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
 import { CourseRequirementsForm } from "@/components/courses/course-requirements-form";
 import { CourseSemestersManager } from "@/components/courses/course-semesters-manager";
+import { CourseSyllabusManager } from "@/components/courses/course-syllabus-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function CourseDetailPage({
     where: { id },
     include: {
       semesters: { orderBy: { sortOrder: "asc" } },
+      syllabusItems: { orderBy: { sortOrder: "asc" } },
       classGroups: {
         include: {
           enrollments: {
@@ -87,6 +89,13 @@ export default async function CourseDetailPage({
       <CourseSemestersManager 
         courseId={course.id} 
         initialSemesters={course.semesters} 
+      />
+
+      {/* Course Syllabus Manager */}
+      <CourseSyllabusManager
+        courseId={course.id}
+        semesters={course.semesters}
+        initialItems={course.syllabusItems}
       />
 
       {/* Class Groups */}

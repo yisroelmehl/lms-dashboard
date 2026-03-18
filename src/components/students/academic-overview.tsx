@@ -14,6 +14,7 @@ interface ActivityItem {
   gradeMax: number | null;
   gradePercentage: number | null;
   isOverride?: boolean;
+  syllabusItemId?: string;
 }
 
 interface CourseAcademicData {
@@ -93,6 +94,10 @@ function ActivityRow({ activity, studentId, courseId, onUpdate }: { activity: Ac
     : "📄";
 
   async function handleToggleAttendance() {
+    if (!activity.cmid) {
+      alert("פעילות זו לא מופתה למודל. אנא בצע מיפוי קודם כדי לעדכן נוכחות.");
+      return;
+    }
     try {
       await fetch(`/api/students/${studentId}/academic/override`, {
         method: "POST",
@@ -111,6 +116,11 @@ function ActivityRow({ activity, studentId, courseId, onUpdate }: { activity: Ac
   }
 
   async function handleSaveGrade() {
+    if (!activity.cmid) {
+      alert("מבחן זה לא מופה למודל. אנא בצע מיפוי קודם כדי להזין ציונים.");
+      setIsEditing(false);
+      return;
+    }
     try {
       await fetch(`/api/students/${studentId}/academic/override`, {
         method: "POST",
@@ -135,6 +145,7 @@ function ActivityRow({ activity, studentId, courseId, onUpdate }: { activity: Ac
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm" title={activity.name}>
           {activity.name} {activity.isOverride && <span className="text-[10px] text-amber-600 font-medium ml-1 bg-amber-100 px-1 rounded">ידני</span>}
+          {activity.cmid === 0 && <span className="text-[10px] text-slate-500 font-medium ml-1 bg-slate-100 px-1 rounded">לא מופה למודל</span>}
         </p>
         {activity.completedAt && activity.completedAt > 0 && (
           <p className="text-xs text-muted-foreground">
@@ -314,8 +325,8 @@ function CourseCard({ course, studentId, onUpdate }: { course: CourseAcademicDat
             {displayedActivities.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-4">אין פעילויות בקטגוריה זו</p>
             ) : (
-              displayedActivities.map((activity) => (
-                <ActivityRow key={activity.cmid} activity={activity} studentId={studentId} courseId={course.courseId} onUpdate={onUpdate} />
+              displayedActivities.map((activity, i) => (
+                <ActivityRow key={activity.syllabusItemId || activity.cmid || i} activity={activity} studentId={studentId} courseId={course.courseId} onUpdate={onUpdate} />
               ))
             )}
           </div>
