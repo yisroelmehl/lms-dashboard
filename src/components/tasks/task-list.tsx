@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { formatDateHe } from "@/lib/utils";
 
 interface Task {
@@ -9,10 +10,12 @@ interface Task {
   title: string;
   description: string | null;
   status: string; // 'open', 'in_progress', 'completed', 'overdue'
+  scope: string; // 'general', 'student', 'course'
   priority: number;
   dueDate: string | null;
   createdAt: string;
   students: { student: { id: string; hebrewName: string | null; firstNameOverride: string | null; lastNameOverride: string | null } }[];
+  course: { id: string; fullNameMoodle: string | null; fullNameOverride: string | null } | null;
   createdBy: { name: string };
   assignedTo: { name: string };
 }
@@ -84,11 +87,35 @@ export function TaskList({ tasks, isAdminView = false }: { tasks: Task[], isAdmi
                   </span>
                 </div>
               )}
-              
-              {task.students && task.students.length > 0 && (
-                <div className="flex items-center gap-1">
+
+              {/* Student links */}
+              {task.scope === 'student' && task.students && task.students.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
                   <span className="text-slate-400">👤</span>
-                  {task.students.map(s => s.student.hebrewName || `${s.student.firstNameOverride} ${s.student.lastNameOverride}`).join(", ")}
+                  {task.students.map((s, i) => (
+                    <span key={s.student.id}>
+                      <Link
+                        href={`/students/${s.student.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {s.student.hebrewName || `${s.student.firstNameOverride || ""} ${s.student.lastNameOverride || ""}`.trim()}
+                      </Link>
+                      {i < task.students.length - 1 && ", "}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Course link */}
+              {task.scope === 'course' && task.course && (
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400">📚</span>
+                  <Link
+                    href={`/courses/${task.course.id}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {task.course.fullNameOverride || task.course.fullNameMoodle}
+                  </Link>
                 </div>
               )}
 

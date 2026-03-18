@@ -1,5 +1,33 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const students = await prisma.student.findMany({
+      select: {
+        id: true,
+        hebrewName: true,
+        firstNameMoodle: true,
+        firstNameOverride: true,
+        lastNameMoodle: true,
+        lastNameOverride: true,
+      },
+      orderBy: [{ hebrewName: "asc" }, { firstNameMoodle: "asc" }],
+    });
+
+    return NextResponse.json({ students });
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    return NextResponse.json({ error: "שגיאה בטעינת תלמידים" }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   try {
