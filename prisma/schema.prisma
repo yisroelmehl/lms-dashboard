@@ -122,12 +122,17 @@ model Lecturer {
   email     String?
   phone     String?
   
+  // Payment settings
+  baseRatePerLesson Float @default(0) // תעריף בסיס לשיעור
+  bonusRate         Float @default(0) // תוספת קבועה / נסיעות
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   admin       Admin?     @relation(fields: [adminId], references: [id])
   mainCourses Course[]   @relation("CourseMainLecturer")
   semesters   Semester[] @relation("SemesterLecturer")
+  lessons     SyllabusItem[] @relation("LessonLecturer")
   
   @@map("lecturers")
 }
@@ -374,6 +379,12 @@ model SyllabusItem {
   moodleCmId         Int?
   moodleActivityType String?
   isMapped           Boolean @default(false)
+  
+  // Specific to lessons (מפגשים)
+  lecturerId         String?
+  lecturer           Lecturer? @relation("LessonLecturer", fields: [lecturerId], references: [id])
+  paymentBonus       Float @default(0) // תוספת תשלום מיוחדת לשיעור זה בלבד
+  paymentStatus      String? // paid, pending, cancelled
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
