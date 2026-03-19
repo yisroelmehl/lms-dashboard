@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
+import Link from "next/link";
+import { LecturersHeader } from "@/components/lecturers/lecturers-header";
 
 export const dynamic = "force-dynamic";
 
@@ -117,9 +119,7 @@ export default async function LecturersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">סגל המרצים</h1>
-      </div>
+      <LecturersHeader />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-lg border border-border bg-blue-50/50 p-4">
@@ -161,7 +161,7 @@ export default async function LecturersPage() {
                 lecturerStats.map((l) => (
                   <tr key={l.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                     <td className="p-4">
-                      <div className="font-medium">{l.name}</div>
+                      <Link href={`/lecturers/${l.id}`} className="font-medium text-blue-600 hover:underline">{l.name}</Link>
                       {(l.email || l.phone) && (
                         <div className="text-xs text-muted-foreground mt-1">
                           {l.email && <span>{l.email}</span>}
