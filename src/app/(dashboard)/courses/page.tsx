@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
+import { CoursesHeader } from "@/components/courses/courses-header";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,12 @@ export default async function CoursesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">קורסים</h1>
+      <CoursesHeader />
 
       {courses.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center">
           <p className="text-muted-foreground">
-            אין קורסים. בצע סנכרון מהמודל כדי לייבא קורסים.
+            אין קורסים. ייבא קורסים מהמודל באמצעות הכפתור למעלה.
           </p>
         </div>
       ) : (
