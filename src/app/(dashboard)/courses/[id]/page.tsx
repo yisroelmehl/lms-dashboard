@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
-import { CourseRequirementsForm } from "@/components/courses/course-requirements-form";
-import { CourseSemestersManager } from "@/components/courses/course-semesters-manager";
-import { CourseSyllabusManager } from "@/components/courses/course-syllabus-manager";
+import Link from "next/link";
+import { TaskList } from "@/components/tasks/task-list";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +17,7 @@ export default async function CourseDetailPage({
       where: { id },
       include: {
         semesters: { orderBy: { sortOrder: "asc" } },
-        syllabusItems: { orderBy: { sortOrder: "asc" } },
+        mainLecturer: true,
         classGroups: {
           include: {
             enrollments: {
@@ -37,6 +36,12 @@ export default async function CourseDetailPage({
           orderBy: { startDate: "asc" },
           take: 5,
         },
+        tasks: {
+          where: { status: { not: "completed" } },
+          include: { assignedTo: true, createdBy: true, students: { include: { student: true } } },
+          orderBy: { dueDate: "asc" },
+          take: 5,
+        }
       },
     });
 
@@ -46,20 +51,42 @@ export default async function CourseDetailPage({
       course.fullNameMoodle,
       course.fullNameOverride
     );
+    
+    const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    
+    // Calculate at-risk students (not accessed in 14 days)
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    
+    const atRiskStudents = course.enrollments.filter(e => {
+      if ((resolveField(e.statusMoodle, e.statusOverride) ?? "active") !== "active") return false;
+      return !e.student.moodleLastAccess || e.student.moodleLastAccess < twoWeeksAgo;
+    });
 
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">{courseName}</h1>
-          <span
-            className={`rounded-full px-3 py-1 text-sm ${
-              course.isActive
-                ? "bg-green-100 text-green-700"
-                : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {course.isActive ? "פעיל" : "לא פעיל"}
-          </span>
+          <div>
+            <h1 className="text-2xl font-bold">{courseName}</h1>
+            <div className="mt-1 flex items-center gap-4 text-sm text-muted-foreground">
+              {course.dayOfWeek !== null && <span>יום {days[course.dayOfWeek]}</span>}
+              {course.hours && <span>{course.hours}</span>}
+              {course.mainLecturer && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  הרב {course.mainLecturer.firstName} {course.mainLecturer.lastName}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link 
+              href={`/dashboard/courses/${course.id}/settings`}
+              className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+            >
+              ⚙️ הגדרות קורס
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}
@@ -78,26 +105,39 @@ export default async function CourseDetailPage({
           </div>
         </div>
 
-        {/* Course Requirements */}
-        <CourseRequirementsForm
-          courseId={course.id}
-          initialExams={course.reqExamsCount}
-          initialGrade={course.reqGradeAverage}
-          initialAttendance={course.reqAttendancePercent}
-        />
+        {/* Widgets Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* At Risk Students */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold mb-4 text-red-700">תלמידים שנעדרו מעל שבועיים ({atRiskStudents.length})</h2>
+            {atRiskStudents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">אין תלמידים בסיכון</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {atRiskStudents.map(e => (
+                  <div key={e.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
+                    <Link href={`/dashboard/students/${e.student.id}`} className="hover:underline font-medium text-blue-600">
+                      {resolveField(e.student.firstNameMoodle, e.student.firstNameOverride)} {resolveField(e.student.lastNameMoodle, e.student.lastNameOverride)}
+                    </Link>
+                    <span className="text-xs text-red-600">
+                      {e.student.moodleLastAccess ? new Date(e.student.moodleLastAccess).toLocaleDateString("he-IL") : "לא התחבר מעולם"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Course Semesters Manager */}
-        <CourseSemestersManager 
-          courseId={course.id} 
-          initialSemesters={course.semesters} 
-        />
-
-        {/* Course Syllabus Manager */}
-        <CourseSyllabusManager
-          courseId={course.id}
-          semesters={course.semesters}
-          initialItems={course.syllabusItems}
-        />
+          {/* Course Tasks */}
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h2 className="text-lg font-semibold mb-4">משימות קורס פתוחות</h2>
+            {course.tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">אין משימות פתוחות לקורס זה</p>
+            ) : (
+              <TaskList tasks={course.tasks as any} />
+            )}
+          </div>
+        </div>
 
       {/* Class Groups */}
       <div className="space-y-4">

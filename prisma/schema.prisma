@@ -81,25 +81,55 @@ enum AttendanceStatus {
   excused
 }
 
+enum AdminRole {
+  admin // מנהל - גישה מלאה
+  rabbi // רב/מרצה - גישה מוגבלת לקורסים שלו
+}
+
 // ============================================================
 // ADMIN USERS
 // ============================================================
 
 model Admin {
-  id             String   @id @default(cuid())
-  email          String   @unique
+  id             String    @id @default(cuid())
+  email          String    @unique
   name           String
   hashedPassword String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  role           AdminRole @default(admin)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   notes                 Note[]
   taskAssignments       Task[]           @relation("AssignedTo")
   tasksCreated          Task[]           @relation("CreatedBy")
   syncLogs              SyncLog[]
   serviceRequestActions ServiceRequest[] @relation("HandledBy")
+  lecturerProfile       Lecturer?
 
   @@map("admins")
+}
+
+// ============================================================
+// LECTURERS (מרצים / רבנים)
+// ============================================================
+
+model Lecturer {
+  id        String   @id @default(cuid())
+  adminId   String?  @unique // Link to Admin user for login/permissions
+  
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  admin       Admin?     @relation(fields: [adminId], references: [id])
+  mainCourses Course[]   @relation("CourseMainLecturer")
+  semesters   Semester[] @relation("SemesterLecturer")
+  
+  @@map("lecturers")
 }
 
 // ============================================================
@@ -191,6 +221,15 @@ model Course {
   description String?
   isActive    Boolean @default(true)
 
+  // Course Settings (Phase 1)
+  dayOfWeek        Int?       // 0-6 (0 = Sunday)
+  startDate        DateTime?  // תאריך התחלה לועזי
+  hebrewStartDate  String?    // תאריך התחלה עברי
+  hours            String?    // שעות (למשל: 18:00-21:00)
+  
+  mainLecturerId   String?
+  mainLecturer     Lecturer?  @relation("CourseMainLecturer", fields: [mainLecturerId], references: [id])
+
   // Graduation Requirements
   reqExamsCount       Int   @default(0)
   reqGradeAverage     Float @default(0)
@@ -224,6 +263,10 @@ model Semester {
   startDate DateTime?
   endDate   DateTime?
   sortOrder Int       @default(0)
+  
+  lecturerId String?
+  lecturer   Lecturer? @relation("SemesterLecturer", fields: [lecturerId], references: [id])
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
