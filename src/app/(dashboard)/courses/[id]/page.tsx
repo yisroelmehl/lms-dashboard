@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveField } from "@/lib/utils";
 import Link from "next/link";
 import { TaskList } from "@/components/tasks/task-list";
+import { CourseProgressTable } from "@/components/courses/course-progress-table";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function CourseDetailPage({
       include: {
         semesters: { orderBy: { sortOrder: "asc" } },
         mainLecturer: true,
+        syllabusItems: { orderBy: { sortOrder: "asc" } },
         classGroups: {
           include: {
             enrollments: {
@@ -47,10 +49,30 @@ export default async function CourseDetailPage({
 
     if (!course) notFound();
 
+    // Fetch activity completions for all students in the course
+    const studentIds = course.enrollments.map((e) => e.studentId);
+    const syllabusItemIds = course.syllabusItems.map((si) => si.id);
+    const activityCompletions = await prisma.activityCompletion.findMany({
+      where: {
+        studentId: { in: studentIds },
+        syllabusItemId: { in: syllabusItemIds },
+      },
+    });
+
     const courseName = resolveField(
       course.fullNameMoodle,
       course.fullNameOverride
     );
+    
+    // Calculate overall course progress (based on syllabus item completions vs total possible)
+    const totalPossibleCompletions = studentIds.length * syllabusItemIds.length;
+    const actualCompletions = activityCompletions.filter((c) => {
+      const state = resolveField(c.completionStateMoodle, c.completionStateOverride);
+      return state === "complete" || state === "complete_with_pass";
+    }).length;
+    const courseProgressPercent = totalPossibleCompletions > 0 
+      ? Math.round((actualCompletions / totalPossibleCompletions) * 100) 
+      : 0;
     
     const days = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
     
@@ -81,7 +103,7 @@ export default async function CourseDetailPage({
           </div>
           <div className="flex items-center gap-2">
             <Link 
-              href={`/dashboard/courses/${course.id}/settings`}
+              href={`/courses/${course.id}/settings`}
               className="rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
             >
               ⚙️ הגדרות קורס
@@ -90,7 +112,7 @@ export default async function CourseDetailPage({
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">תלמידים רשומים</p>
             <p className="text-2xl font-bold">{course.enrollments.length}</p>
@@ -102,6 +124,18 @@ export default async function CourseDetailPage({
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">סמסטרים</p>
             <p className="text-2xl font-bold">{course.semesters.length}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">התקדמות הקורס</p>
+            <div className="mt-1 flex items-center gap-2">
+              <div className="h-2 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                <div 
+                  className="h-full bg-blue-600 rounded-full" 
+                  style={{ width: `${courseProgressPercent}%` }}
+                />
+              </div>
+              <span className="text-sm font-bold">{courseProgressPercent}%</span>
+            </div>
           </div>
         </div>
 
@@ -116,7 +150,7 @@ export default async function CourseDetailPage({
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {atRiskStudents.map(e => (
                   <div key={e.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                    <Link href={`/dashboard/students/${e.student.id}`} className="hover:underline font-medium text-blue-600">
+                    <Link href={`/students/${e.student.id}`} className="hover:underline font-medium text-blue-600">
                       {resolveField(e.student.firstNameMoodle, e.student.firstNameOverride)} {resolveField(e.student.lastNameMoodle, e.student.lastNameOverride)}
                     </Link>
                     <span className="text-xs text-red-600">
@@ -177,52 +211,13 @@ export default async function CourseDetailPage({
 
       {/* All Students */}
       <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 text-lg font-semibold">כל התלמידים</h2>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                שם
-              </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                קבוצה
-              </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                סטטוס
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {course.enrollments.map((enrollment) => (
-              <tr
-                key={enrollment.id}
-                className="border-b border-border last:border-0"
-              >
-                <td className="px-3 py-2 text-sm">
-                  {resolveField(
-                    enrollment.student.firstNameMoodle,
-                    enrollment.student.firstNameOverride
-                  )}{" "}
-                  {resolveField(
-                    enrollment.student.lastNameMoodle,
-                    enrollment.student.lastNameOverride
-                  )}
-                </td>
-                <td className="px-3 py-2 text-sm text-muted-foreground">
-                  {enrollment.classGroup?.name || "—"}
-                </td>
-                <td className="px-3 py-2 text-sm">
-                  {(resolveField(
-                    enrollment.statusMoodle,
-                    enrollment.statusOverride
-                  ) ?? "active") === "active"
-                    ? "פעיל"
-                    : "לא פעיל"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <h2 className="mb-4 text-lg font-semibold">התקדמות ונוכחות סטודנטים</h2>
+        <CourseProgressTable
+          courseId={course.id}
+          students={course.enrollments.map((e) => e.student)}
+          syllabusItems={course.syllabusItems}
+          initialCompletions={activityCompletions}
+        />
       </div>
 
       {/* Upcoming Events */}

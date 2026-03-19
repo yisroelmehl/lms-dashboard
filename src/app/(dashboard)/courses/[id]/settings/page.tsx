@@ -34,7 +34,7 @@ export default async function CourseSettingsPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/dashboard/courses/${course.id}`} className="text-blue-600 hover:underline">
+          <Link href={`/courses/${course.id}`} className="text-blue-600 hover:underline">
             &larr; חזרה לקורס
           </Link>
           <h1 className="text-2xl font-bold">הגדרות קורס: {courseName}</h1>
