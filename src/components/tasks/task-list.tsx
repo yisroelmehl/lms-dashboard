@@ -111,7 +111,7 @@ export function TaskList({ tasks, isAdminView = false }: { tasks: Task[], isAdmi
                 <div className="flex items-center gap-1">
                   <span className="text-slate-400">📚</span>
                   <Link
-                    href={`/courses/${task.course.id}`}
+                    href={`/dashboard/courses/${task.course.id}`}
                     className="text-blue-600 hover:underline"
                   >
                     {task.course.fullNameOverride || task.course.fullNameMoodle}

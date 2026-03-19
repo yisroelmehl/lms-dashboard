@@ -12,91 +12,92 @@ export default async function CourseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const course = await prisma.course.findUnique({
-    where: { id },
-    include: {
-      semesters: { orderBy: { sortOrder: "asc" } },
-      syllabusItems: { orderBy: { sortOrder: "asc" } },
-      classGroups: {
-        include: {
-          enrollments: {
-            include: { student: true },
+  try {
+    const { id } = await params;
+    const course = await prisma.course.findUnique({
+      where: { id },
+      include: {
+        semesters: { orderBy: { sortOrder: "asc" } },
+        syllabusItems: { orderBy: { sortOrder: "asc" } },
+        classGroups: {
+          include: {
+            enrollments: {
+              include: { student: true },
+            },
           },
         },
-      },
-      enrollments: {
-        include: {
-          student: true,
-          classGroup: true,
+        enrollments: {
+          include: {
+            student: true,
+            classGroup: true,
+          },
+        },
+        calendarEvents: {
+          where: { startDate: { gte: new Date() } },
+          orderBy: { startDate: "asc" },
+          take: 5,
         },
       },
-      calendarEvents: {
-        where: { startDate: { gte: new Date() } },
-        orderBy: { startDate: "asc" },
-        take: 5,
-      },
-    },
-  });
+    });
 
-  if (!course) notFound();
+    if (!course) notFound();
 
-  const courseName = resolveField(
-    course.fullNameMoodle,
-    course.fullNameOverride
-  );
+    const courseName = resolveField(
+      course.fullNameMoodle,
+      course.fullNameOverride
+    );
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{courseName}</h1>
-        <span
-          className={`rounded-full px-3 py-1 text-sm ${
-            course.isActive
-              ? "bg-green-100 text-green-700"
-              : "bg-slate-100 text-slate-700"
-          }`}
-        >
-          {course.isActive ? "פעיל" : "לא פעיל"}
-        </span>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">תלמידים רשומים</p>
-          <p className="text-2xl font-bold">{course.enrollments.length}</p>
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">{courseName}</h1>
+          <span
+            className={`rounded-full px-3 py-1 text-sm ${
+              course.isActive
+                ? "bg-green-100 text-green-700"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {course.isActive ? "פעיל" : "לא פעיל"}
+          </span>
         </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">קבוצות</p>
-          <p className="text-2xl font-bold">{course.classGroups.length}</p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">תלמידים רשומים</p>
+            <p className="text-2xl font-bold">{course.enrollments.length}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">קבוצות</p>
+            <p className="text-2xl font-bold">{course.classGroups.length}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">סמסטרים</p>
+            <p className="text-2xl font-bold">{course.semesters.length}</p>
+          </div>
         </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">סמסטרים</p>
-          <p className="text-2xl font-bold">{course.semesters.length}</p>
-        </div>
-      </div>
 
-      {/* Course Requirements */}
-      <CourseRequirementsForm
-        courseId={course.id}
-        initialExams={course.reqExamsCount}
-        initialGrade={course.reqGradeAverage}
-        initialAttendance={course.reqAttendancePercent}
-      />
+        {/* Course Requirements */}
+        <CourseRequirementsForm
+          courseId={course.id}
+          initialExams={course.reqExamsCount}
+          initialGrade={course.reqGradeAverage}
+          initialAttendance={course.reqAttendancePercent}
+        />
 
-      {/* Course Semesters Manager */}
-      <CourseSemestersManager 
-        courseId={course.id} 
-        initialSemesters={course.semesters} 
-      />
+        {/* Course Semesters Manager */}
+        <CourseSemestersManager 
+          courseId={course.id} 
+          initialSemesters={course.semesters} 
+        />
 
-      {/* Course Syllabus Manager */}
-      <CourseSyllabusManager
-        courseId={course.id}
-        semesters={course.semesters}
-        initialItems={course.syllabusItems}
-      />
+        {/* Course Syllabus Manager */}
+        <CourseSyllabusManager
+          courseId={course.id}
+          semesters={course.semesters}
+          initialItems={course.syllabusItems}
+        />
 
       {/* Class Groups */}
       <div className="space-y-4">
