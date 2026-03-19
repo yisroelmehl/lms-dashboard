@@ -7,6 +7,7 @@ const navItems = [
   { href: "/dashboard", label: "לוח בקרה", icon: "🏠" },
   { href: "/students", label: "תלמידים", icon: "👥" },
   { href: "/courses", label: "קורסים", icon: "📚" },
+  { href: "/lecturers", label: "מרצים", icon: "👨‍🏫" },
   { href: "/grades", label: "ציונים", icon: "📝" },
   { href: "/attendance", label: "נוכחות", icon: "✅" },
   { href: "/tasks", label: "משימות", icon: "📋" },
