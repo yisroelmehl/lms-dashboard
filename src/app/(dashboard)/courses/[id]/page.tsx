@@ -208,4 +208,8 @@ export default async function CourseDetailPage({
       </div>
     </div>
   );
+  } catch (error) {
+    console.error("Failed to fetch course details:", error);
+    notFound();
+  }
 }
