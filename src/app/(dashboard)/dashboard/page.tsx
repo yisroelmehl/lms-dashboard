@@ -10,75 +10,90 @@ export const dynamic = "force-dynamic";
 async function getStats() {
   const [studentCount, courseCount, openTaskCount, openRequestCount] =
     await Promise.all([
-      prisma.student.count(),
-      prisma.course.count({ where: { isActive: true } }),
-      prisma.task.count({ where: { status: "open" } }),
-      prisma.serviceRequest.count({ where: { status: "open" } }),
+      prisma.student.count().catch(() => 0),
+      prisma.course.count({ where: { isActive: true } }).catch(() => 0),
+      prisma.task.count({ where: { status: "open" } }).catch(() => 0),
+      prisma.serviceRequest.count({ where: { status: "open" } }).catch(() => 0),
     ]);
 
   return { studentCount, courseCount, openTaskCount, openRequestCount };
 }
 
 async function getMyTasks(adminId: string) {
-  return prisma.task.findMany({
-    where: {
-      status: { not: "completed" },
-      assignedToId: adminId,
-    },
-    include: {
-      assignedTo: { select: { name: true } },
-      createdBy: { select: { name: true } },
-      students: { include: { student: { select: { id: true, hebrewName: true, firstNameOverride: true, lastNameOverride: true } } } },
-    },
-    orderBy: [
-      { priority: "desc" },
-      { dueDate: "asc" },
-    ],
-    take: 5,
-  });
+  try {
+    return await prisma.task.findMany({
+      where: {
+        status: { not: "completed" },
+        assignedToId: adminId,
+      },
+      include: {
+        assignedTo: { select: { name: true } },
+        createdBy: { select: { name: true } },
+        students: { include: { student: { select: { id: true, hebrewName: true, firstNameOverride: true, lastNameOverride: true } } } },
+      },
+      orderBy: [
+        { priority: "desc" },
+        { dueDate: "asc" },
+      ],
+      take: 5,
+    });
+  } catch (e) {
+    console.error("Failed to fetch tasks:", e);
+    return [];
+  }
 }
 
 async function getAtRiskStudents() {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  return prisma.student.findMany({
-    where: {
-      OR: [
-        { moodleLastAccess: { lt: thirtyDaysAgo } },
-        { moodleLastAccess: null },
-      ],
-      enrollments: {
-        some: {
-          OR: [
-            { statusMoodle: "active", statusOverride: null },
-            { statusOverride: "active" },
-          ],
+    return await prisma.student.findMany({
+      where: {
+        OR: [
+          { moodleLastAccess: { lt: thirtyDaysAgo } },
+          { moodleLastAccess: null },
+        ],
+        enrollments: {
+          some: {
+            OR: [
+              { statusMoodle: "active", statusOverride: null },
+              { statusOverride: "active" },
+            ],
+          },
         },
       },
-    },
-    include: {
-      enrollments: {
-        include: { course: true },
-        where: {
-          OR: [
-            { statusMoodle: "active", statusOverride: null },
-            { statusOverride: "active" },
-          ],
+      include: {
+        enrollments: {
+          include: { course: true },
+          where: {
+            OR: [
+              { statusMoodle: "active", statusOverride: null },
+              { statusOverride: "active" },
+            ],
+          },
         },
       },
-    },
-    take: 20,
-  });
+      take: 20,
+    });
+  } catch (e) {
+    console.error("Failed to fetch at-risk students:", e);
+    return [];
+  }
 }
 
 async function getOpenRequests() {
-  return prisma.serviceRequest.findMany({
-    where: { status: { in: ["open", "in_progress"] } },
-    include: { student: true },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
+  try {
+    return await prisma.serviceRequest.findMany({
+      where: { status: { in: ["open", "in_progress"] } },
+      include: { student: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+  } catch (e) {
+    console.error("Failed to fetch open requests:", e);
+    return [];
+  }
 }
 
 export default async function DashboardPage() {
