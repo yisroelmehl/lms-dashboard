@@ -9,9 +9,12 @@ export default async function CoursesPage() {
   try {
     const courses = await prisma.course.findMany({
       include: {
-        enrollments: true,
-        semesters: { orderBy: { sortOrder: "asc" } },
-        classGroups: true,
+        _count: {
+          select: { enrollments: true, semesters: true, classGroups: true },
+        },
+        enrollments: {
+          select: { id: true, statusMoodle: true, statusOverride: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -57,10 +60,10 @@ export default async function CoursesPage() {
                       {activeEnrollments.length} תלמידים
                     </span>
                     <span className="text-muted-foreground">
-                      {course.semesters.length} סמסטרים
+                      {course._count.semesters} סמסטרים
                     </span>
                     <span className="text-muted-foreground">
-                      {course.classGroups.length} קבוצות
+                      {course._count.classGroups} קבוצות
                     </span>
                   </div>
 

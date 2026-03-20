@@ -65,7 +65,7 @@ async function getAtRiskStudents() {
       },
       include: {
         enrollments: {
-          include: { course: true },
+          include: { course: { select: { id: true, fullNameMoodle: true, fullNameOverride: true } } },
           where: {
             OR: [
               { statusMoodle: "active", statusOverride: null },
@@ -86,7 +86,11 @@ async function getOpenRequests() {
   try {
     return await prisma.serviceRequest.findMany({
       where: { status: { in: ["open", "in_progress"] } },
-      include: { student: true },
+      include: {
+        student: {
+          select: { id: true, firstNameMoodle: true, firstNameOverride: true, lastNameMoodle: true, lastNameOverride: true, hebrewName: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 5,
     });

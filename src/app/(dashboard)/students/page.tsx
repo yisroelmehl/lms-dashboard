@@ -48,19 +48,20 @@ export default async function StudentsPage({ searchParams }: Props) {
     };
   }
 
-  // Fetch students
-  const students = await prisma.student.findMany({
-    where,
-    include: {
-      enrollments: {
-        include: { course: true, classGroup: true },
+  // Fetch students + filter options in parallel
+  const [students, courses, groups] = await Promise.all([
+    prisma.student.findMany({
+      where,
+      include: {
+        enrollments: {
+          include: {
+            course: { select: { id: true, fullNameMoodle: true, fullNameOverride: true } },
+            classGroup: { select: { id: true, name: true } },
+          },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // Fetch filter options
-  const [courses, groups] = await Promise.all([
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.course.findMany({
       orderBy: { fullNameMoodle: "asc" },
       select: { id: true, fullNameMoodle: true, fullNameOverride: true },

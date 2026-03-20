@@ -18,19 +18,25 @@ export default async function CourseDetailPage({
       where: { id },
       include: {
         semesters: { orderBy: { sortOrder: "asc" } },
-        mainLecturer: true,
+        mainLecturer: { select: { id: true, firstName: true, lastName: true } },
         syllabusItems: { orderBy: { sortOrder: "asc" } },
         classGroups: {
-          include: {
-            enrollments: {
-              include: { student: true },
-            },
+          select: {
+            id: true,
+            name: true,
+            _count: { select: { enrollments: true } },
           },
         },
         enrollments: {
           include: {
-            student: true,
-            classGroup: true,
+            student: {
+              select: {
+                id: true, firstNameMoodle: true, firstNameOverride: true,
+                lastNameMoodle: true, lastNameOverride: true,
+                hebrewName: true, moodleLastAccess: true,
+              },
+            },
+            classGroup: { select: { id: true, name: true } },
           },
         },
         calendarEvents: {
@@ -40,7 +46,11 @@ export default async function CourseDetailPage({
         },
         tasks: {
           where: { status: { not: "completed" } },
-          include: { assignedTo: true, createdBy: true, students: { include: { student: true } } },
+          include: {
+            assignedTo: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true } },
+            students: { include: { student: { select: { id: true, hebrewName: true, firstNameOverride: true, lastNameOverride: true } } } },
+          },
           orderBy: { dueDate: "asc" },
           take: 5,
         }
@@ -179,33 +189,36 @@ export default async function CourseDetailPage({
         {course.classGroups.length === 0 ? (
           <p className="text-sm text-muted-foreground">אין קבוצות מוגדרות</p>
         ) : (
-          course.classGroups.map((group) => (
-            <div
-              key={group.id}
-              className="rounded-lg border border-border bg-card p-4"
-            >
-              <h3 className="font-medium">{group.name}</h3>
-              <div className="mt-2 space-y-1">
-                {group.enrollments.map((enrollment) => (
-                  <div
-                    key={enrollment.id}
-                    className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-sm"
-                  >
-                    <span>
-                      {resolveField(
-                        enrollment.student.firstNameMoodle,
-                        enrollment.student.firstNameOverride
-                      )}{" "}
-                      {resolveField(
-                        enrollment.student.lastNameMoodle,
-                        enrollment.student.lastNameOverride
-                      )}
-                    </span>
-                  </div>
-                ))}
+          course.classGroups.map((group) => {
+            const groupEnrollments = course.enrollments.filter(e => e.classGroup?.id === group.id);
+            return (
+              <div
+                key={group.id}
+                className="rounded-lg border border-border bg-card p-4"
+              >
+                <h3 className="font-medium">{group.name}</h3>
+                <div className="mt-2 space-y-1">
+                  {groupEnrollments.map((enrollment) => (
+                    <div
+                      key={enrollment.id}
+                      className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-sm"
+                    >
+                      <span>
+                        {resolveField(
+                          enrollment.student.firstNameMoodle,
+                          enrollment.student.firstNameOverride
+                        )}{" "}
+                        {resolveField(
+                          enrollment.student.lastNameMoodle,
+                          enrollment.student.lastNameOverride
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
