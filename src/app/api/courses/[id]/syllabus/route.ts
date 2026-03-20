@@ -41,26 +41,35 @@ export async function PUT(
   try {
     const { id: courseId } = await params;
     const body = await req.json();
-    const { id: itemId, semesterId, title, description, type, weight, maxScore, sortOrder } = body;
+    const { id: itemId, semesterId, title, description, type, weight, maxScore, sortOrder, moodleCmId } = body;
 
     if (!itemId || !title || !type) {
       return NextResponse.json({ error: "מזהה, כותרת וסוג הם שדות חובה" }, { status: 400 });
     }
 
+    // Build update data
+    const updateData: Record<string, unknown> = {
+      semesterId: semesterId || null,
+      title,
+      description,
+      type,
+      weight: weight ? parseFloat(weight) : null,
+      maxScore: maxScore ? parseFloat(maxScore) : null,
+      sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+    };
+
+    // If moodleCmId was explicitly provided (including null to unmap), update mapping
+    if (moodleCmId !== undefined) {
+      updateData.moodleCmId = moodleCmId ? Number(moodleCmId) : null;
+      updateData.isMapped = !!moodleCmId;
+    }
+
     const syllabusItem = await prisma.syllabusItem.update({
       where: {
         id: itemId,
-        courseId, // Verify it belongs to this course
+        courseId,
       },
-      data: {
-        semesterId: semesterId || null,
-        title,
-        description,
-        type,
-        weight: weight ? parseFloat(weight) : null,
-        maxScore: maxScore ? parseFloat(maxScore) : null,
-        sortOrder: sortOrder ? parseInt(sortOrder) : 0,
-      },
+      data: updateData,
     });
 
     return NextResponse.json({ success: true, item: syllabusItem });

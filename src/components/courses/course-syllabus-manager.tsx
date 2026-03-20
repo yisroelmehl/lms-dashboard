@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CourseSyllabusMappingModal } from "./course-syllabus-mapping-modal";
 
@@ -44,9 +44,26 @@ export function CourseSyllabusManager({
     type: "lesson",
     semesterId: semesters.length > 0 ? semesters[0].id : "",
     sortOrder: "10",
+    moodleCmId: "" as string,
   });
 
   const [isMappingOpen, setIsMappingOpen] = useState(false);
+  const [moodleActivities, setMoodleActivities] = useState<{ cmid: number; name: string; modname: string; sectionName: string }[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+
+  // Fetch Moodle activities when editing starts
+  useEffect(() => {
+    if (editingId && moodleActivities.length === 0) {
+      setActivitiesLoading(true);
+      fetch(`/api/courses/${courseId}/moodle-activities`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.activities) setMoodleActivities(data.activities);
+        })
+        .catch(() => {})
+        .finally(() => setActivitiesLoading(false));
+    }
+  }, [editingId, courseId, moodleActivities.length]);
 
   const handleOpenAdd = () => {
     setFormData({
@@ -54,6 +71,7 @@ export function CourseSyllabusManager({
       type: "lesson",
       semesterId: semesters.length > 0 ? semesters[0].id : "",
       sortOrder: (items.length * 10 + 10).toString(),
+      moodleCmId: "",
     });
     setIsAdding(true);
     setEditingId(null);
@@ -66,6 +84,7 @@ export function CourseSyllabusManager({
       type: item.type,
       semesterId: item.semesterId || "",
       sortOrder: item.sortOrder.toString(),
+      moodleCmId: item.moodleCmId ? item.moodleCmId.toString() : "",
     });
     setEditingId(item.id);
     setIsAdding(false);
@@ -90,7 +109,8 @@ export function CourseSyllabusManager({
     try {
       const url = `/api/courses/${courseId}/syllabus`;
       const method = editingId ? "PUT" : "POST";
-      const body = editingId ? { ...formData, id: editingId } : formData;
+      const { moodleCmId, ...rest } = formData;
+      const body = editingId ? { ...rest, id: editingId, moodleCmId: moodleCmId ? parseInt(moodleCmId) : null } : rest;
 
       const res = await fetch(url, {
         method,
@@ -200,6 +220,32 @@ export function CourseSyllabusManager({
               </select>
             </div>
           </div>
+
+          {/* Moodle mapping - shown in edit mode */}
+          {editingId && (
+            <div className="mb-4">
+              <label className="block text-xs text-muted-foreground mb-1">🔗 שיוך ידני לפעילות במודל</label>
+              {activitiesLoading ? (
+                <p className="text-xs text-slate-400">טוען פעילויות מהמודל...</p>
+              ) : moodleActivities.length > 0 ? (
+                <select
+                  name="moodleCmId"
+                  value={formData.moodleCmId}
+                  onChange={handleChange}
+                  className={`w-full border rounded px-3 py-1.5 text-sm bg-white ${formData.moodleCmId ? 'border-green-300 bg-green-50' : ''}`}
+                >
+                  <option value="">-- ללא שיוך למודל --</option>
+                  {moodleActivities.map((a) => (
+                    <option key={a.cmid} value={a.cmid}>
+                      [{a.sectionName}] {a.name} ({a.modname})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-xs text-slate-400">לא נמצאו פעילויות במודל לקורס זה</p>
+              )}
+            </div>
+          )}
           <div className="flex gap-3">
             <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
               {loading ? "שומר..." : "שמור"}
