@@ -1,3 +1,9 @@
+databases:
+  - name: lms-db
+    plan: starter
+    databaseName: lms
+    user: lms_admin
+
 services:
   - type: web
     name: lms-dashboard
@@ -8,7 +14,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: lms-db
+          property: connectionString
       - key: NEXTAUTH_URL
         sync: false
       - key: NEXTAUTH_SECRET
