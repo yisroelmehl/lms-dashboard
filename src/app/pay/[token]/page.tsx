@@ -123,7 +123,8 @@ export default async function PaymentPage({
             }}
             hasKesherPayment={!!link.kesherPaymentPageId}
             kesherPaymentPageId={link.kesherPaymentPageId}
-            kesherToken={link.kesherToken}
+            finalAmount={link.finalAmount}
+            numPayments={link.numPayments}
           />
         </div>
       </div>

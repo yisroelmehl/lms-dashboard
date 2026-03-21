@@ -2,18 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Kesher CRM Webhook Handler
+ * Kesher Payment Page Callback Handler
  * 
- * Kesher sends callbacks to this endpoint when a payment is processed.
- * Configure the callback URL in Kesher: site > company settings > CRM services > general
+ * Kesher payment page (325855) sends callbacks here after payment.
+ * Configure Success/Failure/Action URLs in Kesher payment page settings.
  * 
- * Callback params include:
- * - isSucces: boolean
- * - ref: reference
- * - total: amount
- * - transactionNumber: from Kesher
- * - obligationRef: for standing orders
- * - adddata: our token stored in adddata field
+ * We pass adddata=<our-token> in the payment page URL params.
+ * Kesher returns it in callbacks, allowing us to link the payment.
+ * 
+ * Callback params: isSucces, ref, total, transactionNumber, obligationRef, adddata
  */
 export async function POST(request: Request) {
   let body: Record<string, unknown>;

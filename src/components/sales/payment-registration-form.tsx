@@ -13,7 +13,8 @@ interface Props {
   };
   hasKesherPayment: boolean;
   kesherPaymentPageId: string | null;
-  kesherToken: string | null;
+  finalAmount: number;
+  numPayments: number;
 }
 
 export function PaymentRegistrationForm({
@@ -22,7 +23,8 @@ export function PaymentRegistrationForm({
   initialData,
   hasKesherPayment,
   kesherPaymentPageId,
-  kesherToken,
+  finalAmount,
+  numPayments,
 }: Props) {
   const [step, setStep] = useState<"form" | "payment" | "success">("form");
   const [loading, setLoading] = useState(false);
@@ -108,9 +110,16 @@ export function PaymentRegistrationForm({
   }
 
   if (step === "payment") {
-    const paymentUrl = `https://ultra.kesherhk.info/external/paymentPage/${kesherPaymentPageId}${
-      kesherToken ? `?token=${kesherToken}` : ""
-    }`;
+    const params = new URLSearchParams();
+    params.set("name", `${formData.firstName} ${formData.lastName}`);
+    params.set("total", String(finalAmount));
+    if (numPayments > 1) params.set("numpayment", String(numPayments));
+    if (formData.phone) params.set("tel", formData.phone);
+    if (formData.email) params.set("mail", formData.email);
+    params.set("firstName", formData.firstName);
+    params.set("lastName", formData.lastName);
+    params.set("adddata", token); // Our token - returned in Kesher callback
+    const paymentUrl = `https://ultra.kesherhk.info/external/paymentPage/${kesherPaymentPageId}?${params.toString()}`;
 
     return (
       <div className="space-y-4">

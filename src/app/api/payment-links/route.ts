@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { randomUUID } from "crypto";
-import { getLinkToken, buildPaymentPageUrl } from "@/lib/kesher/client";
+import { buildPaymentPageUrl } from "@/lib/kesher/client";
 
 // GET /api/payment-links - List payment links
 export async function GET(request: Request) {
@@ -55,32 +55,22 @@ export async function POST(request: Request) {
   const finalAmount = totalAmount - (discountAmount || 0);
   const token = randomUUID();
 
-  // Try to generate a Kesher payment page token if payment page ID is provided
-  let kesherToken: string | null = null;
+  // Use provided payment page ID or default from env
+  const pageId = kesherPaymentPageId || process.env.KESHER_PAYMENT_PAGE_ID || null;
+
+  // Build Kesher payment URL directly with query params (no API call needed)
   let paymentPageUrl: string | null = null;
-
-  if (kesherPaymentPageId) {
-    try {
-      const kesherResponse = await getLinkToken({
-        PaymentPageId: kesherPaymentPageId,
-        Total: String(finalAmount),
-        NumPayment: numPayments > 1 ? numPayments : undefined,
-        FirstName: firstName,
-        LastName: lastName,
-        Phone: phone || undefined,
-        Mail: email || undefined,
-      });
-
-      if (kesherResponse.RequestResult?.Status && kesherResponse.Token) {
-        kesherToken = kesherResponse.Token;
-        paymentPageUrl = buildPaymentPageUrl(kesherPaymentPageId, {
-          token: kesherResponse.Token,
-        });
-      }
-    } catch (err) {
-      console.error("Failed to generate Kesher token:", err);
-      // Continue without Kesher token - link will still be created
-    }
+  if (pageId) {
+    paymentPageUrl = buildPaymentPageUrl(pageId, {
+      name: `${firstName} ${lastName}`,
+      total: String(finalAmount),
+      numpayment: numPayments > 1 ? String(numPayments) : "",
+      tel: phone || "",
+      mail: email || "",
+      firstName,
+      lastName,
+      adddata: token, // Our token - returned in callback for linking
+    });
   }
 
   const paymentLink = await prisma.paymentLink.create({
@@ -99,8 +89,7 @@ export async function POST(request: Request) {
       finalAmount,
       numPayments,
       chargeDay: chargeDay || null,
-      kesherPaymentPageId: kesherPaymentPageId || null,
-      kesherToken,
+      kesherPaymentPageId: pageId,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     },
     include: {

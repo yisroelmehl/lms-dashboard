@@ -35,7 +35,7 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
     discountAmount: "",
     numPayments: "1",
     chargeDay: "",
-    kesherPaymentPageId: "",
+    kesherPaymentPageId: "325855",
   });
 
   const handleChange = (
@@ -362,12 +362,12 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
             name="kesherPaymentPageId"
             value={formData.kesherPaymentPageId}
             onChange={handleChange}
-            placeholder="Payment Page ID מ-Kesher"
+            placeholder="325855"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             dir="ltr"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            אם לא מוגדר, יווצר קישור רישום בלבד ללא סליקה ישירה.
+            מזהה דף הסליקה ב-Kesher. לרוב אין צורך לשנות.
           </p>
         </div>
       </fieldset>

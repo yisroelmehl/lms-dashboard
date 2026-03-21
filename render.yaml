@@ -21,3 +21,9 @@ services:
         sync: false
       - key: SYNC_SECRET
         sync: false
+      - key: KESHER_USERNAME
+        sync: false
+      - key: KESHER_PASSWORD
+        sync: false
+      - key: KESHER_PAYMENT_PAGE_ID
+        value: "325855"
