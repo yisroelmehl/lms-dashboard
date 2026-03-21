@@ -95,7 +95,7 @@ export async function POST(
   }
 
   // Update payment link
-  await prisma.paymentLink.update({
+  const updatedLink = await prisma.paymentLink.update({
     where: { id },
     data: {
       studentId,
@@ -105,6 +105,32 @@ export async function POST(
       lastName: registrationData?.lastName || link.lastName,
       email: registrationData?.email || link.email,
       phone: registrationData?.phone || link.phone,
+    },
+    include: {
+      course: { select: { fullNameMoodle: true, fullNameOverride: true } },
+    },
+  });
+
+  // Create dashboard notification for new student registration
+  const studentName = `${registrationData?.firstName || link.firstName} ${registrationData?.lastName || link.lastName}`;
+  const courseName = updatedLink.course
+    ? (updatedLink.course.fullNameOverride || updatedLink.course.fullNameMoodle)
+    : link.courseName;
+
+  await prisma.notification.create({
+    data: {
+      type: "new_student",
+      title: "תלמיד חדש נרשם",
+      message: courseName
+        ? `${studentName} נרשם לקורס ${courseName}`
+        : `${studentName} השלים טופס רישום`,
+      metadata: {
+        studentId,
+        paymentLinkId: link.id,
+        courseId: link.courseId,
+        semesterId: link.semesterId,
+        classGroupId: link.classGroupId,
+      },
     },
   });
 

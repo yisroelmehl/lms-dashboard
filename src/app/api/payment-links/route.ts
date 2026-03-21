@@ -37,11 +37,16 @@ export async function POST(request: Request) {
     phone,
     courseId,
     courseName,
+    semesterId,
+    classGroupId,
+    currency = "ILS",
     totalAmount,
     couponCode,
     discountAmount = 0,
     numPayments = 1,
     chargeDay,
+    showCouponField = false,
+    showTotalOnForm = false,
     kesherPaymentPageId,
   } = body;
 
@@ -58,12 +63,16 @@ export async function POST(request: Request) {
   // Use provided payment page ID or default from env
   const pageId = kesherPaymentPageId || process.env.KESHER_PAYMENT_PAGE_ID || null;
 
+  // Kesher currency codes: 1=ILS, 2=USD
+  const kesherCurrency = currency === "USD" ? "2" : "1";
+
   // Build Kesher payment URL directly with query params (no API call needed)
   let paymentPageUrl: string | null = null;
   if (pageId) {
     paymentPageUrl = buildPaymentPageUrl(pageId, {
       name: `${firstName} ${lastName}`,
       total: String(finalAmount),
+      currency: kesherCurrency,
       numpayment: numPayments > 1 ? String(numPayments) : "",
       tel: phone || "",
       mail: email || "",
@@ -83,10 +92,15 @@ export async function POST(request: Request) {
       phone: phone || null,
       courseId: courseId || null,
       courseName: courseName || null,
+      semesterId: semesterId || null,
+      classGroupId: classGroupId || null,
+      currency,
       totalAmount,
       couponCode: couponCode || null,
+      showCouponField,
       discountAmount,
       finalAmount,
+      showTotalOnForm,
       numPayments,
       chargeDay: chargeDay || null,
       kesherPaymentPageId: pageId,

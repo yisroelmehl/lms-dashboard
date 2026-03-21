@@ -1,19 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
-interface Option {
+interface SubOption {
   id: string;
   name: string;
 }
 
-interface Props {
-  agents: Option[];
-  courses: Option[];
+interface CourseOption {
+  id: string;
+  name: string;
+  semesters: SubOption[];
+  classGroups: SubOption[];
 }
 
-export function CreatePaymentLinkForm({ agents, courses }: Props) {
+interface Props {
+  agents: { id: string; name: string }[];
+  courses: CourseOption[];
+  tags: SubOption[];
+}
+
+export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,22 +38,44 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
     email: "",
     phone: "",
     courseId: "",
+    semesterId: "",
+    classGroupId: "",
+    currency: "ILS",
     totalAmount: "",
     couponCode: "",
     discountAmount: "",
     numPayments: "1",
     chargeDay: "",
+    showCouponField: false,
+    showTotalOnForm: false,
     kesherPaymentPageId: "325855",
   });
+
+  const selectedCourse = useMemo(
+    () => courses.find((c) => c.id === formData.courseId),
+    [courses, formData.courseId]
+  );
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type } = e.target;
+    if (type === "checkbox") {
+      setFormData({ ...formData, [name]: (e.target as HTMLInputElement).checked });
+    } else {
+      setFormData({ ...formData, [name]: value });
+      // Reset semester/classGroup when course changes
+      if (name === "courseId") {
+        setFormData((prev) => ({ ...prev, courseId: value, semesterId: "", classGroupId: "" }));
+      }
+    }
   };
 
   const finalAmount =
     Number(formData.totalAmount || 0) - Number(formData.discountAmount || 0);
+  const numPayments = Number(formData.numPayments || 1);
+  const monthlyAmount = numPayments > 1 ? finalAmount / numPayments : finalAmount;
+  const currencySymbol = formData.currency === "USD" ? "$" : "₪";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,11 +93,16 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
           email: formData.email || undefined,
           phone: formData.phone || undefined,
           courseId: formData.courseId || undefined,
+          semesterId: formData.semesterId || undefined,
+          classGroupId: formData.classGroupId || undefined,
+          currency: formData.currency,
           totalAmount: Number(formData.totalAmount),
           couponCode: formData.couponCode || undefined,
           discountAmount: Number(formData.discountAmount || 0),
-          numPayments: Number(formData.numPayments || 1),
+          numPayments,
           chargeDay: formData.chargeDay ? Number(formData.chargeDay) : undefined,
+          showCouponField: formData.showCouponField,
+          showTotalOnForm: formData.showTotalOnForm,
           kesherPaymentPageId: formData.kesherPaymentPageId || undefined,
         }),
       });
@@ -161,6 +196,8 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
                 totalAmount: "",
                 couponCode: "",
                 discountAmount: "",
+                semesterId: "",
+                classGroupId: "",
               });
             }}
             className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
@@ -250,9 +287,9 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
         </div>
       </fieldset>
 
-      {/* Course & Pricing */}
+      {/* Course & Enrollment Targeting */}
       <fieldset className="space-y-4 rounded-md border border-border p-4">
-        <legend className="px-2 text-sm font-semibold text-muted-foreground">קורס ותמחור</legend>
+        <legend className="px-2 text-sm font-semibold text-muted-foreground">קורס והרשמה</legend>
 
         <div>
           <label className="mb-1 block text-sm font-medium">קורס</label>
@@ -269,9 +306,77 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
           </select>
         </div>
 
+        {selectedCourse && selectedCourse.semesters.length > 0 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">מחזור לימודים</label>
+            <select
+              name="semesterId"
+              value={formData.semesterId}
+              onChange={handleChange}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">בחר מחזור (אופציונלי)</option>
+              {selectedCourse.semesters.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {selectedCourse && selectedCourse.classGroups.length > 0 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">אזור / קבוצה (Moodle)</label>
+            <select
+              name="classGroupId"
+              value={formData.classGroupId}
+              onChange={handleChange}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">בחר קבוצה (אופציונלי)</option>
+              {selectedCourse.classGroups.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </fieldset>
+
+      {/* Pricing */}
+      <fieldset className="space-y-4 rounded-md border border-border p-4">
+        <legend className="px-2 text-sm font-semibold text-muted-foreground">תמחור</legend>
+
+        {/* Currency Toggle */}
+        <div>
+          <label className="mb-1 block text-sm font-medium">מטבע</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, currency: "ILS" })}
+              className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                formData.currency === "ILS"
+                  ? "border-primary bg-primary text-white"
+                  : "border-input bg-background hover:bg-muted"
+              }`}
+            >
+              ₪ שקל
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, currency: "USD" })}
+              className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                formData.currency === "USD"
+                  ? "border-primary bg-primary text-white"
+                  : "border-input bg-background hover:bg-muted"
+              }`}
+            >
+              $ דולר
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">סכום כולל (₪) *</label>
+            <label className="mb-1 block text-sm font-medium">סכום כולל ({currencySymbol}) *</label>
             <input
               required
               type="number"
@@ -295,7 +400,7 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">הנחה (₪)</label>
+            <label className="mb-1 block text-sm font-medium">הנחה ({currencySymbol})</label>
             <input
               type="number"
               name="discountAmount"
@@ -310,8 +415,11 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
         </div>
 
         {formData.totalAmount && (
-          <div className="text-sm font-medium">
-            סכום סופי: <span className="text-primary">₪{finalAmount.toLocaleString("he-IL")}</span>
+          <div className="text-sm font-medium space-y-1">
+            <div> סכום סופי: <span className="text-primary">{currencySymbol}{finalAmount.toLocaleString("he-IL")}</span></div>
+            {numPayments > 1 && (
+              <div>תשלום חודשי: <span className="text-primary">{currencySymbol}{monthlyAmount.toLocaleString("he-IL", { maximumFractionDigits: 2 })}</span></div>
+            )}
           </div>
         )}
       </fieldset>
@@ -348,6 +456,41 @@ export function CreatePaymentLinkForm({ agents, courses }: Props) {
               dir="ltr"
             />
           </div>
+        </div>
+      </fieldset>
+
+      {/* Form Display Options */}
+      <fieldset className="space-y-4 rounded-md border border-border p-4">
+        <legend className="px-2 text-sm font-semibold text-muted-foreground">הגדרות טופס רישום</legend>
+
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              name="showCouponField"
+              checked={formData.showCouponField}
+              onChange={handleChange}
+              className="rounded border-input"
+            />
+            <div>
+              <span className="text-sm font-medium">הצג שדה קופון בטופס הרישום</span>
+              <p className="text-xs text-muted-foreground">התלמיד יוכל להזין קוד קופון לקבלת הנחה</p>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              name="showTotalOnForm"
+              checked={formData.showTotalOnForm}
+              onChange={handleChange}
+              className="rounded border-input"
+            />
+            <div>
+              <span className="text-sm font-medium">הצג סכום כולל בטופס (במקום תשלום חודשי)</span>
+              <p className="text-xs text-muted-foreground">ברירת מחדל: מוצג רק הסכום החודשי</p>
+            </div>
+          </label>
         </div>
       </fieldset>
 

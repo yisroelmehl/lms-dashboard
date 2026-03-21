@@ -331,6 +331,7 @@ model Semester {
   syllabusItems SyllabusItem[]
   grades        Grade[]
   enrollments   SemesterEnrollment[] // אילו תלמידים רשומים ספציפית לסמסטר זה
+  paymentLinks  PaymentLink[]
 
   @@map("semesters")
 }
@@ -378,6 +379,7 @@ model ClassGroup {
   enrollments       Enrollment[]
   tasks             TaskClassGroup[]
   attendanceRecords Attendance[]
+  paymentLinks      PaymentLink[]
 
   @@map("class_groups")
 }
@@ -782,7 +784,7 @@ model SalesAgent {
 
 model PaymentLink {
   id            String            @id @default(cuid())
-  token         String            @unique // Kesher token or our own UUID for the link
+  token         String            @unique // Our UUID for the link
   status        PaymentLinkStatus @default(draft)
 
   // Sales context
@@ -795,15 +797,20 @@ model PaymentLink {
   email         String?
   phone         String?
 
-  // Course & payment details
-  courseId       String?
+  // Course & enrollment targeting
+  courseId        String?
   courseName     String?          // Display name (in case courseId is null)
+  semesterId     String?          // מחזור לימודים
+  classGroupId   String?          // אזור לימודים (Moodle group)
   
   // Pricing
-  totalAmount    Float            // Total price in ILS (shekels)
-  couponCode     String?
+  currency       String           @default("ILS") // ILS or USD
+  totalAmount    Float            // Total price
+  couponCode     String?          // Coupon code set by agent (null = no coupon option)
+  showCouponField Boolean         @default(false) // Show coupon input on registration form
   discountAmount Float            @default(0)
   finalAmount    Float            // After discount
+  showTotalOnForm Boolean         @default(false) // false = show monthly only
   
   // Payment terms
   numPayments    Int              @default(1)   // Number of installments
@@ -811,7 +818,7 @@ model PaymentLink {
   
   // Kesher integration
   kesherPaymentPageId String?     // Payment page ID in Kesher
-  kesherToken         String?     // Token from GetLinkToken
+  kesherToken         String?     // Token from GetLinkToken (legacy)
   kesherTransactionNum String?    // Transaction number from Kesher after payment
   kesherObligationRef  String?    // Obligation reference for standing orders
   
@@ -828,9 +835,11 @@ model PaymentLink {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  salesAgent   SalesAgent @relation(fields: [salesAgentId], references: [id])
-  student      Student?   @relation(fields: [studentId], references: [id])
-  course       Course?    @relation(fields: [courseId], references: [id])
+  salesAgent   SalesAgent  @relation(fields: [salesAgentId], references: [id])
+  student      Student?    @relation(fields: [studentId], references: [id])
+  course       Course?     @relation(fields: [courseId], references: [id])
+  semester     Semester?   @relation(fields: [semesterId], references: [id])
+  classGroup   ClassGroup? @relation(fields: [classGroupId], references: [id])
   payments     Payment[]
 
   @@map("payment_links")
@@ -868,4 +877,21 @@ model Payment {
   student      Student?    @relation(fields: [studentId], references: [id])
 
   @@map("payments")
+}
+// ============================================================
+// NOTIFICATIONS (התראות בדשבורד)
+// ============================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // new_student, payment_received, enrollment_created, etc.
+  title     String
+  message   String
+  metadata  Json?    // Additional data (studentId, courseId, paymentLinkId, etc.)
+  isRead    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notifications")
 }

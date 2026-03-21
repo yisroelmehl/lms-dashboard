@@ -100,16 +100,31 @@ async function getOpenRequests() {
   }
 }
 
+async function getRecentNotifications() {
+  try {
+    return await prisma.notification.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+  } catch (e) {
+    console.error("Failed to fetch notifications:", e);
+    return [];
+  }
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const adminId = (session?.user as any)?.id;
 
-  const [stats, tasks, atRiskStudents, openRequests] = await Promise.all([
+  const [stats, tasks, atRiskStudents, openRequests, notifications] = await Promise.all([
     getStats(),
     getMyTasks(adminId),
     getAtRiskStudents(),
     getOpenRequests(),
+    getRecentNotifications(),
   ]);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <div className="space-y-6">
@@ -246,12 +261,42 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Quick Course Access Widget */}
+        {/* Notifications Widget */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold">גישה מהירה לקורסים</h2>
-          <p className="text-sm text-muted-foreground">
-            קורסים יוצגו כאן לאחר סנכרון עם המודל
-          </p>
+          <h2 className="mb-4 text-lg font-semibold">
+            התראות
+            {unreadCount > 0 && (
+              <span className="mr-2 rounded-full bg-blue-100 px-2 py-0.5 text-sm text-blue-700">
+                {unreadCount}
+              </span>
+            )}
+          </h2>
+          {notifications.length === 0 ? (
+            <p className="text-sm text-muted-foreground">אין התראות</p>
+          ) : (
+            <ul className="space-y-2">
+              {notifications.map((n) => (
+                <li
+                  key={n.id}
+                  className={`rounded-md border p-3 ${
+                    n.isRead
+                      ? "border-border bg-background"
+                      : "border-blue-200 bg-blue-50"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{n.title}</p>
+                      <p className="text-xs text-muted-foreground">{n.message}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap mr-2">
+                      {formatDateHe(n.createdAt)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

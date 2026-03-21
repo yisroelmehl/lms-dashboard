@@ -77,6 +77,11 @@ export default async function PaymentPage({
     ? (link.course.fullNameOverride || link.course.fullNameMoodle)
     : link.courseName;
 
+  const currencySymbol = link.currency === "USD" ? "$" : "₪";
+  const monthlyAmount = link.numPayments > 1
+    ? link.finalAmount / link.numPayments
+    : link.finalAmount;
+
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8" dir="rtl">
       <div className="mx-auto max-w-2xl bg-white rounded-xl shadow-md overflow-hidden">
@@ -92,20 +97,41 @@ export default async function PaymentPage({
 
         {/* Payment Summary */}
         <div className="bg-blue-50 px-6 py-4 border-b border-blue-100">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-blue-700">סכום לתשלום:</span>
-            <span className="text-lg font-bold text-blue-800">₪{link.finalAmount.toLocaleString("he-IL")}</span>
-          </div>
-          {link.numPayments > 1 && (
-            <div className="flex items-center justify-between text-sm mt-1">
-              <span className="text-blue-600">מספר תשלומים:</span>
-              <span className="text-blue-700">{link.numPayments} תשלומים של ₪{(link.finalAmount / link.numPayments).toLocaleString("he-IL", { maximumFractionDigits: 2 })}</span>
-            </div>
+          {link.showTotalOnForm || link.numPayments <= 1 ? (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-blue-700">סכום לתשלום:</span>
+                <span className="text-lg font-bold text-blue-800">
+                  {currencySymbol}{link.finalAmount.toLocaleString("he-IL")}
+                </span>
+              </div>
+              {link.numPayments > 1 && (
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-blue-600">מספר תשלומים:</span>
+                  <span className="text-blue-700">
+                    {link.numPayments} תשלומים של {currencySymbol}{monthlyAmount.toLocaleString("he-IL", { maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-blue-700">תשלום חודשי:</span>
+                <span className="text-lg font-bold text-blue-800">
+                  {currencySymbol}{monthlyAmount.toLocaleString("he-IL", { maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-1">
+                <span className="text-blue-600">מספר תשלומים:</span>
+                <span className="text-blue-700">{link.numPayments}</span>
+              </div>
+            </>
           )}
           {link.discountAmount > 0 && (
             <div className="flex items-center justify-between text-sm mt-1">
               <span className="text-green-600">הנחה:</span>
-              <span className="text-green-700">₪{link.discountAmount.toLocaleString("he-IL")}</span>
+              <span className="text-green-700">{currencySymbol}{link.discountAmount.toLocaleString("he-IL")}</span>
             </div>
           )}
         </div>
@@ -125,6 +151,10 @@ export default async function PaymentPage({
             kesherPaymentPageId={link.kesherPaymentPageId}
             finalAmount={link.finalAmount}
             numPayments={link.numPayments}
+            currency={link.currency}
+            showCouponField={link.showCouponField}
+            showTotalOnForm={link.showTotalOnForm}
+            couponCode={link.couponCode}
           />
         </div>
       </div>
