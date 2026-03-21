@@ -1,0 +1,132 @@
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { PaymentRegistrationForm } from "@/components/sales/payment-registration-form";
+
+export const dynamic = "force-dynamic";
+
+export default async function PaymentPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
+
+  const link = await prisma.paymentLink.findUnique({
+    where: { token },
+    include: {
+      course: { select: { id: true, fullNameMoodle: true, fullNameOverride: true } },
+    },
+  });
+
+  if (!link) notFound();
+
+  // Check if expired
+  if (link.expiresAt && new Date() > link.expiresAt) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+        <div className="max-w-md text-center space-y-4">
+          <span className="text-4xl">⏰</span>
+          <h1 className="text-2xl font-bold">פג תוקף הקישור</h1>
+          <p className="text-muted-foreground">
+            קישור התשלום אינו פעיל יותר. אנא פנה למשרד לקבלת קישור חדש.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If already paid
+  if (link.status === "paid") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+        <div className="max-w-md text-center space-y-4">
+          <span className="text-4xl">✅</span>
+          <h1 className="text-2xl font-bold">התשלום התקבל בהצלחה</h1>
+          <p className="text-muted-foreground">
+            תודה! הרישום שלך אושר. תקבל אישור באימייל בקרוב.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // If cancelled
+  if (link.status === "cancelled") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+        <div className="max-w-md text-center space-y-4">
+          <span className="text-4xl">❌</span>
+          <h1 className="text-2xl font-bold">הקישור בוטל</h1>
+          <p className="text-muted-foreground">
+            קישור התשלום אינו פעיל. אנא פנה למשרד לקבלת קישור חדש.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mark as opened if first time
+  if (link.status === "draft" || link.status === "sent") {
+    await prisma.paymentLink.update({
+      where: { id: link.id },
+      data: { status: "opened" },
+    });
+  }
+
+  const courseName = link.course
+    ? (link.course.fullNameOverride || link.course.fullNameMoodle)
+    : link.courseName;
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8" dir="rtl">
+      <div className="mx-auto max-w-2xl bg-white rounded-xl shadow-md overflow-hidden">
+        {/* Header */}
+        <div className="bg-blue-600 px-6 py-8 text-center text-white">
+          <h1 className="text-3xl font-bold">ברוכים הבאים</h1>
+          <p className="mt-2 opacity-90 text-lg">טופס רישום ותשלום</p>
+          <p className="mt-1 font-semibold">{link.firstName} {link.lastName}</p>
+          {courseName && (
+            <p className="mt-1 opacity-80">{courseName}</p>
+          )}
+        </div>
+
+        {/* Payment Summary */}
+        <div className="bg-blue-50 px-6 py-4 border-b border-blue-100">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-blue-700">סכום לתשלום:</span>
+            <span className="text-lg font-bold text-blue-800">₪{link.finalAmount.toLocaleString("he-IL")}</span>
+          </div>
+          {link.numPayments > 1 && (
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span className="text-blue-600">מספר תשלומים:</span>
+              <span className="text-blue-700">{link.numPayments} תשלומים של ₪{(link.finalAmount / link.numPayments).toLocaleString("he-IL", { maximumFractionDigits: 2 })}</span>
+            </div>
+          )}
+          {link.discountAmount > 0 && (
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span className="text-green-600">הנחה:</span>
+              <span className="text-green-700">₪{link.discountAmount.toLocaleString("he-IL")}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Registration Form */}
+        <div className="p-8">
+          <PaymentRegistrationForm
+            token={link.token}
+            linkId={link.id}
+            initialData={{
+              firstName: link.firstName,
+              lastName: link.lastName,
+              email: link.email || "",
+              phone: link.phone || "",
+            }}
+            hasKesherPayment={!!link.kesherPaymentPageId}
+            kesherPaymentPageId={link.kesherPaymentPageId}
+            kesherToken={link.kesherToken}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

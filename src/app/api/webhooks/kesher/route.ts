@@ -1,0 +1,161 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+/**
+ * Kesher CRM Webhook Handler
+ * 
+ * Kesher sends callbacks to this endpoint when a payment is processed.
+ * Configure the callback URL in Kesher: site > company settings > CRM services > general
+ * 
+ * Callback params include:
+ * - isSucces: boolean
+ * - ref: reference
+ * - total: amount
+ * - transactionNumber: from Kesher
+ * - obligationRef: for standing orders
+ * - adddata: our token stored in adddata field
+ */
+export async function POST(request: Request) {
+  let body: Record<string, unknown>;
+
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    body = await request.json();
+  } else {
+    // Form-encoded or query params
+    const text = await request.text();
+    body = Object.fromEntries(new URLSearchParams(text));
+  }
+
+  const {
+    isSucces,
+    transactionNumber,
+    total,
+    obligationRef,
+    adddata,
+    ref,
+  } = body as Record<string, string>;
+
+  // adddata contains our payment link token
+  const token = adddata;
+  if (!token) {
+    console.error("Kesher webhook: missing adddata (token)");
+    return NextResponse.json({ error: "missing token" }, { status: 400 });
+  }
+
+  const link = await prisma.paymentLink.findUnique({
+    where: { token },
+    include: { course: true },
+  });
+
+  if (!link) {
+    console.error(`Kesher webhook: payment link not found for token ${token}`);
+    return NextResponse.json({ error: "link not found" }, { status: 404 });
+  }
+
+  const isSuccess = isSucces === "true" || isSucces === "True";
+  const amount = total ? parseFloat(total) : link.finalAmount;
+
+  // Create payment record
+  await prisma.payment.create({
+    data: {
+      paymentLinkId: link.id,
+      salesAgentId: link.salesAgentId,
+      studentId: link.studentId,
+      amount,
+      paymentMethod: "credit_card",
+      kesherTransactionNum: transactionNumber || null,
+      kesherOKNum: ref || null,
+      kesherStatus: isSuccess ? "success" : "failed",
+      kesherRawResponse: body as Record<string, string>,
+      isSuccess,
+      failureReason: isSuccess ? null : "Payment declined",
+      processedAt: new Date(),
+    },
+  });
+
+  if (isSuccess) {
+    // Update payment link status
+    await prisma.paymentLink.update({
+      where: { id: link.id },
+      data: {
+        status: "paid",
+        paidAt: new Date(),
+        kesherTransactionNum: transactionNumber || null,
+        kesherObligationRef: obligationRef || null,
+      },
+    });
+
+    // Enroll student in course if student and course exist
+    if (link.studentId && link.courseId) {
+      // Check if enrollment already exists
+      const existingEnrollment = await prisma.enrollment.findFirst({
+        where: {
+          studentId: link.studentId,
+          courseId: link.courseId,
+        },
+      });
+
+      if (!existingEnrollment) {
+        await prisma.enrollment.create({
+          data: {
+            studentId: link.studentId,
+            courseId: link.courseId,
+          },
+        });
+      }
+
+      // TODO: Trigger Moodle enrollment via Moodle API
+      // await enrollStudentInMoodle(link.studentId, link.courseId);
+
+      await prisma.paymentLink.update({
+        where: { id: link.id },
+        data: {
+          moodleEnrolled: false, // Will be true once Moodle enrollment completes
+        },
+      });
+    }
+  } else {
+    // Mark as failed
+    await prisma.paymentLink.update({
+      where: { id: link.id },
+      data: { status: "failed" },
+    });
+  }
+
+  // Kesher expects a 200 response
+  return NextResponse.json({ success: true });
+}
+
+// Also handle GET for Kesher success/failure redirect callbacks
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const adddata = searchParams.get("adddata");
+  const isSucces = searchParams.get("isSucces");
+  const transactionNumber = searchParams.get("transactionNumber");
+
+  if (adddata) {
+    // Process same as POST
+    const link = await prisma.paymentLink.findUnique({
+      where: { token: adddata },
+    });
+
+    if (link && isSucces === "true") {
+      await prisma.paymentLink.update({
+        where: { id: link.id },
+        data: {
+          status: "paid",
+          paidAt: new Date(),
+          kesherTransactionNum: transactionNumber,
+        },
+      });
+    }
+  }
+
+  // Redirect to payment page to show success/failure
+  const redirectToken = adddata || "";
+  const status = isSucces === "true" ? "success" : "failed";
+  return NextResponse.redirect(
+    new URL(`/pay/${redirectToken}?status=${status}`, request.url)
+  );
+}

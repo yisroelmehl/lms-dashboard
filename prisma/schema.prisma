@@ -86,6 +86,24 @@ enum AdminRole {
   rabbi // רב/מרצה - גישה מוגבלת לקורסים שלו
 }
 
+enum PaymentLinkStatus {
+  draft       // נוצר אבל עדיין לא נשלח
+  sent        // נשלח לתלמיד
+  opened      // התלמיד פתח את הקישור
+  paid        // שולם בהצלחה
+  failed      // נכשל
+  cancelled   // בוטל
+  expired     // פג תוקף
+}
+
+enum PaymentMethod {
+  credit_card
+  bit
+  bank_transfer
+  cash
+  check
+}
+
 // ============================================================
 // ADMIN USERS
 // ============================================================
@@ -203,6 +221,8 @@ model Student {
   tasks               TaskStudent[]
   serviceRequests     ServiceRequest[]
   studentNotes        Note[]
+  paymentLinks        PaymentLink[]
+  payments            Payment[]
 
   @@map("students")
 }
@@ -284,6 +304,7 @@ model Course {
   attendanceRecords Attendance[]
   calendarEvents    CalendarEvent[]
   tasks             Task[]
+  paymentLinks      PaymentLink[]
 
   @@map("courses")
 }
@@ -732,4 +753,119 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 
   @@map("app_settings")
+}
+
+// ============================================================
+// SALES AGENTS (אנשי מכירות)
+// ============================================================
+
+model SalesAgent {
+  id        String  @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String? @unique
+  phone     String?
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentLinks PaymentLink[]
+  payments     Payment[]
+
+  @@map("sales_agents")
+}
+
+// ============================================================
+// PAYMENT LINKS (קישורי תשלום)
+// ============================================================
+
+model PaymentLink {
+  id            String            @id @default(cuid())
+  token         String            @unique // Kesher token or our own UUID for the link
+  status        PaymentLinkStatus @default(draft)
+
+  // Sales context
+  salesAgentId  String
+  
+  // Student info (pre-filled or entered on registration)
+  studentId     String?           // linked after registration
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+
+  // Course & payment details
+  courseId       String?
+  courseName     String?          // Display name (in case courseId is null)
+  
+  // Pricing
+  totalAmount    Float            // Total price in ILS (shekels)
+  couponCode     String?
+  discountAmount Float            @default(0)
+  finalAmount    Float            // After discount
+  
+  // Payment terms
+  numPayments    Int              @default(1)   // Number of installments
+  chargeDay      Int?             // Day of month for recurring charges (1-28)
+  
+  // Kesher integration
+  kesherPaymentPageId String?     // Payment page ID in Kesher
+  kesherToken         String?     // Token from GetLinkToken
+  kesherTransactionNum String?    // Transaction number from Kesher after payment
+  kesherObligationRef  String?    // Obligation reference for standing orders
+  
+  // Registration data (filled by student via the link)
+  registrationData    Json?       // All form data from registration
+  termsAcceptedAt     DateTime?   // When student accepted terms
+  
+  // Moodle enrollment
+  moodleEnrolled      Boolean     @default(false)
+  moodleEnrolledAt    DateTime?
+  
+  expiresAt    DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  salesAgent   SalesAgent @relation(fields: [salesAgentId], references: [id])
+  student      Student?   @relation(fields: [studentId], references: [id])
+  course       Course?    @relation(fields: [courseId], references: [id])
+  payments     Payment[]
+
+  @@map("payment_links")
+}
+
+// ============================================================
+// PAYMENTS (תשלומים - history of actual charges)
+// ============================================================
+
+model Payment {
+  id              String        @id @default(cuid())
+  paymentLinkId   String
+  salesAgentId    String?
+  studentId       String?
+
+  amount          Float
+  currency        String        @default("ILS")
+  paymentMethod   PaymentMethod @default(credit_card)
+  
+  // Kesher transaction data
+  kesherTransactionNum String?
+  kesherOKNum          String?
+  kesherStatus         String?
+  kesherRawResponse    Json?
+  
+  isSuccess       Boolean       @default(false)
+  failureReason   String?
+  
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  paymentLink  PaymentLink @relation(fields: [paymentLinkId], references: [id], onDelete: Cascade)
+  salesAgent   SalesAgent? @relation(fields: [salesAgentId], references: [id])
+  student      Student?    @relation(fields: [studentId], references: [id])
+
+  @@map("payments")
 }
