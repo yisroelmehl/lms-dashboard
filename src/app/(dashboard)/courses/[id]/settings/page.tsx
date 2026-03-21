@@ -6,6 +6,7 @@ import { CourseGeneralSettingsForm } from "@/components/courses/course-general-s
 import { CourseRequirementsForm } from "@/components/courses/course-requirements-form";
 import { CourseSemestersManager } from "@/components/courses/course-semesters-manager";
 import { CourseSyllabusManager } from "@/components/courses/course-syllabus-manager";
+import { CourseTagsPicker } from "@/components/courses/course-tags-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +17,23 @@ export default async function CourseSettingsPage({
 }) {
   try {
     const { id } = await params;
-    const course = await prisma.course.findUnique({
-      where: { id },
-      include: {
-        semesters: { orderBy: { sortOrder: "asc" } },
-        syllabusItems: { orderBy: { sortOrder: "asc" } },
-      },
-    });
+    const [course, allTags, courseTags] = await Promise.all([
+      prisma.course.findUnique({
+        where: { id },
+        include: {
+          semesters: { orderBy: { sortOrder: "asc" } },
+          syllabusItems: { orderBy: { sortOrder: "asc" } },
+        },
+      }),
+      prisma.tag.findMany({
+        where: { category: "subject" },
+        orderBy: { name: "asc" },
+      }),
+      prisma.courseTag.findMany({
+        where: { courseId: id },
+        select: { tagId: true },
+      }),
+    ]);
 
     if (!course) notFound();
 
@@ -41,6 +52,17 @@ export default async function CourseSettingsPage({
         </div>
 
         <CourseGeneralSettingsForm courseId={course.id} initialData={course} />
+
+        {/* נושאי לימוד */}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <h2 className="mb-3 text-lg font-semibold">נושאי לימוד</h2>
+          <p className="mb-3 text-sm text-muted-foreground">שייך את הקורס לנושאי לימוד לצורך סינון וארגון</p>
+          <CourseTagsPicker
+            courseId={course.id}
+            allTags={allTags}
+            currentTagIds={courseTags.map((ct) => ct.tagId)}
+          />
+        </div>
 
         <CourseRequirementsForm
           courseId={course.id}

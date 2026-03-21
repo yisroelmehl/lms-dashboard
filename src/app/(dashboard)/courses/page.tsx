@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CoursesPage() {
   try {
-    const [courses, tags] = await Promise.all([
+    const [courses, tags, semesters] = await Promise.all([
       prisma.course.findMany({
         include: {
           _count: {
@@ -18,6 +18,10 @@ export default async function CoursesPage() {
           tags: {
             include: { tag: true },
           },
+          semesters: {
+            select: { id: true, name: true },
+            orderBy: { sortOrder: "asc" },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -25,12 +29,17 @@ export default async function CoursesPage() {
         where: { category: "subject" },
         orderBy: { name: "asc" },
       }),
+      prisma.semester.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+        distinct: ["name"],
+      }),
     ]);
 
     return (
       <div className="space-y-6">
         <CoursesHeader />
-        <CoursesGrid courses={courses} tags={tags} />
+        <CoursesGrid courses={courses} tags={tags} semesters={semesters} />
       </div>
     );
   } catch (error) {

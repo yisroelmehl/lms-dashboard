@@ -10,6 +10,11 @@ interface Tag {
   color: string | null;
 }
 
+interface Semester {
+  id: string;
+  name: string;
+}
+
 interface CourseWithTags {
   id: string;
   fullNameMoodle: string | null;
@@ -20,16 +25,20 @@ interface CourseWithTags {
   _count: { enrollments: number; semesters: number; classGroups: number };
   enrollments: { id: string; statusMoodle: string | null; statusOverride: string | null }[];
   tags: { tag: Tag }[];
+  semesters: Semester[];
 }
 
 export function CoursesGrid({
   courses,
   tags,
+  semesters = [],
 }: {
   courses: CourseWithTags[];
   tags: Tag[];
+  semesters?: Semester[];
 }) {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const filtered = courses.filter((course) => {
@@ -37,6 +46,12 @@ export function CoursesGrid({
     if (selectedTagId) {
       const hasTag = course.tags.some((ct) => ct.tag.id === selectedTagId);
       if (!hasTag) return false;
+    }
+
+    // Filter by semester
+    if (selectedSemesterId) {
+      const hasSemester = course.semesters.some((s) => s.id === selectedSemesterId);
+      if (!hasSemester) return false;
     }
 
     // Filter by search
@@ -67,6 +82,7 @@ export function CoursesGrid({
 
         {tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">נושא:</span>
             <button
               onClick={() => setSelectedTagId(null)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
@@ -104,10 +120,41 @@ export function CoursesGrid({
             ))}
           </div>
         )}
+
+        {semesters.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">מחזור:</span>
+            <button
+              onClick={() => setSelectedSemesterId(null)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                selectedSemesterId === null
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              הכל
+            </button>
+            {semesters.map((sem) => (
+              <button
+                key={sem.id}
+                onClick={() =>
+                  setSelectedSemesterId(selectedSemesterId === sem.id ? null : sem.id)
+                }
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  selectedSemesterId === sem.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                {sem.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Results count */}
-      {(selectedTagId || search) && (
+      {(selectedTagId || selectedSemesterId || search) && (
         <p className="text-sm text-muted-foreground">
           {filtered.length} מתוך {courses.length} קורסים
         </p>
