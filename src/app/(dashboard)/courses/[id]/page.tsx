@@ -4,6 +4,7 @@ import { resolveField } from "@/lib/utils";
 import Link from "next/link";
 import { TaskList } from "@/components/tasks/task-list";
 import { CourseProgressTable } from "@/components/courses/course-progress-table";
+import { CourseTagsPicker } from "@/components/courses/course-tags-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,18 @@ export default async function CourseDetailPage({
 
     if (!course) notFound();
 
+    // Fetch all tags and course's current tags
+    const [allTags, courseTags] = await Promise.all([
+      prisma.tag.findMany({
+        where: { category: "subject" },
+        orderBy: { name: "asc" },
+      }),
+      prisma.courseTag.findMany({
+        where: { courseId: id },
+        include: { tag: true },
+      }),
+    ]);
+
     // Fetch activity completions for all students in the course
     const studentIds = course.enrollments.map((e) => e.studentId);
     const syllabusItemIds = course.syllabusItems.map((si) => si.id);
@@ -110,6 +123,11 @@ export default async function CourseDetailPage({
                 </span>
               )}
             </div>
+            <CourseTagsPicker
+              courseId={course.id}
+              allTags={allTags}
+              currentTagIds={courseTags.map((ct) => ct.tagId)}
+            />
           </div>
           <div className="flex items-center gap-2">
             <Link 

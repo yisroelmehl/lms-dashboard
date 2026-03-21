@@ -208,6 +208,36 @@ model Student {
 }
 
 // ============================================================
+// TAGS (תגיות - נושאי לימוד, מקצועות וכו׳)
+// ============================================================
+
+model Tag {
+  id       String @id @default(cuid())
+  name     String
+  category String @default("subject") // subject, level, track, etc.
+  color    String? // צבע לתצוגה (hex)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses CourseTag[]
+
+  @@unique([name, category])
+  @@map("tags")
+}
+
+model CourseTag {
+  courseId String
+  tagId   String
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, tagId])
+  @@map("course_tags")
+}
+
+// ============================================================
 // COURSES
 // ============================================================
 
@@ -245,6 +275,7 @@ model Course {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  tags              CourseTag[]
   semesters         Semester[]
   classGroups       ClassGroup[]
   enrollments       Enrollment[]
