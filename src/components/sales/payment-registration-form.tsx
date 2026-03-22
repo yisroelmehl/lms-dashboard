@@ -241,10 +241,9 @@ export function PaymentRegistrationForm({
     params.set("firstName", formData.firstName);
     params.set("lastName", formData.lastName);
     params.set("adddata", token);
-    // Set callback URLs so Kesher redirects back to our webhook after payment
-    const baseUrl = window.location.origin;
-    params.set("successurl", `${baseUrl}/api/webhooks/kesher`);
-    params.set("failedurl", `${baseUrl}/api/webhooks/kesher`);
+    // addactiondata is appended to the action URL configured in Kesher dashboard
+    // This ensures our webhook receives the token even via action path
+    params.set("addactiondata", token);
     return `https://ultra.kesherhk.info/external/paymentPage/${kesherPaymentPageId}?${params.toString()}`;
   };
 
