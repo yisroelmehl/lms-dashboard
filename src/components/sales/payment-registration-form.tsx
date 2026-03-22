@@ -49,6 +49,8 @@ export function PaymentRegistrationForm({
   } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [effectiveFinalAmount, setEffectiveFinalAmount] = useState(finalAmount);
+  const [couponDiscountAmount, setCouponDiscountAmount] = useState(0);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
 
@@ -129,7 +131,7 @@ export function PaymentRegistrationForm({
   });
 
   const currencySymbol = currency === "USD" ? "$" : "₪";
-  const monthlyAmount = numPayments > 1 ? finalAmount / numPayments : finalAmount;
+  const monthlyAmount = numPayments > 1 ? effectiveFinalAmount / numPayments : effectiveFinalAmount;
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -173,10 +175,20 @@ export function PaymentRegistrationForm({
           registrationData: formData,
           termsAccepted: true,
           termsText, // Keep track of the exact text they agreed to
+          couponCode: couponValidation?.valid ? formData.couponCode : undefined,
         }),
       });
 
       if (res.ok) {
+        const data = await res.json();
+        // Update effective amount from server (coupon applied server-side)
+        if (data.finalAmount !== undefined) {
+          setEffectiveFinalAmount(data.finalAmount);
+        }
+        if (data.discountAmount !== undefined) {
+          setCouponDiscountAmount(data.discountAmount);
+        }
+        
         if (hasKesherPayment && kesherPaymentPageId) {
           setShowPayment(true);
           setStatus("form");
@@ -198,6 +210,8 @@ export function PaymentRegistrationForm({
   const validateCoupon = async (code: string) => {
     if (!code.trim()) {
       setCouponValidation(null);
+      setCouponDiscountAmount(0);
+      setEffectiveFinalAmount(finalAmount);
       return;
     }
     setValidatingCoupon(true);
@@ -209,18 +223,34 @@ export function PaymentRegistrationForm({
       });
       const data = await res.json();
       if (data.valid) {
+        // Calculate the discount amount
+        let discount = 0;
+        if (data.discountType === "percent") {
+          discount = Math.round((finalAmount * data.discountValue / 100) * 100) / 100;
+        } else {
+          discount = data.discountValue;
+        }
+        discount = Math.min(discount, finalAmount);
+        const newAmount = Math.max(0, finalAmount - discount);
+        
+        setCouponDiscountAmount(discount);
+        setEffectiveFinalAmount(newAmount);
         setCouponValidation({
           valid: true,
           message: data.discountType === "percent"
-            ? `הנחה של ${data.discountValue}%`
-            : `הנחה של ${data.currency === "USD" ? "$" : "₪"}${data.discountValue}`,
+            ? `הנחה של ${data.discountValue}% (${currencySymbol}${discount.toLocaleString("he-IL")})`
+            : `הנחה של ${currencySymbol}${data.discountValue}`,
           discountType: data.discountType,
           discountValue: data.discountValue,
         });
       } else {
+        setCouponDiscountAmount(0);
+        setEffectiveFinalAmount(finalAmount);
         setCouponValidation({ valid: false, message: data.error || "קופון לא תקין" });
       }
     } catch {
+      setCouponDiscountAmount(0);
+      setEffectiveFinalAmount(finalAmount);
       setCouponValidation({ valid: false, message: "שגיאה בבדיקת הקופון" });
     } finally {
       setValidatingCoupon(false);
@@ -259,7 +289,7 @@ export function PaymentRegistrationForm({
     if (!kesherPaymentPageId) return "";
     const params = new URLSearchParams();
     params.set("name", `${formData.firstName} ${formData.lastName}`);
-    params.set("total", String(finalAmount));
+    params.set("total", String(effectiveFinalAmount));
     params.set("currency", currency === "USD" ? "2" : "1");
     if (numPayments > 1) params.set("numpayment", String(numPayments));
     if (formData.phone) params.set("tel", formData.phone);
@@ -489,6 +519,24 @@ export function PaymentRegistrationForm({
                 {!couponValidation && presetCoupon && formData.couponCode === presetCoupon && (
                   <p className="mt-1 text-xs text-green-600">✓ קופון תקין</p>
                 )}
+                
+                {/* Prominent discount display */}
+                {couponValidation?.valid && couponDiscountAmount > 0 && (
+                  <div className="mt-3 rounded-lg border-2 border-green-300 bg-green-50 p-4 text-center">
+                    <p className="text-sm text-green-700 font-medium">🎉 קופון הופעל בהצלחה!</p>
+                    <div className="mt-2 flex items-center justify-center gap-3">
+                      <span className="text-lg text-gray-400 line-through">
+                        {currencySymbol}{finalAmount.toLocaleString("he-IL")}
+                      </span>
+                      <span className="text-2xl font-bold text-green-700">
+                        {currencySymbol}{effectiveFinalAmount.toLocaleString("he-IL")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      חיסכון של {currencySymbol}{couponDiscountAmount.toLocaleString("he-IL")}!
+                    </p>
+                  </div>
+                )}
               </div>
             </fieldset>
           )}
@@ -536,12 +584,22 @@ export function PaymentRegistrationForm({
               פרטיך נשמרו בהצלחה. כעת יש להשלים את התשלום:
             </p>
             <div className="mt-2 text-sm font-semibold text-blue-800">
+              {couponDiscountAmount > 0 && (
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-gray-400 line-through text-sm">
+                    {currencySymbol}{finalAmount.toLocaleString("he-IL")}
+                  </span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                    הנחת קופון: {currencySymbol}{couponDiscountAmount.toLocaleString("he-IL")}
+                  </span>
+                </div>
+              )}
               {showTotalOnForm ? (
-                <span>סכום לתשלום: {currencySymbol}{finalAmount.toLocaleString("he-IL")}</span>
+                <span>סכום לתשלום: {currencySymbol}{effectiveFinalAmount.toLocaleString("he-IL")}</span>
               ) : numPayments > 1 ? (
                 <span>{numPayments} תשלומים של {currencySymbol}{monthlyAmount.toLocaleString("he-IL", { maximumFractionDigits: 2 })}</span>
               ) : (
-                <span>סכום לתשלום: {currencySymbol}{finalAmount.toLocaleString("he-IL")}</span>
+                <span>סכום לתשלום: {currencySymbol}{effectiveFinalAmount.toLocaleString("he-IL")}</span>
               )}
             </div>
           </div>

@@ -9,7 +9,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { token, registrationData, termsAccepted, termsText } = body;
+  const { token, registrationData, termsAccepted, termsText, couponCode } = body;
   
   // Get IP address for legal tracking
   const clientIp = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
@@ -98,6 +98,43 @@ export async function POST(
     }
   }
 
+  // Process coupon if provided by student
+  let couponDiscountAmount = 0;
+  let appliedCouponCode: string | null = null;
+  
+  if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
+    const normalizedCode = couponCode.trim().toUpperCase();
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: normalizedCode },
+    });
+    
+    if (coupon && coupon.isActive && 
+        (!coupon.expiresAt || new Date() <= coupon.expiresAt) &&
+        (!coupon.maxUses || coupon.usedCount < coupon.maxUses) &&
+        (!coupon.courseId || coupon.courseId === link.courseId)) {
+      
+      if (coupon.discountType === "percent") {
+        couponDiscountAmount = Math.round((link.totalAmount * coupon.discountValue / 100) * 100) / 100;
+      } else {
+        couponDiscountAmount = coupon.discountValue;
+      }
+      
+      // Don't let discount exceed total
+      couponDiscountAmount = Math.min(couponDiscountAmount, link.totalAmount);
+      appliedCouponCode = normalizedCode;
+      
+      // Increment coupon usage
+      await prisma.coupon.update({
+        where: { id: coupon.id },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
+  }
+
+  // Calculate updated amounts
+  const newDiscountAmount = (link.discountAmount || 0) + couponDiscountAmount;
+  const newFinalAmount = Math.max(0, link.totalAmount - newDiscountAmount);
+
   // Update payment link
   const isComplete = link.isRegistrationOnly;
   
@@ -113,6 +150,12 @@ export async function POST(
       lastName: registrationData?.lastName || link.lastName,
       email: registrationData?.email || link.email,
       phone: registrationData?.phone || link.phone,
+      // Update coupon and amounts
+      ...(appliedCouponCode ? {
+        couponCode: appliedCouponCode,
+        discountAmount: newDiscountAmount,
+        finalAmount: newFinalAmount,
+      } : {}),
       status: isComplete ? "paid" : undefined,
       paidAt: isComplete ? new Date() : undefined,
       moodleEnrolled: isComplete ? false : undefined,
@@ -145,7 +188,7 @@ export async function POST(
         paymentLinkId: link.id,
         salesAgentId: link.salesAgentId,
         studentId,
-        amount: link.finalAmount,
+        amount: newFinalAmount,
         currency: link.currency,
         paymentMethod: "bank_transfer",
         isSuccess: true,
@@ -178,5 +221,11 @@ export async function POST(
     },
   });
 
-  return NextResponse.json({ success: true, studentId });
+  return NextResponse.json({ 
+    success: true, 
+    studentId,
+    finalAmount: newFinalAmount,
+    discountAmount: newDiscountAmount,
+    couponApplied: !!appliedCouponCode,
+  });
 }

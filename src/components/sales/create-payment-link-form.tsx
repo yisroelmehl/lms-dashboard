@@ -57,6 +57,54 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
       }
     } catch { /* ignore */ }
   }, []);
+  
+  // Inline coupon creation
+  const [showCouponCreator, setShowCouponCreator] = useState(false);
+  const [creatingCoupon, setCreatingCoupon] = useState(false);
+  const [couponCreatorData, setCouponCreatorData] = useState({
+    code: "",
+    discountType: "fixed" as "fixed" | "percent",
+    discountValue: "",
+    maxUses: "",
+  });
+  const [couponCreatorError, setCouponCreatorError] = useState("");
+
+  const handleCreateCoupon = async () => {
+    if (!couponCreatorData.code.trim() || !couponCreatorData.discountValue) {
+      setCouponCreatorError("קוד וערך הנחה הם שדות חובה");
+      return;
+    }
+    setCreatingCoupon(true);
+    setCouponCreatorError("");
+    try {
+      const res = await fetch("/api/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCreatorData.code.trim().toUpperCase(),
+          discountType: couponCreatorData.discountType,
+          discountValue: Number(couponCreatorData.discountValue),
+          currency: formData.currency,
+          maxUses: couponCreatorData.maxUses ? Number(couponCreatorData.maxUses) : null,
+          courseId: formData.courseId || null,
+        }),
+      });
+      if (res.ok) {
+        // Auto-fill the coupon code field
+        setFormData(prev => ({ ...prev, couponCode: couponCreatorData.code.trim().toUpperCase() }));
+        setShowCouponCreator(false);
+        setCouponCreatorData({ code: "", discountType: "fixed", discountValue: "", maxUses: "" });
+      } else {
+        const data = await res.json();
+        setCouponCreatorError(data.error || "שגיאה ביצירת קופון");
+      }
+    } catch {
+      setCouponCreatorError("שגיאת תקשורת");
+    } finally {
+      setCreatingCoupon(false);
+    }
+  };
+
   const [result, setResult] = useState<{
     registrationUrl: string;
     paymentPageUrl: string | null;
@@ -535,14 +583,77 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
             )}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">קופון</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-sm font-medium">קופון</label>
+              <button
+                type="button"
+                onClick={() => setShowCouponCreator(!showCouponCreator)}
+                className="text-xs text-primary hover:underline"
+              >
+                {showCouponCreator ? "סגור" : "צור קופון חדש"}
+              </button>
+            </div>
             <input
               type="text"
               name="couponCode"
               value={formData.couponCode}
               onChange={handleChange}
+              placeholder="קוד קופון קיים"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
+            {showCouponCreator && (
+              <div className="mt-2 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-2">
+                <p className="text-xs font-semibold text-blue-700">יצירת קופון חדש</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={couponCreatorData.code}
+                    onChange={(e) => setCouponCreatorData(prev => ({ ...prev, code: e.target.value }))}
+                    placeholder="קוד קופון"
+                    className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    dir="ltr"
+                  />
+                  <select
+                    value={couponCreatorData.discountType}
+                    onChange={(e) => setCouponCreatorData(prev => ({ ...prev, discountType: e.target.value as "fixed" | "percent" }))}
+                    className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                  >
+                    <option value="fixed">סכום קבוע ({currencySymbol})</option>
+                    <option value="percent">אחוז (%)</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={couponCreatorData.discountValue}
+                    onChange={(e) => setCouponCreatorData(prev => ({ ...prev, discountValue: e.target.value }))}
+                    placeholder="ערך הנחה"
+                    min="0"
+                    step="0.01"
+                    className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    dir="ltr"
+                  />
+                  <input
+                    type="number"
+                    value={couponCreatorData.maxUses}
+                    onChange={(e) => setCouponCreatorData(prev => ({ ...prev, maxUses: e.target.value }))}
+                    placeholder="מקסימום שימושים (ריק=ללא הגבלה)"
+                    min="1"
+                    className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    dir="ltr"
+                  />
+                </div>
+                {couponCreatorError && (
+                  <p className="text-xs text-red-600">{couponCreatorError}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCreateCoupon}
+                  disabled={creatingCoupon}
+                  className="w-full rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {creatingCoupon ? "יוצר..." : "צור קופון"}
+                </button>
+              </div>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">הנחה ({currencySymbol})</label>
