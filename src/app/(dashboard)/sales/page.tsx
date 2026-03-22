@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDateHe } from "@/lib/utils";
 import { SalesAgentActions } from "@/components/sales/sales-agent-actions";
+import { SalesManagementButtons } from "@/components/sales/sales-management-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function SalesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">מכירות וסליקה</h1>
         <div className="flex gap-2">
+          <SalesManagementButtons />
           <Link
             href="/sales/payment-links/new"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"

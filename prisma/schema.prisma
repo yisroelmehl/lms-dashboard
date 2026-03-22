@@ -310,6 +310,7 @@ model Course {
   calendarEvents    CalendarEvent[]
   tasks             Task[]
   paymentLinks      PaymentLink[]
+  coupons           Coupon[]
 
   @@map("courses")
 }
@@ -903,6 +904,31 @@ model Notification {
   updatedAt DateTime @updatedAt
 
   @@map("notifications")
+}
+
+// ============================================================
+// COUPONS (קופונים)
+// ============================================================
+
+model Coupon {
+  id            String   @id @default(cuid())
+  code          String   @unique // קוד הקופון (מה שהתלמיד מזין)
+  description   String?  // תיאור הקופון
+  discountType  String   @default("fixed") // fixed = סכום קבוע, percent = אחוז
+  discountValue Float    // הסכום או האחוז
+  currency      String   @default("ILS") // ILS or USD (relevant for fixed discounts)
+  maxUses       Int?     // מקסימום שימושים (null = ללא הגבלה)
+  usedCount     Int      @default(0)
+  courseId       String?  // אם מוגבל לקורס מסוים
+  isActive      Boolean  @default(true)
+  expiresAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course Course? @relation(fields: [courseId], references: [id])
+
+  @@map("coupons")
 }
 
 // ============================================================

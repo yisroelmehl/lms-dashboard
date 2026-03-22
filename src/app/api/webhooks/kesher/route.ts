@@ -147,21 +147,77 @@ export async function GET(request: Request) {
   const adddata = searchParams.get("adddata");
   const isSucces = searchParams.get("isSucces");
   const transactionNumber = searchParams.get("transactionNumber");
+  const total = searchParams.get("total");
+  const ref = searchParams.get("ref");
 
   if (adddata) {
-    // Process same as POST
     const link = await prisma.paymentLink.findUnique({
       where: { token: adddata },
+      include: { course: true },
     });
 
-    if (link && isSucces === "true") {
+    if (link && isSucces === "true" && link.status !== "paid") {
+      const amount = total ? parseFloat(total) : link.finalAmount;
+
+      // Create payment record
+      await prisma.payment.create({
+        data: {
+          paymentLinkId: link.id,
+          salesAgentId: link.salesAgentId,
+          studentId: link.studentId,
+          amount,
+          paymentMethod: "credit_card",
+          kesherTransactionNum: transactionNumber || null,
+          kesherOKNum: ref || null,
+          kesherStatus: "success",
+          kesherRawResponse: Object.fromEntries(searchParams.entries()),
+          isSuccess: true,
+          processedAt: new Date(),
+        },
+      });
+
+      // Update payment link status
       await prisma.paymentLink.update({
         where: { id: link.id },
         data: {
           status: "paid",
           paidAt: new Date(),
-          kesherTransactionNum: transactionNumber,
+          kesherTransactionNum: transactionNumber || null,
         },
+      });
+
+      // Enroll student if applicable
+      if (link.studentId && link.courseId) {
+        const existingEnrollment = await prisma.enrollment.findFirst({
+          where: { studentId: link.studentId, courseId: link.courseId },
+        });
+        if (!existingEnrollment) {
+          await prisma.enrollment.create({
+            data: { studentId: link.studentId, courseId: link.courseId },
+          });
+        }
+      }
+
+      // Create notification
+      await prisma.notification.create({
+        data: {
+          type: "payment_received",
+          title: "תשלום התקבל",
+          message: `${link.firstName} ${link.lastName} ביצע תשלום בסך ${amount} ${link.currency}${link.course ? ` עבור ${link.course.fullNameOverride || link.course.fullNameMoodle}` : ""}`,
+          metadata: {
+            paymentLinkId: link.id,
+            studentId: link.studentId,
+            courseId: link.courseId,
+            amount,
+            currency: link.currency,
+            transactionNumber,
+          },
+        },
+      });
+    } else if (link && isSucces !== "true" && link.status !== "paid") {
+      await prisma.paymentLink.update({
+        where: { id: link.id },
+        data: { status: "failed" },
       });
     }
   }

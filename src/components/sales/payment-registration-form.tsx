@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface Props {
   token: string;
@@ -34,10 +34,48 @@ export function PaymentRegistrationForm({
   showTotalOnForm,
   couponCode: presetCoupon,
 }: Props) {
-  const [status, setStatus] = useState<"form" | "saving" | "success">("form");
+  const [status, setStatus] = useState<"form" | "saving" | "success" | "payment_success">("form");
   const [error, setError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [couponValidation, setCouponValidation] = useState<{
+    valid: boolean;
+    message: string;
+    discountType?: string;
+    discountValue?: number;
+  } | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll payment status after showing iframe
+  const startPolling = useCallback(() => {
+    if (pollIntervalRef.current) return;
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payment-links/${linkId}/status`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "paid") {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setStatus("payment_success");
+          }
+        }
+      } catch { /* ignore polling errors */ }
+    }, 3000);
+  }, [linkId]);
+
+  useEffect(() => {
+    if (showPayment) {
+      startPolling();
+    }
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [showPayment, startPolling]);
 
   const [formData, setFormData] = useState({
     firstName: initialData.firstName,
@@ -107,6 +145,51 @@ export function PaymentRegistrationForm({
       setStatus("form");
     }
   };
+
+  const validateCoupon = async (code: string) => {
+    if (!code.trim()) {
+      setCouponValidation(null);
+      return;
+    }
+    setValidatingCoupon(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setCouponValidation({
+          valid: true,
+          message: data.discountType === "percent"
+            ? `הנחה של ${data.discountValue}%`
+            : `הנחה של ${data.currency === "USD" ? "$" : "₪"}${data.discountValue}`,
+          discountType: data.discountType,
+          discountValue: data.discountValue,
+        });
+      } else {
+        setCouponValidation({ valid: false, message: data.error || "קופון לא תקין" });
+      }
+    } catch {
+      setCouponValidation({ valid: false, message: "שגיאה בבדיקת הקופון" });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  if (status === "payment_success") {
+    return (
+      <div className="text-center space-y-4 py-8">
+        <span className="text-5xl">🎉</span>
+        <h2 className="text-2xl font-bold text-green-700">התשלום בוצע בהצלחה!</h2>
+        <p className="text-gray-600">
+          תודה רבה, {formData.firstName}! הרישום והתשלום שלך התקבלו.<br />
+          תקבל אישור באימייל בקרוב.
+        </p>
+      </div>
+    );
+  }
 
   if (status === "success") {
     return (
@@ -323,15 +406,34 @@ export function PaymentRegistrationForm({
               <legend className="text-lg font-semibold mb-2">קופון</legend>
               <div>
                 <label className="mb-1 block text-sm font-medium">קוד קופון</label>
-                <input
-                  type="text"
-                  name="couponCode"
-                  value={formData.couponCode}
-                  onChange={handleChange}
-                  placeholder="הזן קוד קופון לקבלת הנחה"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-                {presetCoupon && formData.couponCode === presetCoupon && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    name="couponCode"
+                    value={formData.couponCode}
+                    onChange={(e) => {
+                      handleChange(e);
+                      setCouponValidation(null);
+                    }}
+                    placeholder="הזן קוד קופון לקבלת הנחה"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => validateCoupon(formData.couponCode)}
+                    disabled={!formData.couponCode.trim() || validatingCoupon}
+                    className="rounded-md bg-blue-100 px-4 py-2 text-sm text-blue-700 hover:bg-blue-200 disabled:opacity-50"
+                  >
+                    {validatingCoupon ? "בודק..." : "בדוק קופון"}
+                  </button>
+                </div>
+                {couponValidation && (
+                  <p className={`mt-1 text-xs ${couponValidation.valid ? "text-green-600" : "text-red-600"}`}>
+                    {couponValidation.valid ? "✓ " : "✗ "}{couponValidation.message}
+                  </p>
+                )}
+                {!couponValidation && presetCoupon && formData.couponCode === presetCoupon && (
                   <p className="mt-1 text-xs text-green-600">✓ קופון תקין</p>
                 )}
               </div>
