@@ -49,16 +49,17 @@ export async function POST(request: Request) {
     showCouponField = false,
     showTotalOnForm = false,
     kesherPaymentPageId,
+    isRegistrationOnly = false,
   } = body;
 
-  if (!salesAgentId || !firstName || !lastName || !totalAmount) {
+  if (!salesAgentId || !firstName || !lastName || (totalAmount === undefined && !isRegistrationOnly)) {
     return NextResponse.json(
       { error: "שדות חובה: איש מכירות, שם פרטי, שם משפחה וסכום" },
       { status: 400 }
     );
   }
 
-  const finalAmount = totalAmount - (discountAmount || 0);
+  const finalAmount = totalAmount ? totalAmount - (discountAmount || 0) : 0;
   const token = randomUUID();
 
   // Use provided payment page ID or default from env
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
       semesterId: semesterId || null,
       classGroupId: classGroupId || null,
       discountGroupId: discountGroupId || null,
+      isRegistrationOnly,
       currency,
       totalAmount,
       couponCode: couponCode || null,

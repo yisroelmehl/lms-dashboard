@@ -161,7 +161,7 @@ export default async function PaymentPage({
               email: link.email || "",
               phone: link.phone || "",
             }}
-            hasKesherPayment={!!link.kesherPaymentPageId}
+            hasKesherPayment={!link.isRegistrationOnly && !!link.kesherPaymentPageId}
             kesherPaymentPageId={link.kesherPaymentPageId}
             finalAmount={link.finalAmount}
             numPayments={link.numPayments}

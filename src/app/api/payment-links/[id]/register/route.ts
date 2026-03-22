@@ -95,6 +95,8 @@ export async function POST(
   }
 
   // Update payment link
+  const isComplete = link.isRegistrationOnly;
+  
   const updatedLink = await prisma.paymentLink.update({
     where: { id },
     data: {
@@ -105,11 +107,42 @@ export async function POST(
       lastName: registrationData?.lastName || link.lastName,
       email: registrationData?.email || link.email,
       phone: registrationData?.phone || link.phone,
+      status: isComplete ? "paid" : undefined,
+      paidAt: isComplete ? new Date() : undefined,
+      moodleEnrolled: isComplete ? false : undefined,
     },
     include: {
       course: { select: { fullNameMoodle: true, fullNameOverride: true } },
     },
   });
+
+  if (isComplete && studentId && link.courseId) {
+    // Check if enrollment already exists
+    const existingEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId, courseId: link.courseId },
+    });
+    if (!existingEnrollment) {
+      await prisma.enrollment.create({
+        data: { studentId, courseId: link.courseId },
+      });
+    }
+  }
+
+  if (isComplete && studentId) {
+    await prisma.payment.create({
+      data: {
+        paymentLinkId: link.id,
+        salesAgentId: link.salesAgentId,
+        studentId,
+        amount: link.finalAmount,
+        currency: link.currency,
+        paymentMethod: "bank_transfer",
+        isSuccess: true,
+        kesherStatus: "success",
+        processedAt: new Date(),
+      },
+    });
+  }
 
   // Create dashboard notification for new student registration
   const studentName = `${registrationData?.firstName || link.firstName} ${registrationData?.lastName || link.lastName}`;

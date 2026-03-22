@@ -82,6 +82,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
     showCouponField: false,
     showTotalOnForm: false,
     kesherPaymentPageId: "325869",
+    isRegistrationOnly: false,
   });
 
   const [priceAutoFilled, setPriceAutoFilled] = useState(false);
@@ -184,14 +185,15 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
           classGroupId: formData.classGroupId || undefined,
           discountGroupId: formData.discountGroupId || undefined,
           currency: formData.currency,
-          totalAmount: Number(formData.totalAmount),
+          totalAmount: formData.isRegistrationOnly ? 0 : Number(formData.totalAmount),
           couponCode: formData.couponCode || undefined,
-          discountAmount: Number(formData.discountAmount || 0),
-          numPayments,
+          discountAmount: formData.isRegistrationOnly ? 0 : Number(formData.discountAmount || 0),
+          numPayments: formData.isRegistrationOnly ? 1 : numPayments,
           chargeDay: formData.chargeDay ? Number(formData.chargeDay) : undefined,
           showCouponField: formData.showCouponField,
           showTotalOnForm: formData.showTotalOnForm,
           kesherPaymentPageId: formData.kesherPaymentPageId || undefined,
+          isRegistrationOnly: formData.isRegistrationOnly,
         }),
       });
 
@@ -430,9 +432,38 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
         )}
       </fieldset>
 
-      {/* Pricing */}
+      {/* Link Type */}
       <fieldset className="space-y-4 rounded-md border border-border p-4">
-        <legend className="px-2 text-sm font-semibold text-muted-foreground">תמחור</legend>
+        <legend className="px-2 text-sm font-semibold text-muted-foreground">סוג הקישור</legend>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="isRegistrationOnly"
+              checked={!formData.isRegistrationOnly}
+              onChange={() => setFormData({ ...formData, isRegistrationOnly: false })}
+              className="w-4 h-4 text-primary"
+            />
+            <span className="text-sm font-medium">רישום עם תשלום וסליקה</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="isRegistrationOnly"
+              checked={formData.isRegistrationOnly}
+              onChange={() => setFormData({ ...formData, isRegistrationOnly: true })}
+              className="w-4 h-4 text-primary"
+            />
+            <span className="text-sm font-medium">טופס רישום בלבד (ללא גבייה)</span>
+          </label>
+        </div>
+      </fieldset>
+
+      {/* Pricing */}
+      {!formData.isRegistrationOnly && (
+      <>
+        <fieldset className="space-y-4 rounded-md border border-border p-4">
+          <legend className="px-2 text-sm font-semibold text-muted-foreground">תמחור</legend>
 
         {/* Currency Toggle */}
         <div>
@@ -580,6 +611,8 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
           </div>
         </div>
       </fieldset>
+      </>
+      )}
 
       {/* Form Display Options */}
       <fieldset className="space-y-4 rounded-md border border-border p-4">
@@ -617,6 +650,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
       </fieldset>
 
       {/* Kesher Settings */}
+      {!formData.isRegistrationOnly && (
       <fieldset className="space-y-4 rounded-md border border-border p-4">
         <legend className="px-2 text-sm font-semibold text-muted-foreground">הגדרות סליקה (Kesher)</legend>
 
@@ -636,13 +670,14 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
           </p>
         </div>
       </fieldset>
+      )}
 
       <button
         type="submit"
         disabled={loading}
         className="w-full rounded-md bg-primary py-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
       >
-        {loading ? "יוצר קישור..." : "צור קישור תשלום"}
+        {loading ? "יוצר קישור..." : formData.isRegistrationOnly ? "צור טופס הרשמה" : "צור קישור תשלום"}
       </button>
 
       <ManageDiscountGroupsModal

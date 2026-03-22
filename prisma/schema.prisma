@@ -792,6 +792,7 @@ model PaymentLink {
   id            String            @id @default(cuid())
   token         String            @unique // Our UUID for the link
   status        PaymentLinkStatus @default(draft)
+  isRegistrationOnly Boolean @default(false)
 
   // Sales context
   salesAgentId  String

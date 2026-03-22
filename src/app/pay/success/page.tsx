@@ -76,7 +76,7 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
         {/* Header */}
         <div className="bg-green-600 p-8 text-center text-white">
           <svg className="mx-auto h-20 w-20 mb-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <h1 className="text-3xl font-bold mb-2">התשלום בוצע בהצלחה!</h1>
+          <h1 className="text-3xl font-bold mb-2">{link.isRegistrationOnly ? "הרישום בוצע בהצלחה!" : "התשלום בוצע בהצלחה!"}</h1>
           <p className="text-green-100 text-lg">
             תודה רבה, {link.firstName}! רישומך התקבל.
           </p>
@@ -94,12 +94,14 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
                   {link.course?.fullNameOverride || link.course?.fullNameMoodle || "רישום כללי"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">סכום ששולם:</span>
-                <span className="font-medium text-gray-900">
-                  {link.currency === "USD" ? "$" : "₪"}{link.finalAmount.toLocaleString("he-IL")}
-                </span>
-              </div>
+              {!link.isRegistrationOnly && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">סכום ששולם:</span>
+                  <span className="font-medium text-gray-900">
+                    {link.currency === "USD" ? "$" : "₪"}{link.finalAmount.toLocaleString("he-IL")}
+                  </span>
+                </div>
+              )}
               {(transactionNumber || link.kesherTransactionNum) && (
                 <div className="flex justify-between border-t border-gray-200 pt-2 mt-2">
                   <span className="text-gray-500">מספר אישור קשר:</span>
@@ -140,7 +142,7 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
           )}
 
           <div className="text-center text-sm text-gray-500 pt-4 border-t flex flex-col items-center gap-2">
-            <p>קבלה דיגיטלית תשלח אליך למייל בקרוב.</p>
+            {!link.isRegistrationOnly && <p>קבלה דיגיטלית תשלח אליך למייל בקרוב.</p>}
             <p className="flex items-center gap-1.5"><span className="w-4 h-4" /> לשאלות ותמיכה, ניתן לפנות למזכירות.</p>
           </div>
 

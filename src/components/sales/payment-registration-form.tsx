@@ -165,7 +165,8 @@ export function PaymentRegistrationForm({
           setShowPayment(true);
           setStatus("form");
         } else {
-          setStatus("success");
+          // No payment required (Registration Only) - redirect directly to success page
+          router.push(`/pay/success?token=${token}`);
         }
       } else {
         const data = await res.json();
