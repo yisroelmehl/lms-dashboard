@@ -81,6 +81,7 @@ export function PaymentRegistrationForm({
   // Manually verify payment via Kesher API
   const verifyPayment = async () => {
     setVerifying(true);
+    setError("");
     try {
       const res = await fetch(`/api/payment-links/${linkId}/verify`, { method: "POST" });
       if (res.ok) {
@@ -91,8 +92,12 @@ export function PaymentRegistrationForm({
           setStatus("payment_success");
           return;
         }
+        // Show debug info to help diagnose
+        const debugStr = data.debug ? ` (Debug: ${JSON.stringify(data.debug)})` : "";
+        setError(`לא נמצא תשלום. אם שילמת, אנא המתן מספר שניות ונסה שוב.${debugStr}`);
+      } else {
+        setError("שגיאה בבדיקת התשלום. נסה שוב.");
       }
-      setError("לא נמצא תשלום. אם שילמת, אנא המתן מספר שניות ונסה שוב.");
     } catch {
       setError("שגיאה בבדיקת התשלום. נסה שוב.");
     } finally {
