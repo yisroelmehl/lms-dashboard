@@ -169,6 +169,7 @@ export default async function PaymentPage({
             showCouponField={link.showCouponField}
             showTotalOnForm={link.showTotalOnForm}
             couponCode={link.couponCode}
+            courseName={link.course?.fullNameOverride || link.course?.fullNameMoodle || link.courseName}
           />
         </div>
       </div>

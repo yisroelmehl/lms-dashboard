@@ -20,6 +20,7 @@ interface Props {
   showCouponField: boolean;
   showTotalOnForm: boolean;
   couponCode: string | null;
+  courseName: string | null;
 }
 
 export function PaymentRegistrationForm({
@@ -34,6 +35,7 @@ export function PaymentRegistrationForm({
   showCouponField,
   showTotalOnForm,
   couponCode: presetCoupon,
+  courseName,
 }: Props) {
   const [status, setStatus] = useState<"form" | "saving" | "success" | "payment_success">("form");
   const [error, setError] = useState("");
@@ -139,6 +141,19 @@ export function PaymentRegistrationForm({
     });
   };
 
+  const termsText = `תקנון הצטרפות לקורס ${courseName || "כללי"}:
+מרכז “למען ילמדו” מתחייב להכין ולהגיש את התלמיד לבחינות באמצעות שיעורים, מצגות וחוברות לימוד. כל תכני הקורס נקבעים ע”י הנהלת המכון בלבד, עם זאת המכון שומר לעצמו את הזכות לשינוים בתכני השיעור, זהות המרצים, וזמני השיעורים באם יהיו אילוצים.
+
+התלמיד מודע לכך שהצלחה במבחנים תלויה בהשתתפות בשיעורים, חזרה על החומר בבית, ומילוי שאלות החזרה ומטלות הכיתה. התשלום עבור החודש הראשון לא יוחזר אף אם לא החל התלמיד את הקורס.
+
+תלמיד המצטרף לקורס מתחייב על כל משך הקורס, לאחר הכניסה לקורס אין אפשרות לפרוש כלל. במקרים חריגים ובאישור ההנהלה בלבד נוהל הביטול יהיה שאחרי השתתפות בשיעור אחד יהיה אפשרות לפרוש בניכוי תשלום עבור החודש הראשון ובהחזרת כל החומר הלימודי עד השיעור שני. בביטול לאחר השיעור השני יוחזר רק חצי מסכום דמי הקורס, לאחר השיעור השלישי לא תהיה כלל אפשרות לקבלת החזר.
+
+מכון ‘למען ילמדו’, מעביר לתלמידים חומר בכתב או במייל או בכל אמצעי מדיה אחר. הזכויות של חומרי הלימודים שייכות ל’למען ילמדו’ ונתונה הרשות לתלמידים לשימוש אישי בלבד, חובת התלמיד לשמור על הזכויות ולא להעביר חומרי לימוד לאף אחד. כמו”כ התלמיד מודע לכך שחלק מן הבחינות נעשות באמצעות גורם חיצוני המעניק את הציון ואת התעודה. קבלת התעודה מטעם המכון מותנית באישור ועדת הבחינות של המכון ע”פ הקריטריונים שנקבעו ע”י ועדת ההסמכה בלבד, ולאחר סיום התשלום על הקורס.
+
+תנאי שימוש באתר “למען ילמדו”:
+
+האתר “למען ילמדו” הוא אתר המשתמש כאתר המכללה להכשרה תורנית ייצוגי והנך מוזמן לקחת בו חלק בכפוף להסכמתך לתנאי השימוש. הנהלת האתר שומרת לעצמה הזכות לעדכן את תנאי השימוש מעת לעת. כל המידע שבו שייך במלואו לאתר “למען ילמדו” ומהווה קניין רוחני בלעדי. בעת שאתם עושים שימוש באתר ובמקרה בו התגלעה כל מחלוקת אתם מסכימים להלן כי האמור לעיל נמצא תחת סמכות השיפוט הבלעדי של בית הדין של הרב לנדא בבני ברק בלבד.`;
+
   const handleSubmitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!termsAccepted) {
@@ -157,6 +172,7 @@ export function PaymentRegistrationForm({
           token,
           registrationData: formData,
           termsAccepted: true,
+          termsText, // Keep track of the exact text they agreed to
         }),
       });
 
@@ -480,20 +496,10 @@ export function PaymentRegistrationForm({
           {/* Terms */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
             <h3 className="text-sm font-semibold">תקנון ותנאי שימוש</h3>
-            <div className="max-h-32 overflow-y-auto text-xs text-gray-600 space-y-2">
-              <p>
-                בהרשמה זו אני מאשר/ת כי קראתי את תנאי ההשתתפות בקורס,
-                מסכים/ה לתנאי התשלום כפי שפורטו, ומתחייב/ת לעמוד בהם.
-              </p>
-              <p>
-                ביטול ההרשמה יתאפשר עד 14 ימי עסקים מיום ההרשמה או מיום קבלת
-                מסמך גילוי נאות, לפי המאוחר מביניהם, בהתאם לחוק הגנת הצרכן.
-              </p>
-              <p>
-                כל החומרים המועברים במסגרת הקורס הם בבעלות המוסד ואין להעבירם לצד שלישי.
-              </p>
+            <div className="max-h-48 overflow-y-auto text-xs text-gray-600 space-y-2 whitespace-pre-wrap leading-relaxed pr-2">
+              {termsText}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
               <input
                 type="checkbox"
                 checked={termsAccepted}

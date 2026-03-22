@@ -9,7 +9,10 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { token, registrationData, termsAccepted } = body;
+  const { token, registrationData, termsAccepted, termsText } = body;
+  
+  // Get IP address for legal tracking
+  const clientIp = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
 
   // Fetch the payment link
   const link = await prisma.paymentLink.findUnique({ where: { id } });
@@ -104,6 +107,8 @@ export async function POST(
       studentId,
       registrationData: registrationData || undefined,
       termsAcceptedAt: termsAccepted ? new Date() : undefined,
+      termsTextAccepted: termsText || undefined,
+      clientIp: clientIp,
       firstName: registrationData?.firstName || link.firstName,
       lastName: registrationData?.lastName || link.lastName,
       email: registrationData?.email || link.email,

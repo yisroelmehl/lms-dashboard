@@ -834,7 +834,9 @@ model PaymentLink {
   
   // Registration data (filled by student via the link)
   registrationData    Json?       // All form data from registration
-  termsAcceptedAt     DateTime?   // When student accepted terms
+  termsAcceptedAt     DateTime?
+  termsTextAccepted   String?     // The exact text of the terms they accepted
+  clientIp            String?     // For legal tracking   // When student accepted terms
   
   // Moodle enrollment
   moodleEnrolled      Boolean     @default(false)
