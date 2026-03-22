@@ -247,6 +247,14 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
               >
                 העתק
               </button>
+              <a
+                href={fullUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md bg-white border border-green-600 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
+              >
+                פתח קישור
+              </a>
             </div>
           </div>
 
@@ -268,6 +276,14 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
                 >
                   העתק
                 </button>
+                <a
+                  href={result.paymentPageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md bg-white border border-green-600 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
+                >
+                  פתח קישור
+                </a>
               </div>
             </div>
           )}
