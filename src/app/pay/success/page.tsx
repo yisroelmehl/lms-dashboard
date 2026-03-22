@@ -134,8 +134,13 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
               <div className="mt-5 text-right text-sm text-blue-800 space-y-2 bg-white/60 p-4 rounded text-right">
                 <p className="font-semibold flex items-center gap-1.5"><span className="w-4 h-4"/> פרטי התחברות למערכת:</p>
                 <ul className="list-disc list-inside space-y-1 pr-1 text-gray-700">
-                  <li><strong>שם משתמש:</strong> כתובת המייל שלך ({link.email || "המייל שהוזן"})</li>
-                  <li><strong>סיסמה:</strong> נשלחה אליך במייל בנפרד (חפש בתיבת הדואר הנכנס או בספאם)</li>
+                  <li>לנוחותך, לחץ על <strong>התחברות דרך Google</strong> בעמוד הבית של המערכת (התחבר עם המייל {link.email || "הזה"}).</li>
+                  <li className="mt-2">אם תעדיף להתחבר עם שם וסיסמה רגילים, אלו הפרטים שלך להזנה ידנית:</li>
+                  <ul className="list-[circle] list-inside pr-6 space-y-1 mt-1 font-mono text-xs text-blue-900 bg-white p-2 rounded border border-blue-100">
+                    <li>שם משתמש: <strong>{link.email || "המייל שהוזנת"}</strong></li>
+                    <li>סיסמה זמנית: <strong>Kalad@2026!</strong></li>
+                  </ul>
+                  <li className="text-xs text-gray-500 mt-2 pr-1">המערכת עשויה לבקש ממך לבחור סיסמה חדשה בכניסה ראשונה.</li>
                 </ul>
               </div>
             </div>

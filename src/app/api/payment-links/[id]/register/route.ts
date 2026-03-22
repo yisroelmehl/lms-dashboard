@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { autoEnrollStudentInMoodle } from "@/lib/services/moodle-enrollment";
 
 // POST /api/payment-links/[id]/register - Student submits registration form
 export async function POST(
@@ -126,6 +127,11 @@ export async function POST(
         data: { studentId, courseId: link.courseId },
       });
     }
+
+    // Auto-enroll in Moodle asynchronously since registration is complete
+    autoEnrollStudentInMoodle(link.id).catch(err => {
+      console.error(`Failed to auto-enroll student in background:`, err);
+    });
   }
 
   if (isComplete && studentId) {

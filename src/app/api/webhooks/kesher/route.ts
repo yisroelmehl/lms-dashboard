@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+import { autoEnrollStudentInMoodle } from "@/lib/services/moodle-enrollment";
+
 /**
  * Kesher Payment Page Callback Handler
  * 
@@ -71,6 +73,11 @@ async function processPayment(
       await prisma.paymentLink.update({
         where: { id: link.id },
         data: { moodleEnrolled: false },
+      });
+
+      // Auto-enroll in Moodle asynchronously
+      autoEnrollStudentInMoodle(link.id).catch(err => {
+        console.error(`Failed to auto-enroll student in background:`, err);
       });
     }
 

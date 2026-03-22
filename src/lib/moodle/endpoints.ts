@@ -89,3 +89,70 @@ export async function getCalendarEvents(options: {
     params
   );
 }
+
+// === API functions for Auto-Enrollment & User Creation ===
+
+/**
+ * Searches Moodle for a user by their email address
+ */
+export async function getUserByEmail(email: string): Promise<MoodleUser | null> {
+  try {
+    const result = await callMoodleApi<MoodleUser[]>("core_user_get_users_by_field", {
+      field: "email",
+      "values[0]": email,
+    });
+    return result && result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("Moodle Error (getUserByEmail):", error);
+    return null;
+  }
+}
+
+/**
+ * Creates a new user in Moodle with the specified details.
+ * We set auth='oauth2' (if Moodle uses google/auth0) or 'manual' with a generic password.
+ */
+export async function createUser(data: {
+  username: string;
+  password?: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  auth?: string;
+}): Promise<number | null> {
+  try {
+    const result = await callMoodleApi<any[]>("core_user_create_users", {
+      "users[0][username]": data.username.toLowerCase().trim(),
+      "users[0][password]": data.password || "Kalad@2026!",
+      "users[0][firstname]": data.firstname,
+      "users[0][lastname]": data.lastname,
+      "users[0][email]": data.email.toLowerCase().trim(),
+      "users[0][auth]": data.auth || "oauth2", // Default to oauth2 for google
+      // Force password change on first login if they use the manual generic password
+      "users[0][preferences][0][type]": "auth_forcepasswordchange",
+      "users[0][preferences][0][value]": "1"
+    });
+    return result && result.length > 0 ? result[0].id : null;
+  } catch (error) {
+    console.error("Moodle Error (createUser):", error);
+    return null;
+  }
+}
+
+/**
+ * Enrolls a Moodle user into a specific course.
+ * roleid: 5 is typically 'student' in Moodle.
+ */
+export async function enrolUser(userId: number, courseId: number, roleId = 5): Promise<boolean> {
+  try {
+    await callMoodleApi<any>("enrol_manual_enrol_users", {
+      "enrolments[0][roleid]": roleId,
+      "enrolments[0][userid]": userId,
+      "enrolments[0][courseid]": courseId,
+    });
+    return true;
+  } catch (error) {
+    console.error("Moodle Error (enrolUser):", error);
+    return false;
+  }
+}
