@@ -127,14 +127,14 @@ export async function createUser(data: {
       "users[0][firstname]": data.firstname,
       "users[0][lastname]": data.lastname,
       "users[0][email]": data.email.toLowerCase().trim(),
-      "users[0][auth]": data.auth || "oauth2", // Default to oauth2 for google
-      // Force password change on first login if they use the manual generic password
+      "users[0][auth]": data.auth || "manual",
       "users[0][preferences][0][type]": "auth_forcepasswordchange",
       "users[0][preferences][0][value]": "1"
     });
+    console.log("Moodle createUser result:", JSON.stringify(result));
     return result && result.length > 0 ? result[0].id : null;
   } catch (error) {
-    console.error("Moodle Error (createUser):", error);
+    console.error("Moodle Error (createUser):", error instanceof Error ? error.message : error);
     return null;
   }
 }
@@ -145,14 +145,15 @@ export async function createUser(data: {
  */
 export async function enrolUser(userId: number, courseId: number, roleId = 5): Promise<boolean> {
   try {
-    await callMoodleApi<any>("enrol_manual_enrol_users", {
+    const result = await callMoodleApi<any>("enrol_manual_enrol_users", {
       "enrolments[0][roleid]": roleId,
       "enrolments[0][userid]": userId,
       "enrolments[0][courseid]": courseId,
     });
+    console.log("Moodle enrolUser result:", JSON.stringify(result));
     return true;
   } catch (error) {
-    console.error("Moodle Error (enrolUser):", error);
+    console.error("Moodle Error (enrolUser):", error instanceof Error ? error.message : error);
     return false;
   }
 }
