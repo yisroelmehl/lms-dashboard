@@ -6,10 +6,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PaymentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ status?: string }>;
 }) {
   const { token } = await params;
+  const { status: paymentStatus } = await searchParams;
 
   const link = await prisma.paymentLink.findUnique({
     where: { token },
@@ -20,6 +23,47 @@ export default async function PaymentPage({
 
   if (!link) notFound();
 
+  // Handle payment success callback (from Kesher redirect)
+  if (paymentStatus === "success" || link.status === "paid") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+        <div className="max-w-md text-center space-y-4">
+          <span className="text-5xl">🎉</span>
+          <h1 className="text-2xl font-bold text-green-700">התשלום בוצע בהצלחה!</h1>
+          <p className="text-muted-foreground">
+            תודה רבה, {link.firstName}! הרישום והתשלום שלך התקבלו. תקבל אישור באימייל בקרוב.
+          </p>
+          {link.courseName || link.course ? (
+            <p className="text-sm text-muted-foreground">
+              קורס: {link.course?.fullNameOverride || link.course?.fullNameMoodle || link.courseName}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  // Handle payment failure callback
+  if (paymentStatus === "failed") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+        <div className="max-w-md text-center space-y-4">
+          <span className="text-4xl">⚠️</span>
+          <h1 className="text-2xl font-bold text-red-700">התשלום לא הושלם</h1>
+          <p className="text-muted-foreground">
+            לצערנו, התשלום לא עבר. אנא נסה שנית או פנה למשרד לעזרה.
+          </p>
+          <a
+            href={`/pay/${token}`}
+            className="inline-block rounded-md bg-blue-600 px-6 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            נסה שנית
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   // Check if expired
   if (link.expiresAt && new Date() > link.expiresAt) {
     return (
@@ -29,21 +73,6 @@ export default async function PaymentPage({
           <h1 className="text-2xl font-bold">פג תוקף הקישור</h1>
           <p className="text-muted-foreground">
             קישור התשלום אינו פעיל יותר. אנא פנה למשרד לקבלת קישור חדש.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // If already paid
-  if (link.status === "paid") {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
-        <div className="max-w-md text-center space-y-4">
-          <span className="text-4xl">✅</span>
-          <h1 className="text-2xl font-bold">התשלום התקבל בהצלחה</h1>
-          <p className="text-muted-foreground">
-            תודה! הרישום שלך אושר. תקבל אישור באימייל בקרוב.
           </p>
         </div>
       </div>

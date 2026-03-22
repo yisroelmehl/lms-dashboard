@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { ManageDiscountGroupsModal } from "./manage-discount-groups-modal";
 
 interface SubOption {
   id: string;
   name: string;
+}
+
+interface TagWithPricing {
+  id: string;
+  name: string;
+  defaultPriceILS: number | null;
+  defaultPriceUSD: number | null;
+  defaultNumPayments: number | null;
 }
 
 interface CourseOption {
@@ -13,18 +22,41 @@ interface CourseOption {
   name: string;
   semesters: SubOption[];
   classGroups: SubOption[];
+  tags: TagWithPricing[];
+}
+
+interface DiscountGroupOption {
+  id: string;
+  name: string;
+  description: string | null;
+  discountType: string;
+  discountValue: number;
+  color: string | null;
 }
 
 interface Props {
   agents: { id: string; name: string }[];
   courses: CourseOption[];
-  tags: SubOption[];
+  tags: TagWithPricing[];
+  discountGroups: DiscountGroupOption[];
 }
 
-export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
+export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: initialDiscountGroups }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [discountGroups, setDiscountGroups] = useState(initialDiscountGroups);
+  const [showDiscountGroupsModal, setShowDiscountGroupsModal] = useState(false);
+
+  const refreshDiscountGroups = useCallback(async () => {
+    try {
+      const res = await fetch("/api/discount-groups");
+      if (res.ok) {
+        const data = await res.json();
+        setDiscountGroups(data.groups);
+      }
+    } catch { /* ignore */ }
+  }, []);
   const [result, setResult] = useState<{
     registrationUrl: string;
     paymentPageUrl: string | null;
@@ -40,6 +72,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
     courseId: "",
     semesterId: "",
     classGroupId: "",
+    discountGroupId: "",
     currency: "ILS",
     totalAmount: "",
     couponCode: "",
@@ -51,10 +84,52 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
     kesherPaymentPageId: "325855",
   });
 
+  const [priceAutoFilled, setPriceAutoFilled] = useState(false);
+
   const selectedCourse = useMemo(
     () => courses.find((c) => c.id === formData.courseId),
     [courses, formData.courseId]
   );
+
+  const selectedDiscountGroup = useMemo(
+    () => discountGroups.find((g) => g.id === formData.discountGroupId),
+    [discountGroups, formData.discountGroupId]
+  );
+
+  // Auto-fill pricing from course's subject tags when course changes
+  useEffect(() => {
+    if (!selectedCourse || !selectedCourse.tags.length) return;
+    // Find the first tag with a price
+    const tagWithPrice = selectedCourse.tags.find(
+      (t) => (formData.currency === "ILS" ? t.defaultPriceILS : t.defaultPriceUSD) != null
+    );
+    if (!tagWithPrice) return;
+    const price = formData.currency === "ILS" ? tagWithPrice.defaultPriceILS : tagWithPrice.defaultPriceUSD;
+    if (price != null && !formData.totalAmount) {
+      setFormData((prev) => ({
+        ...prev,
+        totalAmount: String(price),
+        numPayments: tagWithPrice.defaultNumPayments ? String(tagWithPrice.defaultNumPayments) : prev.numPayments,
+      }));
+      setPriceAutoFilled(true);
+    }
+  }, [selectedCourse, formData.currency]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-calculate discount from discount group
+  useEffect(() => {
+    if (!selectedDiscountGroup) {
+      return;
+    }
+    const total = Number(formData.totalAmount || 0);
+    if (total <= 0) return;
+    let discount = 0;
+    if (selectedDiscountGroup.discountType === "percent") {
+      discount = Math.round(total * selectedDiscountGroup.discountValue / 100);
+    } else {
+      discount = selectedDiscountGroup.discountValue;
+    }
+    setFormData((prev) => ({ ...prev, discountAmount: String(discount) }));
+  }, [selectedDiscountGroup, formData.totalAmount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -64,9 +139,21 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
       setFormData({ ...formData, [name]: (e.target as HTMLInputElement).checked });
     } else {
       setFormData({ ...formData, [name]: value });
-      // Reset semester/classGroup when course changes
+      // Reset semester/classGroup when course changes, and clear auto-filled price
       if (name === "courseId") {
-        setFormData((prev) => ({ ...prev, courseId: value, semesterId: "", classGroupId: "" }));
+        setFormData((prev) => ({
+          ...prev,
+          courseId: value,
+          semesterId: "",
+          classGroupId: "",
+          totalAmount: "",
+          numPayments: "1",
+          discountAmount: "",
+        }));
+        setPriceAutoFilled(false);
+      }
+      if (name === "totalAmount") {
+        setPriceAutoFilled(false);
       }
     }
   };
@@ -95,6 +182,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
           courseId: formData.courseId || undefined,
           semesterId: formData.semesterId || undefined,
           classGroupId: formData.classGroupId || undefined,
+          discountGroupId: formData.discountGroupId || undefined,
           currency: formData.currency,
           totalAmount: Number(formData.totalAmount),
           couponCode: formData.couponCode || undefined,
@@ -196,6 +284,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
                 totalAmount: "",
                 couponCode: "",
                 discountAmount: "",
+                discountGroupId: "",
                 semesterId: "",
                 classGroupId: "",
               });
@@ -385,9 +474,12 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
               onChange={handleChange}
               min="1"
               step="0.01"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className={`w-full rounded-md border px-3 py-2 text-sm ${priceAutoFilled ? "border-blue-300 bg-blue-50" : "border-input bg-background"}`}
               dir="ltr"
             />
+            {priceAutoFilled && (
+              <p className="mt-0.5 text-xs text-blue-600">מחיר ברירת מחדל לפי נושא</p>
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">קופון</label>
@@ -422,6 +514,36 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
             )}
           </div>
         )}
+
+        {/* Discount Group */}
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <label className="text-sm font-medium">קבוצת הנחה</label>
+            <button
+              type="button"
+              onClick={() => setShowDiscountGroupsModal(true)}
+              className="text-xs text-primary hover:underline"
+            >
+              ניהול קבוצות
+            </button>
+          </div>
+          <select
+            name="discountGroupId"
+            value={formData.discountGroupId}
+            onChange={handleChange}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">ללא קבוצת הנחה</option>
+            {discountGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} ({g.discountType === "percent" ? `${g.discountValue}%` : `${currencySymbol}${g.discountValue}`})
+              </option>
+            ))}
+          </select>
+          {selectedDiscountGroup?.description && (
+            <p className="mt-1 text-xs text-muted-foreground">{selectedDiscountGroup.description}</p>
+          )}
+        </div>
       </fieldset>
 
       {/* Payment Terms */}
@@ -522,6 +644,14 @@ export function CreatePaymentLinkForm({ agents, courses, tags }: Props) {
       >
         {loading ? "יוצר קישור..." : "צור קישור תשלום"}
       </button>
+
+      <ManageDiscountGroupsModal
+        open={showDiscountGroupsModal}
+        onClose={() => {
+          setShowDiscountGroupsModal(false);
+          refreshDiscountGroups();
+        }}
+      />
     </form>
   );
 }

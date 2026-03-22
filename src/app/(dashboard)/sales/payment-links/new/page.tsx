@@ -5,7 +5,7 @@ import { CreatePaymentLinkForm } from "@/components/sales/create-payment-link-fo
 export const dynamic = "force-dynamic";
 
 export default async function NewPaymentLinkPage() {
-  const [agents, courses, tags] = await Promise.all([
+  const [agents, courses, tags, discountGroups] = await Promise.all([
     prisma.salesAgent.findMany({
       where: { isActive: true },
       orderBy: { firstName: "asc" },
@@ -16,6 +16,9 @@ export default async function NewPaymentLinkPage() {
         id: true,
         fullNameMoodle: true,
         fullNameOverride: true,
+        tags: {
+          include: { tag: { select: { id: true, name: true, defaultPriceILS: true, defaultPriceUSD: true, defaultNumPayments: true } } },
+        },
         semesters: {
           orderBy: { sortOrder: "asc" },
           select: { id: true, name: true },
@@ -29,7 +32,12 @@ export default async function NewPaymentLinkPage() {
     prisma.tag.findMany({
       where: { category: "subject" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, defaultPriceILS: true, defaultPriceUSD: true, defaultNumPayments: true },
+    }),
+    prisma.discountGroup.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, description: true, discountType: true, discountValue: true, color: true },
     }),
   ]);
 
@@ -43,6 +51,7 @@ export default async function NewPaymentLinkPage() {
     name: getCourseName(c),
     semesters: c.semesters,
     classGroups: c.classGroups,
+    tags: c.tags.map((ct) => ct.tag),
   }));
 
   return (
@@ -52,6 +61,7 @@ export default async function NewPaymentLinkPage() {
         agents={agentOptions}
         courses={courseOptions}
         tags={tags}
+        discountGroups={discountGroups}
       />
     </div>
   );

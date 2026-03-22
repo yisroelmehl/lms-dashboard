@@ -15,23 +15,24 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { name, color, defaultPriceILS, defaultPriceUSD, defaultNumPayments } = body;
+    const { name, description, discountType, discountValue, color, isActive } = body;
 
-    const tag = await prisma.tag.update({
+    const group = await prisma.discountGroup.update({
       where: { id },
       data: {
         ...(name !== undefined && { name: name.trim() }),
+        ...(description !== undefined && { description: description || null }),
+        ...(discountType !== undefined && { discountType }),
+        ...(discountValue !== undefined && { discountValue: Number(discountValue) }),
         ...(color !== undefined && { color: color || null }),
-        ...(defaultPriceILS !== undefined && { defaultPriceILS: defaultPriceILS != null ? Number(defaultPriceILS) : null }),
-        ...(defaultPriceUSD !== undefined && { defaultPriceUSD: defaultPriceUSD != null ? Number(defaultPriceUSD) : null }),
-        ...(defaultNumPayments !== undefined && { defaultNumPayments: defaultNumPayments != null ? Number(defaultNumPayments) : null }),
+        ...(isActive !== undefined && { isActive }),
       },
     });
 
-    return NextResponse.json({ tag });
+    return NextResponse.json({ group });
   } catch (error) {
-    console.error("Error updating tag:", error);
-    return NextResponse.json({ error: "שגיאה בעדכון תגית" }, { status: 500 });
+    console.error("Error updating discount group:", error);
+    return NextResponse.json({ error: "שגיאה בעדכון קבוצת הנחה" }, { status: 500 });
   }
 }
 
@@ -46,12 +47,11 @@ export async function DELETE(
     }
 
     const { id } = await params;
-
-    await prisma.tag.delete({ where: { id } });
+    await prisma.discountGroup.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting tag:", error);
-    return NextResponse.json({ error: "שגיאה במחיקת תגית" }, { status: 500 });
+    console.error("Error deleting discount group:", error);
+    return NextResponse.json({ error: "שגיאה במחיקת קבוצת הנחה" }, { status: 500 });
   }
 }

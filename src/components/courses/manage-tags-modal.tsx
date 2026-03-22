@@ -7,6 +7,9 @@ interface Tag {
   name: string;
   category: string;
   color: string | null;
+  defaultPriceILS: number | null;
+  defaultPriceUSD: number | null;
+  defaultNumPayments: number | null;
   _count?: { courses: number };
 }
 
@@ -34,9 +37,15 @@ export function ManageTagsModal({
   const [loading, setLoading] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
+  const [newPriceILS, setNewPriceILS] = useState("");
+  const [newPriceUSD, setNewPriceUSD] = useState("");
+  const [newNumPayments, setNewNumPayments] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
+  const [editPriceILS, setEditPriceILS] = useState("");
+  const [editPriceUSD, setEditPriceUSD] = useState("");
+  const [editNumPayments, setEditNumPayments] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,7 +79,14 @@ export function ManageTagsModal({
       const res = await fetch("/api/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), category: "subject", color: newColor }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          category: "subject",
+          color: newColor,
+          defaultPriceILS: newPriceILS ? Number(newPriceILS) : null,
+          defaultPriceUSD: newPriceUSD ? Number(newPriceUSD) : null,
+          defaultNumPayments: newNumPayments ? Number(newNumPayments) : null,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -79,6 +95,9 @@ export function ManageTagsModal({
       }
       setNewName("");
       setNewColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
+      setNewPriceILS("");
+      setNewPriceUSD("");
+      setNewNumPayments("");
       loadTags();
     } catch {
       setError("שגיאה ביצירת תגית");
@@ -92,7 +111,13 @@ export function ManageTagsModal({
       const res = await fetch(`/api/tags/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName.trim(), color: editColor }),
+        body: JSON.stringify({
+          name: editName.trim(),
+          color: editColor,
+          defaultPriceILS: editPriceILS ? Number(editPriceILS) : null,
+          defaultPriceUSD: editPriceUSD ? Number(editPriceUSD) : null,
+          defaultNumPayments: editNumPayments ? Number(editNumPayments) : null,
+        }),
       });
       if (!res.ok) throw new Error();
       setEditingId(null);
@@ -133,35 +158,73 @@ export function ManageTagsModal({
         )}
 
         {/* Create new tag */}
-        <div className="mb-4 flex gap-2">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            placeholder="שם נושא חדש..."
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-            dir="rtl"
-          />
-          <div className="flex items-center gap-1">
-            {PRESET_COLORS.slice(0, 5).map((c) => (
-              <button
-                key={c}
-                onClick={() => setNewColor(c)}
-                className={`h-6 w-6 rounded-full border-2 ${
-                  newColor === c ? "border-foreground" : "border-transparent"
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
+        <div className="mb-4 space-y-2 rounded-md border border-border p-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              placeholder="שם נושא חדש..."
+              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              dir="rtl"
+            />
+            <div className="flex items-center gap-1">
+              {PRESET_COLORS.slice(0, 5).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setNewColor(c)}
+                  className={`h-6 w-6 rounded-full border-2 ${
+                    newColor === c ? "border-foreground" : "border-transparent"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            <button
+              onClick={handleCreate}
+              disabled={!newName.trim()}
+              className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              הוסף
+            </button>
           </div>
-          <button
-            onClick={handleCreate}
-            disabled={!newName.trim()}
-            className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            הוסף
-          </button>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">מחיר ̧שקלים</label>
+              <input
+                type="number"
+                value={newPriceILS}
+                onChange={(e) => setNewPriceILS(e.target.value)}
+                placeholder="₪"
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                dir="ltr"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">מחיר $דולר</label>
+              <input
+                type="number"
+                value={newPriceUSD}
+                onChange={(e) => setNewPriceUSD(e.target.value)}
+                placeholder="$"
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                dir="ltr"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">תשלומים</label>
+              <input
+                type="number"
+                value={newNumPayments}
+                onChange={(e) => setNewNumPayments(e.target.value)}
+                placeholder="1"
+                min="1"
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                dir="ltr"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Tags list */}
@@ -179,40 +242,71 @@ export function ManageTagsModal({
                 className="flex items-center justify-between rounded-md border border-border p-2"
               >
                 {editingId === tag.id ? (
-                  <div className="flex flex-1 items-center gap-2">
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleUpdate(tag.id)}
-                      className="flex-1 rounded border border-input bg-background px-2 py-1 text-sm"
-                      dir="rtl"
-                      autoFocus
-                    />
-                    <div className="flex gap-1">
-                      {PRESET_COLORS.slice(0, 5).map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setEditColor(c)}
-                          className={`h-5 w-5 rounded-full border-2 ${
-                            editColor === c ? "border-foreground" : "border-transparent"
-                          }`}
-                          style={{ backgroundColor: c }}
-                        />
-                      ))}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleUpdate(tag.id)}
+                        className="flex-1 rounded border border-input bg-background px-2 py-1 text-sm"
+                        dir="rtl"
+                        autoFocus
+                      />
+                      <div className="flex gap-1">
+                        {PRESET_COLORS.slice(0, 5).map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => setEditColor(c)}
+                            className={`h-5 w-5 rounded-full border-2 ${
+                              editColor === c ? "border-foreground" : "border-transparent"
+                            }`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleUpdate(tag.id)}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      שמור
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="text-xs text-muted-foreground hover:underline"
-                    >
-                      ביטול
-                    </button>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="number"
+                        value={editPriceILS}
+                        onChange={(e) => setEditPriceILS(e.target.value)}
+                        placeholder="מחיר ₪"
+                        className="rounded border border-input bg-background px-2 py-1 text-xs"
+                        dir="ltr"
+                      />
+                      <input
+                        type="number"
+                        value={editPriceUSD}
+                        onChange={(e) => setEditPriceUSD(e.target.value)}
+                        placeholder="מחיר $"
+                        className="rounded border border-input bg-background px-2 py-1 text-xs"
+                        dir="ltr"
+                      />
+                      <input
+                        type="number"
+                        value={editNumPayments}
+                        onChange={(e) => setEditNumPayments(e.target.value)}
+                        placeholder="תשלומים"
+                        min="1"
+                        className="rounded border border-input bg-background px-2 py-1 text-xs"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleUpdate(tag.id)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        שמור
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-xs text-muted-foreground hover:underline"
+                      >
+                        ביטול
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -225,6 +319,14 @@ export function ManageTagsModal({
                       <span className="text-xs text-muted-foreground">
                         ({tag._count?.courses || 0} קורסים)
                       </span>
+                      {(tag.defaultPriceILS || tag.defaultPriceUSD) && (
+                        <span className="text-xs text-muted-foreground">
+                          {tag.defaultPriceILS ? `₪${tag.defaultPriceILS}` : ""}
+                          {tag.defaultPriceILS && tag.defaultPriceUSD ? " / " : ""}
+                          {tag.defaultPriceUSD ? `$${tag.defaultPriceUSD}` : ""}
+                          {tag.defaultNumPayments ? ` ×${tag.defaultNumPayments}` : ""}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -232,6 +334,9 @@ export function ManageTagsModal({
                           setEditingId(tag.id);
                           setEditName(tag.name);
                           setEditColor(tag.color || PRESET_COLORS[0]);
+                          setEditPriceILS(tag.defaultPriceILS?.toString() || "");
+                          setEditPriceUSD(tag.defaultPriceUSD?.toString() || "");
+                          setEditNumPayments(tag.defaultNumPayments?.toString() || "");
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground"
                       >

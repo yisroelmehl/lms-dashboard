@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, category = "subject", color } = body;
+    const { name, category = "subject", color, defaultPriceILS, defaultPriceUSD, defaultNumPayments } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json({ error: "שם תגית חובה" }, { status: 400 });
@@ -47,6 +47,9 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         category,
         color: color || null,
+        defaultPriceILS: defaultPriceILS != null ? Number(defaultPriceILS) : null,
+        defaultPriceUSD: defaultPriceUSD != null ? Number(defaultPriceUSD) : null,
+        defaultNumPayments: defaultNumPayments != null ? Number(defaultNumPayments) : null,
       },
     });
 

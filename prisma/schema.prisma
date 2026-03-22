@@ -237,6 +237,11 @@ model Tag {
   category String @default("subject") // subject, level, track, etc.
   color    String? // צבע לתצוגה (hex)
 
+  // Default pricing for this subject (auto-fill on payment link)
+  defaultPriceILS   Float?  // מחיר ברירת מחדל בשקלים
+  defaultPriceUSD   Float?  // מחיר ברירת מחדל בדולרים
+  defaultNumPayments Int?   // מספר תשלומים ברירת מחדל
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -812,6 +817,9 @@ model PaymentLink {
   finalAmount    Float            // After discount
   showTotalOnForm Boolean         @default(false) // false = show monthly only
   
+  // Discount group
+  discountGroupId String?
+  
   // Payment terms
   numPayments    Int              @default(1)   // Number of installments
   chargeDay      Int?             // Day of month for recurring charges (1-28)
@@ -835,12 +843,13 @@ model PaymentLink {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  salesAgent   SalesAgent  @relation(fields: [salesAgentId], references: [id])
-  student      Student?    @relation(fields: [studentId], references: [id])
-  course       Course?     @relation(fields: [courseId], references: [id])
-  semester     Semester?   @relation(fields: [semesterId], references: [id])
-  classGroup   ClassGroup? @relation(fields: [classGroupId], references: [id])
-  payments     Payment[]
+  salesAgent     SalesAgent     @relation(fields: [salesAgentId], references: [id])
+  student        Student?       @relation(fields: [studentId], references: [id])
+  course         Course?        @relation(fields: [courseId], references: [id])
+  semester       Semester?      @relation(fields: [semesterId], references: [id])
+  classGroup     ClassGroup?    @relation(fields: [classGroupId], references: [id])
+  discountGroup  DiscountGroup? @relation(fields: [discountGroupId], references: [id])
+  payments       Payment[]
 
   @@map("payment_links")
 }
@@ -894,4 +903,25 @@ model Notification {
   updatedAt DateTime @updatedAt
 
   @@map("notifications")
+}
+
+// ============================================================
+// DISCOUNT GROUPS (קבוצות הנחה)
+// ============================================================
+
+model DiscountGroup {
+  id            String  @id @default(cuid())
+  name          String  @unique // e.g. "שליח", "מסלול 5 שנים", "רכישה מרובה"
+  description   String? // תיאור הקבוצה
+  discountType  String  @default("fixed") // fixed = סכום קבוע, percent = אחוז
+  discountValue Float   // הסכום או האחוז
+  color         String? // צבע תגית לזיהוי
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentLinks PaymentLink[]
+
+  @@map("discount_groups")
 }

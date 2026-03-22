@@ -112,6 +112,23 @@ export async function POST(request: Request) {
         },
       });
     }
+
+    // Create notification for dashboard
+    await prisma.notification.create({
+      data: {
+        type: "payment_received",
+        title: "תשלום התקבל",
+        message: `${link.firstName} ${link.lastName} ביצע תשלום בסך ${amount} ${link.currency}${link.course ? ` עבור ${link.course.fullNameOverride || link.course.fullNameMoodle}` : ""}`,
+        metadata: {
+          paymentLinkId: link.id,
+          studentId: link.studentId,
+          courseId: link.courseId,
+          amount,
+          currency: link.currency,
+          transactionNumber,
+        },
+      },
+    });
   } else {
     // Mark as failed
     await prisma.paymentLink.update({
