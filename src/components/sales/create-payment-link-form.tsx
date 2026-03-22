@@ -216,6 +216,12 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
 
   if (result) {
     const fullUrl = `${window.location.origin}${result.registrationUrl}`;
+    
+    // Auto-scroll to top when showing success message
+    if (typeof window !== "undefined") {
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+    }
+    
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-6 space-y-4">
         <div className="flex items-center gap-2">

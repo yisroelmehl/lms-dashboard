@@ -66,8 +66,10 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
   }
 
   // At this point we have the full details!
-  const moodleUrl = process.env.MOODLE_URL || "https://moodle.example.com";
-  const courseUrl = link.courseId ? `${moodleUrl}/course/view.php?id=${link.courseId}` : moodleUrl;
+  const moodleUrl = process.env.MOODLE_BASE_URL || process.env.MOODLE_URL || "https://lmy-courses.co.il";
+  const courseUrl = link.course?.moodleCourseId 
+    ? `${moodleUrl}/course/view.php?id=${link.course.moodleCourseId}` 
+    : moodleUrl;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4" dir="rtl">
