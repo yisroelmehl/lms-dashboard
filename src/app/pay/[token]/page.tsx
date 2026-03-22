@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PaymentRegistrationForm } from "@/components/sales/payment-registration-form";
 
@@ -23,24 +23,9 @@ export default async function PaymentPage({
 
   if (!link) notFound();
 
-  // Handle payment success callback (from Kesher redirect)
+  // Redirect to new dedicated success page
   if (paymentStatus === "success" || link.status === "paid") {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
-        <div className="max-w-md text-center space-y-4">
-          <span className="text-5xl">🎉</span>
-          <h1 className="text-2xl font-bold text-green-700">התשלום בוצע בהצלחה!</h1>
-          <p className="text-muted-foreground">
-            תודה רבה, {link.firstName}! הרישום והתשלום שלך התקבלו. תקבל אישור באימייל בקרוב.
-          </p>
-          {link.courseName || link.course ? (
-            <p className="text-sm text-muted-foreground">
-              קורס: {link.course?.fullNameOverride || link.course?.fullNameMoodle || link.courseName}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    );
+    redirect(`/pay/success?token=${token}`);
   }
 
   // Handle payment failure callback

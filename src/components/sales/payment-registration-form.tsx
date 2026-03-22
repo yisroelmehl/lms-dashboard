@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 interface Props {
   token: string;
@@ -47,6 +48,7 @@ export function PaymentRegistrationForm({
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const router = useRouter();
 
   // Poll payment status after showing iframe
   const startPolling = useCallback(() => {
@@ -60,11 +62,12 @@ export function PaymentRegistrationForm({
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
             setStatus("payment_success");
+            router.push(`/pay/success?token=${token}`);
           }
         }
       } catch { /* ignore polling errors */ }
     }, 3000);
-  }, [linkId]);
+  }, [linkId, token, router]);
 
   useEffect(() => {
     if (showPayment) {
@@ -90,6 +93,7 @@ export function PaymentRegistrationForm({
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
           setStatus("payment_success");
+          router.push(`/pay/success?token=${token}`);
           return;
         }
         // Show debug info to help diagnose

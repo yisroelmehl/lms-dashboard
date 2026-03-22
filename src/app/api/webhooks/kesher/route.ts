@@ -224,34 +224,29 @@ export async function GET(request: Request) {
   const amount = total ? parseFloat(total) : null;
   const link = await findLink(adddata, amount);
 
+  const isSuccessInfer = inferSuccess(isSucces, ref, docNumber);
+
   if (link && link.status !== "paid") {
-    const isSuccess = inferSuccess(isSucces, ref, docNumber);
     const finalAmount = amount ?? link.finalAmount;
 
     await processPayment(link, {
-      isSuccess,
+      isSuccess: isSuccessInfer,
       amount: finalAmount,
       transactionNumber: transactionNumber || null,
       obligationRef: obligationRef || null,
       ref: ref || null,
       rawData: Object.fromEntries(searchParams.entries()),
     });
+  }
 
-    // Redirect to payment page to show result
-    const status = isSuccess ? "success" : "failed";
+  // Redirect to success page to show result
+  if (isSuccessInfer || link?.status === "paid") {
     return NextResponse.redirect(
-      new URL(`/pay/${link.token}?status=${status}`, request.url)
+      new URL(`/pay/success?token=${adddata}&transactionNumber=${transactionNumber}`, request.url)
     );
   }
 
-  // If link found but already paid, redirect to success
-  if (link && link.status === "paid") {
-    return NextResponse.redirect(
-      new URL(`/pay/${link.token}?status=success`, request.url)
-    );
-  }
-
-  // No link found - redirect to generic failure
+  // Failure redirect
   const redirectToken = adddata || "";
   return NextResponse.redirect(
     new URL(`/pay/${redirectToken}?status=failed`, request.url)
