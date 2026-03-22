@@ -81,7 +81,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
     chargeDay: "",
     showCouponField: false,
     showTotalOnForm: false,
-    kesherPaymentPageId: "325855",
+    kesherPaymentPageId: "325869",
   });
 
   const [priceAutoFilled, setPriceAutoFilled] = useState(false);

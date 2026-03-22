@@ -32,10 +32,11 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { status, firstName, lastName, email, phone, courseId, courseName, totalAmount, couponCode, discountAmount, numPayments, chargeDay } = body;
+  const { status, firstName, lastName, email, phone, courseId, courseName, totalAmount, couponCode, discountAmount, numPayments, chargeDay, kesherPaymentPageId } = body;
 
   const updateData: Record<string, unknown> = {};
   if (status !== undefined) updateData.status = status;
+  if (kesherPaymentPageId !== undefined) updateData.kesherPaymentPageId = kesherPaymentPageId;
   if (firstName !== undefined) updateData.firstName = firstName;
   if (lastName !== undefined) updateData.lastName = lastName;
   if (email !== undefined) updateData.email = email || null;

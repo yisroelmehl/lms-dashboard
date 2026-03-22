@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>בדיקת Webhook קשר</title>
+    <style>
+        body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1 { color: #2c3e50; }
+        h2 { color: #2980b9; margin-top: 30px; }
+        label { display: block; margin: 10px 0 4px; font-weight: bold; font-size: 14px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        button { margin-top: 15px; padding: 12px 24px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; width: 100%; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-fail { background: #e74c3c; color: white; }
+        .btn-get { background: #3498db; color: white; }
+        .btn-curl { background: #8e44ad; color: white; }
+        .note { background: #fffde7; padding: 12px; border-radius: 4px; border-right: 3px solid #ffc107; font-size: 13px; margin: 15px 0; }
+        .result { background: #282c34; color: #abb2bf; padding: 15px; border-radius: 6px; direction: ltr; text-align: left; white-space: pre-wrap; font-family: monospace; font-size: 13px; margin-top: 15px; display: none; word-break: break-all; }
+        .curl-box { background: #282c34; color: #98c379; padding: 15px; border-radius: 6px; direction: ltr; text-align: left; white-space: pre-wrap; font-family: monospace; font-size: 12px; margin-top: 10px; word-break: break-all; cursor: pointer; }
+        hr { margin: 25px 0; border: none; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <h1>🔧 בדיקת Webhook קשר</h1>
+
+    <div class="note">
+        <strong>⚠️ הוראות:</strong> החלף את ה-<code>adddata</code> (טוקן) בטוקן אמיתי מקישור תשלום קיים.<br>
+        הטוקן נמצא בכתובת של דף התשלום: <code>/pay/<strong>{TOKEN}</strong></code>
+    </div>
+
+    <div class="card">
+        <h2>הגדרות בסיס</h2>
+        <label>כתובת Webhook:</label>
+        <input type="text" id="baseUrl" value="https://lms-dashboard-qx2u.onrender.com/api/webhooks/kesher">
+        
+        <label>טוקן (adddata) - מהקישור /pay/{token}:</label>
+        <input type="text" id="token" placeholder="הדבק כאן את הטוקן מקישור התשלום">
+        
+        <label>מספר עסקה (transactionNumber):</label>
+        <input type="text" id="transactionNumber" value="TEST-12345">
+        
+        <label>סכום (total):</label>
+        <input type="text" id="total" value="100">
+        
+        <label>מספר אישור (ref):</label>
+        <input type="text" id="ref" value="OK-9999">
+    </div>
+
+    <!-- שיטה 1: טופס HTML רגיל (עובד תמיד, אין CORS) -->
+    <div class="card">
+        <h2>1. POST בטופס HTML (מומלץ - אין בעיית CORS)</h2>
+        <p>שולח POST רגיל כמו שקשר עושה. יפתח את התשובה בחלון חדש.</p>
+        <button class="btn-success" onclick="submitForm(true)">📤 שלח POST - הצלחה (isSucces=true)</button>
+        <button class="btn-fail" onclick="submitForm(false)" style="margin-top:8px">📤 שלח POST - כישלון (isSucces=false)</button>
+    </div>
+
+    <!-- שיטה 2: GET - ניתוב חזרה -->
+    <div class="card">
+        <h2>2. GET - ניתוב חזרה (פתיחה בחלון)</h2>
+        <p>מדמה את הכתובת שקשר מפנה אליה את המשתמש אחרי תשלום</p>
+        <button class="btn-get" onclick="openGet(true)">🔗 פתח GET - הצלחה</button>
+        <button class="btn-get" onclick="openGet(false)" style="margin-top:8px">🔗 פתח GET - כישלון</button>
+    </div>
+
+    <!-- שיטה 3: פקודת curl -->
+    <div class="card">
+        <h2>3. פקודת curl (להרצה בטרמינל)</h2>
+        <p>אם שום דבר לא עובד - העתק את הפקודה הזו והרץ בטרמינל</p>
+        <button class="btn-curl" onclick="generateCurl(true)">📋 צור פקודת curl - הצלחה</button>
+        <button class="btn-curl" onclick="generateCurl(false)" style="margin-top:8px">📋 צור פקודת curl - כישלון</button>
+        <div id="curlBox" class="curl-box" style="display:none" onclick="copyCurl()"></div>
+        <p id="copyMsg" style="color: green; display: none; font-size: 13px;">✅ הועתק!</p>
+    </div>
+
+    <div id="result" class="result"></div>
+
+    <script>
+        function getValues() {
+            return {
+                baseUrl: document.getElementById('baseUrl').value,
+                token: document.getElementById('token').value.trim(),
+                transactionNumber: document.getElementById('transactionNumber').value,
+                total: document.getElementById('total').value,
+                ref: document.getElementById('ref').value,
+            };
+        }
+
+        function showResult(text) {
+            const el = document.getElementById('result');
+            el.style.display = 'block';
+            el.textContent = text;
+        }
+
+        // שיטה 1: טופס HTML רגיל - עוקף CORS
+        function submitForm(isSuccess) {
+            const v = getValues();
+            if (!v.token) { alert('חובה להזין טוקן!'); return; }
+
+            // Create a hidden form and submit it in a new window
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = v.baseUrl;
+            form.target = '_blank';
+
+            const fields = {
+                isSucces: isSuccess ? 'true' : 'false',
+                transactionNumber: v.transactionNumber,
+                total: v.total,
+                ref: v.ref,
+                adddata: v.token,
+                obligationRef: '',
+                currency: '1',
+            };
+
+            for (const [key, val] of Object.entries(fields)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = val;
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            showResult('נשלח! בדוק בחלון החדש שנפתח.');
+        }
+
+        // שיטה 2: GET
+        function openGet(isSuccess) {
+            const v = getValues();
+            if (!v.token) { alert('חובה להזין טוקן!'); return; }
+
+            const params = new URLSearchParams({
+                isSucces: isSuccess ? 'true' : 'false',
+                transactionNumber: v.transactionNumber,
+                total: v.total,
+                ref: v.ref,
+                adddata: v.token,
+                currency: '1',
+            });
+
+            const url = `${v.baseUrl}?${params.toString()}`;
+            showResult(`פותח בחלון חדש:\n${url}`);
+            window.open(url, '_blank');
+        }
+
+        // שיטה 3: פקודת curl
+        function generateCurl(isSuccess) {
+            const v = getValues();
+            if (!v.token) { alert('חובה להזין טוקן!'); return; }
+
+            const cmd = `curl -X POST '${v.baseUrl}' \\
+  -H 'Content-Type: application/x-www-form-urlencoded' \\
+  -d 'isSucces=${isSuccess ? 'true' : 'false'}&transactionNumber=${v.transactionNumber}&total=${v.total}&ref=${v.ref}&adddata=${v.token}&obligationRef=&currency=1' \\
+  -v`;
+
+            const box = document.getElementById('curlBox');
+            box.style.display = 'block';
+            box.textContent = cmd;
+        }
+
+        function copyCurl() {
+            const text = document.getElementById('curlBox').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const msg = document.getElementById('copyMsg');
+                msg.style.display = 'block';
+                setTimeout(() => msg.style.display = 'none', 2000);
+            });
+        }
+    </script>
+</body>
+</html>
