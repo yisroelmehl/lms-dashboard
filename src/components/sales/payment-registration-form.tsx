@@ -45,6 +45,7 @@ export function PaymentRegistrationForm({
     discountValue?: number;
   } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Poll payment status after showing iframe
@@ -76,6 +77,28 @@ export function PaymentRegistrationForm({
       }
     };
   }, [showPayment, startPolling]);
+
+  // Manually verify payment via Kesher API
+  const verifyPayment = async () => {
+    setVerifying(true);
+    try {
+      const res = await fetch(`/api/payment-links/${linkId}/verify`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === "paid") {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          setStatus("payment_success");
+          return;
+        }
+      }
+      setError("לא נמצא תשלום. אם שילמת, אנא המתן מספר שניות ונסה שוב.");
+    } catch {
+      setError("שגיאה בבדיקת התשלום. נסה שוב.");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     firstName: initialData.firstName,
@@ -205,7 +228,7 @@ export function PaymentRegistrationForm({
     );
   }
 
-  // Build Kesher payment iframe URL
+  // Build Kesher payment URL with success/failure redirect URLs
   const buildPaymentUrl = () => {
     if (!kesherPaymentPageId) return "";
     const params = new URLSearchParams();
@@ -218,6 +241,10 @@ export function PaymentRegistrationForm({
     params.set("firstName", formData.firstName);
     params.set("lastName", formData.lastName);
     params.set("adddata", token);
+    // Set callback URLs so Kesher redirects back to our webhook after payment
+    const baseUrl = window.location.origin;
+    params.set("successurl", `${baseUrl}/api/webhooks/kesher`);
+    params.set("failedurl", `${baseUrl}/api/webhooks/kesher`);
     return `https://ultra.kesherhk.info/external/paymentPage/${kesherPaymentPageId}?${params.toString()}`;
   };
 
@@ -484,7 +511,7 @@ export function PaymentRegistrationForm({
         </form>
       )}
 
-      {/* Inline Kesher Payment - shown after registration is saved */}
+      {/* Kesher Payment - shown after registration is saved */}
       {showPayment && hasKesherPayment && kesherPaymentPageId && (
         <div className="space-y-4">
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -503,14 +530,43 @@ export function PaymentRegistrationForm({
             </div>
           </div>
 
-          <div className="rounded-lg border border-border overflow-hidden">
-            <iframe
-              src={buildPaymentUrl()}
-              className="w-full h-[600px] border-0"
-              title="דף תשלום"
-              sandbox="allow-scripts allow-forms allow-same-origin allow-top-navigation"
-            />
+          <div className="text-center space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                const url = buildPaymentUrl();
+                if (url) window.open(url, "_blank", "noopener");
+              }}
+              className="w-full rounded-md bg-green-600 py-4 text-lg font-bold text-white hover:bg-green-700 shadow-lg"
+            >
+              לחץ כאן לתשלום מאובטח ←
+            </button>
+            <p className="text-xs text-muted-foreground">
+              דף התשלום ייפתח בחלון חדש. לאחר התשלום, עמוד זה יתעדכן אוטומטית.
+            </p>
           </div>
+
+          <div className="flex items-center justify-center gap-2 text-sm text-blue-600 animate-pulse">
+            <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>ממתין לאישור תשלום...</span>
+          </div>
+
+          {error && (
+            <div className="rounded bg-red-50 p-3 text-sm text-red-600 text-center">{error}</div>
+          )}
+
+          <button
+            type="button"
+            onClick={verifyPayment}
+            disabled={verifying}
+            className="w-full rounded-md border border-blue-300 bg-white py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+          >
+            {verifying ? "בודק..." : "שילמתי - בדוק סטטוס תשלום"}
+          </button>
+
           <p className="text-xs text-muted-foreground text-center">
             סליקה מאובטחת באמצעות קשר
           </p>
