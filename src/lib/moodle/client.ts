@@ -19,9 +19,11 @@ export class MoodleApiError extends Error {
 export async function callMoodleApi<T>(
   wsfunction: string,
   params: Record<string, string | number | boolean> = {},
-  retries = 3
+  retries = 3,
+  overrideToken?: string
 ): Promise<T> {
-  if (!MOODLE_BASE_URL || !MOODLE_TOKEN) {
+  const tokenToUse = overrideToken || MOODLE_TOKEN;
+  if (!MOODLE_BASE_URL || !tokenToUse) {
     throw new Error(
       "MOODLE_BASE_URL and MOODLE_TOKEN must be set in environment"
     );
@@ -29,7 +31,7 @@ export async function callMoodleApi<T>(
 
   const url = new URL("/webservice/rest/server.php", MOODLE_BASE_URL);
   const body = new URLSearchParams({
-    wstoken: MOODLE_TOKEN,
+    wstoken: tokenToUse,
     wsfunction,
     moodlewsrestformat: "json",
   });
