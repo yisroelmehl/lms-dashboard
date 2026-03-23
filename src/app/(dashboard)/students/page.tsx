@@ -6,13 +6,16 @@ import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 50;
+
 interface Props {
-  searchParams: Promise<{ q?: string; course?: string; group?: string }>;
+  searchParams: Promise<{ q?: string; course?: string; group?: string; page?: string }>;
 }
 
 export default async function StudentsPage({ searchParams }: Props) {
   const params = await searchParams;
   const { q, course, group } = params;
+  const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
 
   // Build where clause
   const where: Prisma.StudentWhereInput = {};
@@ -48,8 +51,8 @@ export default async function StudentsPage({ searchParams }: Props) {
     };
   }
 
-  // Fetch students + filter options in parallel
-  const [students, courses, groups] = await Promise.all([
+  // Fetch students (paginated) + total count + filter options in parallel
+  const [students, totalCount, courses, groups] = await Promise.all([
     prisma.student.findMany({
       where,
       include: {
@@ -61,7 +64,10 @@ export default async function StudentsPage({ searchParams }: Props) {
         },
       },
       orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
+      skip: (currentPage - 1) * PAGE_SIZE,
     }),
+    prisma.student.count({ where }),
     prisma.course.findMany({
       orderBy: { fullNameMoodle: "asc" },
       select: { id: true, fullNameMoodle: true, fullNameOverride: true },
@@ -71,6 +77,8 @@ export default async function StudentsPage({ searchParams }: Props) {
       include: { course: { select: { fullNameMoodle: true, fullNameOverride: true } } },
     }),
   ]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const courseOptions = courses.map((c) => ({
     id: c.id,
@@ -83,12 +91,25 @@ export default async function StudentsPage({ searchParams }: Props) {
     courseName: getCourseName(g.course),
   }));
 
+  // Build base URL params for pagination links
+  const baseParams = new URLSearchParams();
+  if (q) baseParams.set("q", q);
+  if (course) baseParams.set("course", course);
+  if (group) baseParams.set("group", group);
+
+  function pageUrl(page: number) {
+    const p = new URLSearchParams(baseParams);
+    if (page > 1) p.set("page", String(page));
+    const qs = p.toString();
+    return `/students${qs ? `?${qs}` : ""}`;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">תלמידים</h1>
         <span className="text-sm text-muted-foreground">
-          {students.length} תלמידים
+          {totalCount} תלמידים
         </span>
       </div>
 
@@ -199,6 +220,54 @@ export default async function StudentsPage({ searchParams }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          {currentPage > 1 && (
+            <Link
+              href={pageUrl(currentPage - 1)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
+            >
+              → הקודם
+            </Link>
+          )}
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+            .reduce<(number | "ellipsis")[]>((acc, p, idx, arr) => {
+              if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push("ellipsis");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((item, idx) =>
+              item === "ellipsis" ? (
+                <span key={`ellipsis-${idx}`} className="px-2 text-sm text-muted-foreground">…</span>
+              ) : (
+                <Link
+                  key={item}
+                  href={pageUrl(item)}
+                  className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                    item === currentPage
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input bg-background hover:bg-muted"
+                  }`}
+                >
+                  {item}
+                </Link>
+              )
+            )}
+
+          {currentPage < totalPages && (
+            <Link
+              href={pageUrl(currentPage + 1)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted transition-colors"
+            >
+              הבא ←
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }
