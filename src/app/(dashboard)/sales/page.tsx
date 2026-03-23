@@ -3,11 +3,22 @@ import { prisma } from "@/lib/prisma";
 import { formatDateHe } from "@/lib/utils";
 import { SalesAgentActions } from "@/components/sales/sales-agent-actions";
 import { SalesManagementButtons } from "@/components/sales/sales-management-buttons";
+import { MonthlySalesDashboard } from "@/components/sales/monthly-sales-dashboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function SalesPage() {
-  const [agents, recentLinks, stats] = await Promise.all([
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const endOfMonth = new Date(startOfMonth);
+  endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+
+  const monthNames = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+  const currentMonthName = monthNames[startOfMonth.getMonth()];
+
+  const [agents, recentLinks, stats, thisMonthLinks] = await Promise.all([
     prisma.salesAgent.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -32,6 +43,19 @@ export default async function SalesPage() {
       _sum: { amount: true },
       _count: true,
     }),
+    prisma.paymentLink.findMany({
+      where: {
+        status: "paid",
+        paidAt: {
+          gte: startOfMonth,
+          lt: endOfMonth,
+        }
+      },
+      include: {
+        salesAgent: { select: { id: true, firstName: true, lastName: true } },
+        course: { select: { id: true, fullNameMoodle: true, fullNameOverride: true } },
+      }
+    }),
   ]);
 
   const totalRevenue = stats._sum.amount || 0;
@@ -51,6 +75,8 @@ export default async function SalesPage() {
           </Link>
         </div>
       </div>
+
+      <MonthlySalesDashboard links={thisMonthLinks} monthName={currentMonthName} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
