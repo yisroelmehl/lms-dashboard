@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 import { autoEnrollStudentInMoodle } from "@/lib/services/moodle-enrollment";
+import { submitToJotform } from "@/lib/services/jotform";
 
 /**
  * Kesher Payment Page Callback Handler
@@ -79,6 +80,21 @@ async function processPayment(
       autoEnrollStudentInMoodle(link.id).catch(err => {
         console.error(`Failed to auto-enroll student in background:`, err);
       });
+
+      // Submit Terms of Service to Jotform asynchronously (non-blocking)
+      if (link.studentId) {
+        submitToJotform({
+          studentId: link.studentId,
+          firstName: link.firstName,
+          lastName: link.lastName,
+          email: link.email || "",
+          courseId: link.courseId,
+          courseName: link.courseName,
+          paymentLinkId: link.id,
+        }).catch(err => {
+          console.error(`Failed to submit to Jotform in background:`, err);
+        });
+      }
     }
 
     await prisma.notification.create({
@@ -109,6 +125,8 @@ type LinkWithCourse = {
   token: string;
   firstName: string;
   lastName: string;
+  email: string | null;
+  courseName: string | null;
   studentId: string | null;
   courseId: string | null;
   salesAgentId: string | null;

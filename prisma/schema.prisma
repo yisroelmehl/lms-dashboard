@@ -223,6 +223,7 @@ model Student {
   studentNotes        Note[]
   paymentLinks        PaymentLink[]
   payments            Payment[]
+  jotformSubmissions  JotformSubmission[]
 
   @@map("students")
 }
@@ -858,6 +859,7 @@ model PaymentLink {
   classGroup     ClassGroup?    @relation(fields: [classGroupId], references: [id])
   discountGroup  DiscountGroup? @relation(fields: [discountGroupId], references: [id])
   payments       Payment[]
+  jotformSubmissions JotformSubmission[]
 
   @@map("payment_links")
 }
@@ -957,4 +959,37 @@ model DiscountGroup {
   paymentLinks PaymentLink[]
 
   @@map("discount_groups")
+}
+
+// ============================================================
+// JOTFORM SUBMISSIONS (הסכמים וטופסים שנשלחו ל-Jotform)
+// ============================================================
+
+model JotformSubmission {
+  id                  String  @id @default(cuid())
+  jotformSubmissionId String  @unique // ID מ-Jotform
+  
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  paymentLinkId String?
+  paymentLink   PaymentLink? @relation(fields: [paymentLinkId], references: [id], onDelete: SetNull)
+  
+  firstName  String
+  lastName   String
+  email      String
+  courseId   String?
+  courseName String?
+  
+  // נתונים מ-Jotform
+  jotformLink String? // קישור לرויו הטופס ב-Jotform
+  
+  // metadata
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("jotform_submissions")
+  @@index([studentId])
+  @@index([paymentLinkId])
 }
