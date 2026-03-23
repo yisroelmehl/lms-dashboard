@@ -61,6 +61,10 @@ export default async function StudentDetailPage({
         include: { author: true },
         orderBy: { createdAt: "desc" },
       },
+      paymentLinks: {
+        include: { salesAgent: true, course: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -168,6 +172,38 @@ export default async function StudentDetailPage({
 
       {/* Admin Classification Details */}
       <StudentAdminClassification student={adminStudentInfo} />
+
+      {/* Internal Sales Notes */}
+      {student.paymentLinks && student.paymentLinks.some(link => link.financeNotes || link.studiesNotes) && (
+        <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-6">
+          <h2 className="mb-4 text-lg font-bold text-amber-900">הערות פנימיות - יועץ לימודים</h2>
+          <div className="space-y-4">
+            {student.paymentLinks.filter(link => link.financeNotes || link.studiesNotes).map((link) => (
+              <div key={link.id} className="bg-white p-4 rounded-md border border-amber-100 shadow-sm">
+                <div className="text-xs text-amber-600 mb-2 font-medium flex justify-between">
+                  <span>קורס: {link.course?.fullNameOverride || link.course?.fullNameMoodle || "לא הוגדר"}</span>
+                  <span>יועץ: {link.salesAgent.firstName} {link.salesAgent.lastName}</span>
+                </div>
+                
+                <div className="grid gap-4 md:grid-cols-2">
+                  {link.financeNotes && (
+                    <div className="bg-amber-50/50 p-3 rounded border border-amber-100">
+                      <h3 className="text-sm font-bold text-amber-800 mb-1">למנהל הכספים:</h3>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{link.financeNotes}</p>
+                    </div>
+                  )}
+                  {link.studiesNotes && (
+                    <div className="bg-amber-50/50 p-3 rounded border border-amber-100">
+                      <h3 className="text-sm font-bold text-amber-800 mb-1">למנהל הלימודים:</h3>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{link.studiesNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Enrollments */}
       <div className="rounded-lg border border-border bg-card p-6">

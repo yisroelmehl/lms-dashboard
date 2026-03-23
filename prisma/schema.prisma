@@ -804,6 +804,10 @@ model PaymentLink {
   email         String?
   phone         String?
 
+  // Internal Notes (Sales to Management)
+  financeNotes  String?           // הערות למנהל כספים
+  studiesNotes  String?           // הערות למנהל לימודים
+
   // Course & enrollment targeting
   courseId        String?
   courseName     String?          // Display name (in case courseId is null)

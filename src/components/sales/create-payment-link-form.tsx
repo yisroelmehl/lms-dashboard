@@ -131,6 +131,8 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
     showTotalOnForm: false,
     kesherPaymentPageId: "325869",
     isRegistrationOnly: false,
+    financeNotes: "",
+    studiesNotes: "",
   });
 
   const [priceAutoFilled, setPriceAutoFilled] = useState(false);
@@ -181,7 +183,7 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
   }, [selectedDiscountGroup, formData.totalAmount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
@@ -804,6 +806,36 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
         </div>
       </fieldset>
       )}
+
+      {/* Internal Notes */}
+      <fieldset className="space-y-4 rounded-md border border-amber-200 bg-amber-50/50 p-4">
+        <legend className="px-2 text-sm font-bold text-amber-800">הערות פנימיות (להנהלה בלבד)</legend>
+        <p className="text-xs text-amber-700 mb-2">הערות אלו לא יוצגו לתלמיד ויופיעו בכרטיס התלמיד לאחר הרישום.</p>
+        
+        <div>
+          <label className="mb-1 block text-sm font-medium text-amber-900">הערות למנהל הכספים</label>
+          <textarea
+            name="financeNotes"
+            value={formData.financeNotes}
+            onChange={handleChange}
+            rows={2}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            placeholder="לדוגמה: הבטחנו פריסה שונה, ישם תשלום במזומן בנוסף..."
+          />
+        </div>
+        
+        <div>
+          <label className="mb-1 block text-sm font-medium text-amber-900">הערות למנהל הלימודים</label>
+          <textarea
+            name="studiesNotes"
+            value={formData.studiesNotes}
+            onChange={handleChange}
+            rows={2}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            placeholder="לדוגמה: התלמיד צריך אישור חריג להיעדר משיעורי ערב..."
+          />
+        </div>
+      </fieldset>
 
       <button
         type="submit"

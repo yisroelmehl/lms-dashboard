@@ -50,6 +50,8 @@ export async function POST(request: Request) {
     showTotalOnForm = false,
     kesherPaymentPageId,
     isRegistrationOnly = false,
+    financeNotes,
+    studiesNotes,
   } = body;
 
   if (!salesAgentId || !firstName || !lastName || (totalAmount === undefined && !isRegistrationOnly)) {
@@ -92,6 +94,8 @@ export async function POST(request: Request) {
       lastName,
       email: email || null,
       phone: phone || null,
+      financeNotes: financeNotes || null,
+      studiesNotes: studiesNotes || null,
       courseId: courseId || null,
       courseName: courseName || null,
       semesterId: semesterId || null,
