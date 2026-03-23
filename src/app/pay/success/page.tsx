@@ -117,27 +117,34 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
 
           {/* Moodle Instructions */}
           {link.courseId && (
-            <div className="bg-amber-50 rounded-lg p-6 border border-amber-200 text-center">
-              <h3 className="text-xl font-bold text-amber-900 mb-2">🎓 חיבור למערכת הלימודים בקרוב</h3>
-              <p className="text-amber-800 text-sm mb-4">
-                תודה על הרישום! המשרד יטפל בחיבור חשבונך למערכת הלמידה (Moodle) בהקדם האפשري ויודיע לך.
+            <div className="bg-blue-50 rounded-lg p-6 border border-blue-100 text-center">
+              <h3 className="text-xl font-bold text-blue-900 mb-2">מוכנים להתחיל ללמוד?</h3>
+              <p className="text-blue-700 text-sm mb-6">
+                הגישה לקורס שלך במערכת הלמידה (Moodle) תפתח אוטומטית. 
+                אם זו פעם ראשונה שלך, ייתכן שייקח כמה דקות עד שחשבונך יווצר.
               </p>
               
-              <div className="bg-white rounded-lg p-4 border border-amber-100 space-y-3 text-right">
-                <p className="font-semibold text-amber-900">📞 אם יש שאלות, צור קשר:</p>
-                <div className="space-y-2 text-sm text-gray-700">
-                  <p>
-                    <strong>📧 דוא״ל:</strong> <a href="mailto:lyk@lemaanyilmedo.org" className="text-blue-600 hover:underline">lyk@lemaanyilmedo.org</a>
-                  </p>
-                  <p>
-                    <strong>📱 טלפון / וואצאפ:</strong> <a href="tel:+972553082335" className="text-blue-600 hover:underline">+972 55-308-2335</a>
-                  </p>
-                </div>
-              </div>
+              <a 
+                href={courseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors w-full shadow-md"
+              >
+                כניסה לקורס במערכת הלימודים <span className="w-5 h-5" />
+              </a>
 
-              <p className="text-xs text-amber-700 mt-4">
-                📬 אנחנו נשלח לך המייל הראשון עם הנושא "מערכת הלימודים שלך מוכנה" כשהחשבון שלך יהיה פעיל.
-              </p>
+              <div className="mt-5 text-right text-sm text-blue-800 space-y-2 bg-white/60 p-4 rounded text-right">
+                <p className="font-semibold flex items-center gap-1.5"><span className="w-4 h-4"/> פרטי התחברות למערכת:</p>
+                <ul className="list-disc list-inside space-y-1 pr-1 text-gray-700">
+                  <li>לנוחותך, לחץ על <strong>התחברות דרך Google</strong> בעמוד הבית של המערכת (התחבר עם המייל {link.email || "הזה"}).</li>
+                  <li className="mt-2">אם תעדיף להתחבר עם שם וסיסמה רגילים, אלו הפרטים שלך להזנה ידנית:</li>
+                  <ul className="list-[circle] list-inside pr-6 space-y-1 mt-1 font-mono text-xs text-blue-900 bg-white p-2 rounded border border-blue-100">
+                    <li>שם משתמש: <strong>{link.email || "המייל שהוזנת"}</strong></li>
+                    <li>סיסמה זמנית: <strong>Kalad@2026!</strong></li>
+                  </ul>
+                  <li className="text-xs text-gray-500 mt-2 pr-1">המערכת עשויה לבקש ממך לבחור סיסמה חדשה בכניסה ראשונה.</li>
+                </ul>
+              </div>
             </div>
           )}
 
