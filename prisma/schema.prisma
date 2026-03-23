@@ -224,6 +224,7 @@ model Student {
   paymentLinks        PaymentLink[]
   payments            Payment[]
   jotformSubmissions  JotformSubmission[]
+  termsAcceptances    TermsAcceptance[]
 
   @@map("students")
 }
@@ -992,4 +993,37 @@ model JotformSubmission {
   @@map("jotform_submissions")
   @@index([studentId])
   @@index([paymentLinkId])
+}
+
+// ============================================================
+// TERMS ACCEPTANCE (אישור תקנון)
+// ============================================================
+
+model TermsAcceptance {
+  id           String  @id @default(cuid())
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  firstName    String
+  email        String
+  courseName   String?
+  
+  // Signature - JSON string of canvas signature data (base64 or points)
+  signature    String
+  
+  // PDF storage
+  pdfContent   Bytes?  // ה-PDF כ-binary blob
+  pdfFileName  String? // שם הקובץ
+  
+  // Metadata
+  ipAddress    String?
+  userAgent    String?
+  
+  acceptedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@map("terms_acceptances")
+  @@index([studentId])
+  @@index([email])
 }
