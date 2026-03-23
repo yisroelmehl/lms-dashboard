@@ -71,7 +71,7 @@ export default async function SalesPage() {
             href="/sales/payment-links/new"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
           >
-            + קישור תשלום חדש
+            + הוספת תלמיד חדש
           </Link>
         </div>
       </div>

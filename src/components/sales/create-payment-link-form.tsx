@@ -39,9 +39,10 @@ interface Props {
   courses: CourseOption[];
   tags: TagWithPricing[];
   discountGroups: DiscountGroupOption[];
+  initialData?: any;
 }
 
-export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: initialDiscountGroups }: Props) {
+export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: initialDiscountGroups, initialData }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -112,27 +113,27 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
   } | null>(null);
 
   const [formData, setFormData] = useState({
-    salesAgentId: agents[0]?.id || "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    courseId: "",
-    semesterId: "",
-    classGroupId: "",
-    discountGroupId: "",
-    currency: "ILS",
-    totalAmount: "",
-    couponCode: "",
-    discountAmount: "",
-    numPayments: "1",
-    chargeDay: "",
-    showCouponField: false,
-    showTotalOnForm: false,
-    kesherPaymentPageId: "325869",
-    isRegistrationOnly: false,
-    financeNotes: "",
-    studiesNotes: "",
+    salesAgentId: initialData?.salesAgentId || agents[0]?.id || "",
+    firstName: initialData?.firstName || "",
+    lastName: initialData?.lastName || "",
+    email: initialData?.email || "",
+    phone: initialData?.phone || "",
+    courseId: initialData?.courseId || "",
+    semesterId: initialData?.semesterId || "",
+    classGroupId: initialData?.classGroupId || "",
+    discountGroupId: initialData?.discountGroupId || "",
+    currency: initialData?.currency || "ILS",
+    totalAmount: initialData?.totalAmount ? String(initialData.totalAmount) : "",
+    couponCode: initialData?.couponCode || "",
+    discountAmount: initialData?.discountAmount ? String(initialData.discountAmount) : "",
+    numPayments: initialData?.numPayments ? String(initialData.numPayments) : "1",
+    chargeDay: initialData?.chargeDay ? String(initialData.chargeDay) : "",
+    showCouponField: initialData?.showCouponField ?? false,
+    showTotalOnForm: initialData?.showTotalOnForm ?? false,
+    kesherPaymentPageId: initialData?.kesherPaymentPageId || "325869",
+    isRegistrationOnly: initialData?.isRegistrationOnly ?? false,
+    financeNotes: initialData?.financeNotes || "",
+    studiesNotes: initialData?.studiesNotes || "",
   });
 
   const [priceAutoFilled, setPriceAutoFilled] = useState(false);
@@ -221,8 +222,11 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
     setError("");
 
     try {
-      const res = await fetch("/api/payment-links", {
-        method: "POST",
+      const url = initialData?.id ? `/api/payment-links/${initialData.id}` : "/api/payment-links";
+      const method = initialData?.id ? "PATCH" : "POST";
+      
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           salesAgentId: formData.salesAgentId,
@@ -249,11 +253,18 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
 
       const data = await res.json();
       if (res.ok) {
-        setResult({
-          registrationUrl: data.registrationUrl,
-          paymentPageUrl: data.paymentPageUrl,
-          id: data.id,
-        });
+        if (initialData?.id) {
+          // It's an edit - just redirect back or show success
+          alert("נשמר בהצלחה!");
+          router.push(`/sales/payment-links`);
+          router.refresh();
+        } else {
+          setResult({
+            registrationUrl: data.registrationUrl || `/pay/${data.token}`,
+            paymentPageUrl: data.paymentPageUrl || null,
+            id: data.id,
+          });
+        }
       } else {
         setError(data.error || "אירעה שגיאה");
       }
@@ -842,7 +853,13 @@ export function CreatePaymentLinkForm({ agents, courses, tags, discountGroups: i
         disabled={loading}
         className="w-full rounded-md bg-primary py-3 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
       >
-        {loading ? "יוצר קישור..." : formData.isRegistrationOnly ? "צור טופס הרשמה" : "צור קישור תשלום"}
+        {loading 
+          ? (initialData?.id ? "שומר..." : "יוצר קישור...") 
+          : (initialData?.id 
+              ? "שמור שינויים" 
+              : formData.isRegistrationOnly 
+                  ? "הוספת תלמיד ללא תשלום" 
+                  : "הוספת תלמיד עם תשלום")}
       </button>
 
       <ManageDiscountGroupsModal

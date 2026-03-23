@@ -72,7 +72,7 @@ export async function PATCH(
   return NextResponse.json(updated);
 }
 
-// DELETE /api/payment-links/[id] - Delete a payment link (only draft/cancelled)
+// DELETE /api/payment-links/[id] - Delete a payment link
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -81,18 +81,10 @@ export async function DELETE(
 
   const link = await prisma.paymentLink.findUnique({
     where: { id },
-    select: { status: true },
   });
 
   if (!link) {
     return NextResponse.json({ error: "קישור תשלום לא נמצא" }, { status: 404 });
-  }
-
-  if (link.status !== "draft" && link.status !== "cancelled") {
-    return NextResponse.json(
-      { error: "ניתן למחוק רק קישורים בסטטוס טיוטה או בוטל" },
-      { status: 400 }
-    );
   }
 
   await prisma.paymentLink.delete({ where: { id } });
