@@ -27,3 +27,13 @@ services:
         sync: false
       - key: KESHER_PAYMENT_PAGE_ID
         value: "325869"
+      - key: YAHAV_CLIENT_CODE
+        value: "2270"
+      - key: YAHAV_ORIGIN_CITY
+        value: "בני ברק"
+      - key: YAHAV_ORIGIN_STREET
+        value: "מגדלי הכשרת היישוב ז'בוטינסקי"
+      - key: YAHAV_ORIGIN_STREET_NUM
+        value: "9"
+      - key: YAHAV_ORIGIN_COMPANY
+        value: "למען ילמדו"
