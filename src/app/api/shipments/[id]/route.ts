@@ -59,12 +59,15 @@ export async function PATCH(
     "address",
     "city",
     "country",
+    "postalCode",
     "phone",
     "email",
     "packageCount",
     "remarks",
     "carrierRef",
     "carrierStatus",
+    "weight",
+    "contentDescription",
   ];
 
   const data: Record<string, unknown> = {};

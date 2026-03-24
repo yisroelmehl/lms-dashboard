@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       remarks,
       weight: weight ? parseFloat(weight) : undefined,
       contentDescription,
+      postalCode: postalCode || undefined,
       status: "pending",
     },
   });
@@ -141,13 +142,26 @@ export async function POST(request: NextRequest) {
 
   // If sendNow and DHL, submit to DHL Express API
   if (sendNow && carrier === "dhl" && city) {
+    // Validate required DHL fields
+    const missingDhlFields: string[] = [];
+    if (!address) missingDhlFields.push("כתובת");
+    if (!phone) missingDhlFields.push("טלפון");
+    if (!postalCode) missingDhlFields.push("מיקוד");
+    if (missingDhlFields.length > 0) {
+      // Still create locally but don't send — return with error
+      return NextResponse.json(
+        { ...shipment, dhlError: `חסרים שדות חובה למשלוח DHL: ${missingDhlFields.join(", ")}` },
+        { status: 201 }
+      );
+    }
+
     try {
       const result = await createDhlShipment({
         recipientName,
         address: address || "",
         city,
         countryCode: country || "US",
-        postalCode: postalCode || "",
+        postalCode: postalCode || undefined,
         phone: phone || "",
         email: email || "",
         weight: weight ? parseFloat(weight) : 1,

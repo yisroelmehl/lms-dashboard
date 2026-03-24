@@ -18,9 +18,10 @@ function getConfig() {
   if (!apiKey || !apiSecret) {
     throw new Error("DHL_API_KEY and DHL_API_SECRET must be configured");
   }
-  if (!accountNumber) {
-    throw new Error("DHL_ACCOUNT_NUMBER must be configured");
-  }
+
+  console.log("[DHL Config] Using API Key (first 10 chars):", apiKey?.substring(0, 10));
+  console.log("[DHL Config] Using Account #:", accountNumber || "(empty)");
+  console.log("[DHL Config] Base URL:", baseUrl);
 
   return { apiKey, apiSecret, accountNumber, baseUrl };
 }
@@ -109,6 +110,10 @@ async function dhlFetch(
     url += `?${qs}`;
   }
 
+  const authHeader = getAuthHeader(config.apiKey, config.apiSecret);
+  console.log(`[DHL] ${method} ${path}`);
+  console.log(`[DHL] Auth: ${authHeader.substring(0, 20)}...`);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
@@ -116,7 +121,7 @@ async function dhlFetch(
     const response = await fetch(url, {
       method,
       headers: {
-        "Authorization": getAuthHeader(config.apiKey, config.apiSecret),
+        "Authorization": authHeader,
         "Content-Type": "application/json",
         "Accept": "application/json",
       },
@@ -128,11 +133,18 @@ async function dhlFetch(
 
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
-      console.error(`[DHL] ${method} ${path} → HTTP ${response.status}:`, errText.slice(0, 500));
+      console.error(`[DHL] ${method} ${path} → HTTP ${response.status}:`, errText.slice(0, 2000));
       let errJson;
       try { errJson = JSON.parse(errText); } catch { /* not JSON */ }
       const detail = errJson?.detail || errJson?.message || errText.slice(0, 300);
-      return { ok: false as const, error: `HTTP ${response.status}: ${detail}`, status: response.status };
+      const additionalDetails = errJson?.additionalDetails;
+      if (additionalDetails?.length) {
+        console.error("[DHL] Additional details:", JSON.stringify(additionalDetails, null, 2));
+      }
+      const fullError = additionalDetails?.length
+        ? `HTTP ${response.status}: ${detail}\n${additionalDetails.join("\n")}`
+        : `HTTP ${response.status}: ${detail}`;
+      return { ok: false as const, error: fullError, status: response.status };
     }
 
     const data = await response.json();
@@ -148,15 +160,15 @@ async function dhlFetch(
 function getShipperAddress() {
   return {
     postalAddress: {
-      postalCode: "5120149",
-      cityName: "Bnei Brak",
-      countryCode: "IL",
-      addressLine1: "Jabotinsky 9, Hachsharat Hayishuv Towers",
+      postalCode: process.env.DHL_SHIPPER_POSTAL_CODE || "5120149",
+      cityName: process.env.DHL_SHIPPER_CITY || "Bnei Brak",
+      countryCode: process.env.DHL_SHIPPER_COUNTRY || "IL",
+      addressLine1: process.env.DHL_SHIPPER_ADDRESS || "Jabotinsky 9",
     },
     contactInformation: {
-      phone: process.env.YAHAV_ORIGIN_COMPANY ? "+972-3-0000000" : "+972-3-0000000",
-      companyName: "Lemaan Yilmedu",
-      fullName: "Lemaan Yilmedu Shipping",
+      phone: process.env.DHL_SHIPPER_PHONE || "+97230000000",
+      companyName: process.env.DHL_SHIPPER_COMPANY || "Lemaan Yilmedu",
+      fullName: process.env.DHL_SHIPPER_NAME || "Lemaan Yilmedu Shipping",
       email: process.env.DHL_SHIPPER_EMAIL || "shipping@example.com",
     },
   };
@@ -165,10 +177,24 @@ function getShipperAddress() {
 // ─── Create Shipment ────────────────────────────────────────
 export async function createDhlShipment(params: DhlShipmentParams): Promise<DhlShipmentResult> {
   const config = getConfig();
+
+  if (!config.accountNumber) {
+    return {
+      success: false,
+      error: "DHL_ACCOUNT_NUMBER is not configured. Please set your DHL Express account number in environment variables.",
+    };
+  }
+
+  // Use tomorrow's date for planned shipping (must be in the future)
+  const tomorrow = new Date(Date.now() + 86400000);
+  const shippingDate = tomorrow.toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
 
+  // Clean phone number: DHL requires digits only (with optional + prefix), no dashes/spaces
+  const cleanPhone = (phone: string) => phone.replace(/[\s\-()]/g, "") || "+00000000000";
+
   const requestBody = {
-    plannedShippingDateAndTime: `${today}T10:00:00 GMT+03:00`,
+    plannedShippingDateAndTime: `${shippingDate}T10:00:00GMT+03:00`,
     pickup: { isRequested: false },
     productCode: "P",  // DHL Express Worldwide
     accounts: [
@@ -184,24 +210,22 @@ export async function createDhlShipment(params: DhlShipmentParams): Promise<DhlS
           templateName: "ECOM26_84_001",
         },
       ],
-      splitTransportAndWaybillDocLabels: false,
-      allDocumentsInOneImage: true,
       encodingFormat: "pdf",
     },
     customerDetails: {
       shipperDetails: getShipperAddress(),
       receiverDetails: {
         postalAddress: {
-          postalCode: params.postalCode || "00000",
+          ...(params.postalCode ? { postalCode: params.postalCode } : {}),
           cityName: params.city,
           countryCode: params.countryCode,
           addressLine1: params.address,
         },
         contactInformation: {
-          phone: params.phone,
+          phone: cleanPhone(params.phone),
           companyName: params.recipientCompany || params.recipientName,
           fullName: params.recipientName,
-          email: params.email || "",
+          ...(params.email ? { email: params.email } : {}),
         },
       },
     },
@@ -222,6 +246,7 @@ export async function createDhlShipment(params: DhlShipmentParams): Promise<DhlS
       declaredValueCurrency: "USD",
       description: params.description,
       unitOfMeasurement: "metric",
+      incoterm: "DAP",
       exportDeclaration: {
         lineItems: [
           {
@@ -248,21 +273,20 @@ export async function createDhlShipment(params: DhlShipmentParams): Promise<DhlS
         exportReasonType: "permanent",
       },
     },
-    shipmentNotification: params.email
-      ? [
-          {
-            typeCode: "email",
-            receiverId: params.email,
-            languageCode: "eng",
-          },
-        ]
-      : undefined,
-    customerReferences: params.reference
-      ? [{ value: params.reference, typeCode: "CU" }]
-      : undefined,
+    ...(params.email
+      ? {
+          shipmentNotification: [
+            {
+              typeCode: "email",
+              receiverId: params.email,
+              languageCode: "eng",
+            },
+          ],
+        }
+      : {}),
   };
 
-  console.log("[DHL] Creating shipment...");
+  console.log("[DHL] Creating shipment with body:", JSON.stringify(requestBody, null, 2));
   const result = await dhlFetch("/shipments", { method: "POST", body: requestBody });
 
   if (!result.ok) {
@@ -343,7 +367,7 @@ export async function getDhlRates(params: {
         countryCode: "IL",
       },
       receiverDetails: {
-        postalCode: params.postalCode || "00000",
+        ...(params.postalCode ? { postalCode: params.postalCode } : {}),
         cityName: params.cityName,
         countryCode: params.countryCode,
       },
@@ -354,7 +378,7 @@ export async function getDhlRates(params: {
         number: config.accountNumber,
       },
     ],
-    plannedShippingDateAndTime: new Date().toISOString().split("T")[0] + "T10:00:00 GMT+03:00",
+    plannedShippingDateAndTime: new Date().toISOString().split("T")[0] + "T10:00:00GMT+03:00",
     unitOfMeasurement: "metric",
     isCustomsDeclarable: true,
     packages: [

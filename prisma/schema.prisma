@@ -1091,6 +1091,7 @@ model Shipment {
   address        String?
   city           String?
   country        String  @default("IL")
+  postalCode     String?  // מיקוד (חובה עבור DHL)
   phone          String?
   email          String?
 

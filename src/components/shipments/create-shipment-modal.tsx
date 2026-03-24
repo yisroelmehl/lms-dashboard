@@ -15,6 +15,28 @@ interface Student {
   email: string | null;
 }
 
+// Common countries with ISO 2-letter codes
+const COUNTRIES = [
+  { code: "IL", label: "Israel - ישראל" },
+  { code: "US", label: "United States - ארה״ב" },
+  { code: "GB", label: "United Kingdom - בריטניה" },
+  { code: "FR", label: "France - צרפת" },
+  { code: "DE", label: "Germany - גרמניה" },
+  { code: "NL", label: "Netherlands - הולנד" },
+  { code: "BE", label: "Belgium - בלגיה" },
+  { code: "IT", label: "Italy - איטליה" },
+  { code: "ES", label: "Spain - ספרד" },
+  { code: "CA", label: "Canada - קנדה" },
+  { code: "AU", label: "Australia - אוסטרליה" },
+  { code: "SG", label: "Singapore - סינגפור" },
+  { code: "HK", label: "Hong Kong - הונג קונג" },
+  { code: "JP", label: "Japan - יפן" },
+  { code: "CN", label: "China - סין" },
+  { code: "IN", label: "India - הודו" },
+  { code: "BR", label: "Brazil - ברזיל" },
+  { code: "MX", label: "Mexico - מקסיקו" },
+];
+
 export function CreateShipmentModal({
   onClose,
   onCreated,
@@ -246,12 +268,17 @@ export function CreateShipmentModal({
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">ארץ</label>
-              <input
-                type="text"
+              <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="w-full rounded-md border border-input px-3 py-2 text-sm"
-              />
+                className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">טלפון</label>

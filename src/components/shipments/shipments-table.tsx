@@ -278,6 +278,12 @@ export function ShipmentsTable({
                               : "🔄 עדכן סטטוס"}
                           </button>
                         )}
+                        <Link
+                          href={`/shipments/${shipment.id}`}
+                          className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                        >
+                          📋 פרטים
+                        </Link>
                       </td>
                     </tr>
                   );

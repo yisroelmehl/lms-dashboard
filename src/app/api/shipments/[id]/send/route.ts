@@ -85,13 +85,27 @@ export async function POST(
 
   // ── DHL Express ──
   if (shipment.carrier === "dhl") {
+    // Validate required DHL fields
+    const missingFields: string[] = [];
+    if (!shipment.address) missingFields.push("כתובת");
+    if (!shipment.phone) missingFields.push("טלפון");
+    if (!shipment.postalCode) missingFields.push("מיקוד");
+    if (!shipment.country || shipment.country.length !== 2) missingFields.push("ארץ (קוד ISO בן 2 אותיות)");
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: `חסרים שדות חובה למשלוח DHL: ${missingFields.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     try {
       const result = await createDhlShipment({
         recipientName: shipment.recipientName,
-        address: shipment.address || "",
-        city: shipment.city,
-        countryCode: shipment.country || "US",
-        phone: shipment.phone || "",
+        address: shipment.address!,
+        city: shipment.city!,
+        countryCode: shipment.country,
+        postalCode: shipment.postalCode || undefined,
+        phone: shipment.phone!,
         email: shipment.email || "",
         weight: shipment.weight || 1,
         description: shipment.contentDescription || "Books / Educational materials",
