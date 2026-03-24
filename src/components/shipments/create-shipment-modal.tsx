@@ -39,6 +39,10 @@ export function CreateShipmentModal({
   const [packageCount, setPackageCount] = useState(1);
   const [remarks, setRemarks] = useState("");
   const [sendNow, setSendNow] = useState(true);
+  // DHL-specific fields
+  const [weight, setWeight] = useState("");
+  const [contentDescription, setContentDescription] = useState("ספרים / חומרי לימוד");
+  const [postalCode, setPostalCode] = useState("");
 
   // Load all students once
   useEffect(() => {
@@ -107,6 +111,11 @@ export function CreateShipmentModal({
           packageCount,
           remarks,
           sendNow,
+          ...(carrier === "dhl" && {
+            weight: weight || "1",
+            contentDescription,
+            postalCode,
+          }),
         }),
       });
 
@@ -263,6 +272,45 @@ export function CreateShipmentModal({
               />
             </div>
           </div>
+
+          {/* DHL-specific fields */}
+          {carrier === "dhl" && (
+            <div className="grid grid-cols-2 gap-3 rounded-md border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30 p-3">
+              <div className="col-span-2 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                🌍 פרטים למשלוח בינלאומי (DHL)
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">מיקוד</label>
+                <input
+                  type="text"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">משקל (ק&quot;ג)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="1"
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">תיאור תכולה (לצרכי מכס)</label>
+                <input
+                  type="text"
+                  value={contentDescription}
+                  onChange={(e) => setContentDescription(e.target.value)}
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Package details */}
           <div className="grid grid-cols-2 gap-3">

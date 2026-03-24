@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createBaldarShipment } from "@/lib/shipping/yahav-baldar";
+import { createDhlShipment } from "@/lib/shipping/dhl";
 
 // POST /api/shipments/[id]/send — send a pending shipment to Baldar
 export async function POST(
@@ -28,9 +29,9 @@ export async function POST(
     );
   }
 
-  if (shipment.carrier !== "yahav_baldar") {
+  if (shipment.carrier !== "yahav_baldar" && shipment.carrier !== "dhl") {
     return NextResponse.json(
-      { error: "Only Yahav/Baldar shipments can be sent automatically" },
+      { error: "Automatic sending is only supported for Yahav/Baldar and DHL" },
       { status: 400 }
     );
   }
@@ -42,40 +43,87 @@ export async function POST(
     );
   }
 
-  try {
-    const result = await createBaldarShipment({
-      recipientName: shipment.recipientName,
-      address: shipment.address || "",
-      city: shipment.city,
-      phone: shipment.phone || "",
-      email: shipment.email || "",
-      orderNum: shipment.id.slice(-8),
-      remarks: shipment.remarks || undefined,
-      packageCount: shipment.packageCount,
-    });
-
-    if (result.success && result.deliveryNumber) {
-      const updated = await prisma.shipment.update({
-        where: { id },
-        data: {
-          status: "created",
-          trackingNumber: result.deliveryNumber,
-          carrierRef: result.deliveryNumber,
-        },
+  // ── Yahav/Baldar ──
+  if (shipment.carrier === "yahav_baldar") {
+    try {
+      const result = await createBaldarShipment({
+        recipientName: shipment.recipientName,
+        address: shipment.address || "",
+        city: shipment.city,
+        phone: shipment.phone || "",
+        email: shipment.email || "",
+        orderNum: shipment.id.slice(-8),
+        remarks: shipment.remarks || undefined,
+        packageCount: shipment.packageCount,
       });
-      return NextResponse.json(updated);
-    } else {
+
+      if (result.success && result.deliveryNumber) {
+        const updated = await prisma.shipment.update({
+          where: { id },
+          data: {
+            status: "created",
+            trackingNumber: result.deliveryNumber,
+            carrierRef: result.deliveryNumber,
+          },
+        });
+        return NextResponse.json(updated);
+      } else {
+        return NextResponse.json(
+          { error: result.error || "Baldar API returned an error" },
+          { status: 502 }
+        );
+      }
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("Failed to send shipment to Baldar:", errorMsg, e);
       return NextResponse.json(
-        { error: result.error || "Baldar API returned an error" },
+        { error: `Failed to communicate with Baldar API: ${errorMsg}` },
         { status: 502 }
       );
     }
-  } catch (e) {
-    const errorMsg = e instanceof Error ? e.message : String(e);
-    console.error("Failed to send shipment to Baldar:", errorMsg, e);
-    return NextResponse.json(
-      { error: `Failed to communicate with Baldar API: ${errorMsg}` },
-      { status: 502 }
-    );
+  }
+
+  // ── DHL Express ──
+  if (shipment.carrier === "dhl") {
+    try {
+      const result = await createDhlShipment({
+        recipientName: shipment.recipientName,
+        address: shipment.address || "",
+        city: shipment.city,
+        countryCode: shipment.country || "US",
+        phone: shipment.phone || "",
+        email: shipment.email || "",
+        weight: shipment.weight || 1,
+        description: shipment.contentDescription || "Books / Educational materials",
+        packageCount: shipment.packageCount,
+        reference: shipment.id.slice(-8),
+      });
+
+      if (result.success && result.trackingNumber) {
+        const updated = await prisma.shipment.update({
+          where: { id },
+          data: {
+            status: "created",
+            trackingNumber: result.trackingNumber,
+            carrierRef: result.shipmentId || result.trackingNumber,
+            labelData: result.labelBase64 || null,
+            carrierRawData: result.rawResponse as object || undefined,
+          },
+        });
+        return NextResponse.json(updated);
+      } else {
+        return NextResponse.json(
+          { error: result.error || "DHL API returned an error" },
+          { status: 502 }
+        );
+      }
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      console.error("Failed to send shipment to DHL:", errorMsg, e);
+      return NextResponse.json(
+        { error: `Failed to communicate with DHL API: ${errorMsg}` },
+        { status: 502 }
+      );
+    }
   }
 }

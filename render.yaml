@@ -37,3 +37,13 @@ services:
         value: "9"
       - key: YAHAV_ORIGIN_COMPANY
         value: "למען ילמדו"
+      - key: DHL_API_KEY
+        sync: false
+      - key: DHL_API_SECRET
+        sync: false
+      - key: DHL_ACCOUNT_NUMBER
+        sync: false
+      - key: DHL_BASE_URL
+        value: "https://express.api.dhl.com/mydhlapi/test"
+      - key: DHL_SHIPPER_EMAIL
+        sync: false

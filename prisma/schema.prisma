@@ -1102,6 +1102,11 @@ model Shipment {
   carrierRef       String?  // מזהה פנימי של חברת המשלוחים (Baldar barcode / DHL tracking)
   carrierStatus    String?  // סטטוס גולמי מחברת המשלוחים
   carrierRawData   Json?    // תשובה מלאה מה-API
+  labelData        String?  @db.Text  // PDF label base64 (DHL)
+
+  // DHL-specific fields
+  weight           Float?   // משקל בק"ג
+  contentDescription String? // תיאור תכולה (לצרכי מכס)
 
   deliveredAt  DateTime?
   createdAt    DateTime  @default(now())

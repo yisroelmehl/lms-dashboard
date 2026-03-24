@@ -15,6 +15,7 @@ interface Shipment {
   country: string;
   phone: string | null;
   carrierStatus: string | null;
+  labelData: string | null;
   packageCount: number;
   remarks: string | null;
   deliveredAt: string | null;
@@ -59,6 +60,7 @@ export function ShipmentsTable({
   const [shipments, setShipments] = useState(initialShipments);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [downloadingLabel, setDownloadingLabel] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
   const filtered =
@@ -106,6 +108,32 @@ export function ShipmentsTable({
       alert("שגיאה בשליחה לחברת המשלוחים");
     } finally {
       setSendingId(null);
+    }
+  }
+
+  async function downloadLabel(id: string) {
+    setDownloadingLabel(id);
+    try {
+      const res = await fetch(`/api/shipments/${id}/label`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `DHL-Label-${id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.error || "שגיאה בהורדת התווית");
+      }
+    } catch (e) {
+      console.error("Failed to download label:", e);
+      alert("שגיאה בהורדת התווית");
+    } finally {
+      setDownloadingLabel(null);
     }
   }
 
@@ -215,7 +243,7 @@ export function ShipmentsTable({
                         )}
                       </td>
                       <td className="px-4 py-3 space-x-reverse space-x-2">
-                        {shipment.status === "pending" && shipment.carrier === "yahav_baldar" && (
+                        {shipment.status === "pending" && (shipment.carrier === "yahav_baldar" || shipment.carrier === "dhl") && (
                           <button
                             onClick={() => sendToCarrier(shipment.id)}
                             disabled={sendingId === shipment.id}
@@ -223,7 +251,20 @@ export function ShipmentsTable({
                           >
                             {sendingId === shipment.id
                               ? "שולח..."
+                              : shipment.carrier === "dhl"
+                              ? "📤 שלח ל-DHL"
                               : "📤 שלח לבלדר"}
+                          </button>
+                        )}
+                        {shipment.labelData && (
+                          <button
+                            onClick={() => downloadLabel(shipment.id)}
+                            disabled={downloadingLabel === shipment.id}
+                            className="text-xs bg-yellow-600 text-white hover:bg-yellow-700 rounded px-2 py-1 disabled:opacity-50"
+                          >
+                            {downloadingLabel === shipment.id
+                              ? "מוריד..."
+                              : "🏷️ תווית"}
                           </button>
                         )}
                         {shipment.trackingNumber && (

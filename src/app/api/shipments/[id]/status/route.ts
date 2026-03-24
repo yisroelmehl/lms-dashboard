@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBaldarStatus, BALDAR_STATUS_MAP } from "@/lib/shipping/yahav-baldar";
+import { getDhlTracking, DHL_STATUS_MAP } from "@/lib/shipping/dhl";
 
 // POST /api/shipments/[id]/status — refresh status from carrier API
 export async function POST(
@@ -71,7 +72,55 @@ export async function POST(
     });
   }
 
-  // DHL and other carriers - placeholder
+  // ── DHL Express ──
+  if (shipment.carrier === "dhl") {
+    const result = await getDhlTracking(shipment.trackingNumber);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to check DHL status" },
+        { status: 502 }
+      );
+    }
+
+    const mappedStatus = result.status
+      ? DHL_STATUS_MAP[result.status.toLowerCase()] || "in_transit"
+      : undefined;
+
+    const updateData: Record<string, unknown> = {
+      carrierStatus: result.description || result.status,
+      carrierRawData: {
+        statusCode: result.statusCode,
+        events: result.events,
+        estimatedDelivery: result.estimatedDelivery,
+      },
+    };
+
+    if (mappedStatus) {
+      updateData.status = mappedStatus;
+    }
+
+    if (mappedStatus === "delivered") {
+      updateData.deliveredAt = new Date();
+    }
+
+    const updated = await prisma.shipment.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      shipment: updated,
+      dhlStatus: {
+        status: result.status,
+        description: result.description,
+        estimatedDelivery: result.estimatedDelivery,
+        events: result.events,
+      },
+    });
+  }
+
+  // Other carriers - not implemented
   return NextResponse.json(
     { error: "Status refresh not implemented for this carrier" },
     { status: 501 }
