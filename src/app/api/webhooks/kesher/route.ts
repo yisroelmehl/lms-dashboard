@@ -67,9 +67,22 @@ async function processPayment(
         where: { studentId: link.studentId, courseId: link.courseId },
       });
       if (!existingEnrollment) {
-        await prisma.enrollment.create({
+        const newEnrollment = await prisma.enrollment.create({
           data: { studentId: link.studentId, courseId: link.courseId },
         });
+
+        // Auto-create onboarding checklist for new student
+        const existingOnboarding = await prisma.studentOnboarding.findFirst({
+          where: { studentId: link.studentId, completedAt: null },
+        });
+        if (!existingOnboarding) {
+          await prisma.studentOnboarding.create({
+            data: {
+              studentId: link.studentId,
+              enrollmentId: newEnrollment.id,
+            },
+          });
+        }
       }
       await prisma.paymentLink.update({
         where: { id: link.id },

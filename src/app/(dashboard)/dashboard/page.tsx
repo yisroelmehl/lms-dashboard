@@ -3,6 +3,7 @@ import { resolveField, formatDateHe } from "@/lib/utils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
+import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -112,16 +113,41 @@ async function getRecentNotifications() {
   }
 }
 
+async function getNewStudentsOnboarding() {
+  try {
+    return await prisma.studentOnboarding.findMany({
+      where: { completedAt: null },
+      include: {
+        student: {
+          select: {
+            id: true,
+            hebrewName: true,
+            firstNameMoodle: true,
+            firstNameOverride: true,
+            lastNameMoodle: true,
+            lastNameOverride: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (e) {
+    console.error("Failed to fetch onboarding students:", e);
+    return [];
+  }
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const adminId = (session?.user as any)?.id;
 
-  const [stats, tasks, atRiskStudents, openRequests, notifications] = await Promise.all([
+  const [stats, tasks, atRiskStudents, openRequests, notifications, onboardingStudents] = await Promise.all([
     getStats(),
     getMyTasks(adminId),
     getAtRiskStudents(),
     getOpenRequests(),
     getRecentNotifications(),
+    getNewStudentsOnboarding(),
   ]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -129,6 +155,9 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">לוח בקרה</h1>
+
+      {/* New Students Onboarding Banner */}
+      <OnboardingBanner initialData={onboardingStudents as any} />
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -225,6 +225,7 @@ model Student {
   payments            Payment[]
   jotformSubmissions  JotformSubmission[]
   termsAcceptances    TermsAcceptance[]
+  onboardings         StudentOnboarding[]
 
   @@map("students")
 }
@@ -1026,4 +1027,30 @@ model TermsAcceptance {
   @@map("terms_acceptances")
   @@index([studentId])
   @@index([email])
+}
+
+// ============================================================
+// STUDENT ONBOARDING (פרוטוקול קליטת תלמיד חדש)
+// ============================================================
+
+model StudentOnboarding {
+  id           String  @id @default(cuid())
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  enrollmentId String?
+
+  // 5-step checklist
+  callWithDirector     Boolean @default(false) // שיחה עם מנהל הלימודים
+  callWithRabbi        Boolean @default(false) // שיחה עם הרב של הכיתה
+  materialsSent        Boolean @default(false) // שליחת חומרים
+  materialsReceived    Boolean @default(false) // לוודא שהוא קיבל
+  connectedToPortal    Boolean @default(false) // לוודא שהוא מחובר לאיזור האישי
+
+  completedAt  DateTime? // Set when all 5 steps done
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  @@map("student_onboardings")
+  @@index([studentId])
 }
