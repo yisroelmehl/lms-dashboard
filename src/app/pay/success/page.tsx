@@ -41,6 +41,12 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
     include: {
       course: true,
       student: true,
+      payments: {
+        where: { isSuccess: true },
+        orderBy: { processedAt: "desc" },
+        take: 1,
+        select: { kesherReceiptLink: true, kesherDocNumber: true },
+      },
     },
   });
 
@@ -163,7 +169,20 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
           </div>
 
           <div className="text-center text-sm text-gray-500 pt-4 border-t flex flex-col items-center gap-2">
-            {!link.isRegistrationOnly && <p>קבלה דיגיטלית תשלח אליך למייל בקרוב.</p>}
+            {!link.isRegistrationOnly && (
+              link.payments?.[0]?.kesherReceiptLink ? (
+                <a
+                  href={link.payments[0].kesherReceiptLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+                >
+                  🧾 צפה בקבלה הדיגיטלית
+                </a>
+              ) : (
+                <p>קבלה דיגיטלית תשלח אליך למייל בקרוב.</p>
+              )
+            )}
             <p className="flex items-center gap-1.5"><span className="w-4 h-4" /> לשאלות ותמיכה, ניתן לפנות למזכירות.</p>
           </div>
 

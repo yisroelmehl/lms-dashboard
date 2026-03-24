@@ -886,6 +886,8 @@ model Payment {
   kesherOKNum          String?
   kesherStatus         String?
   kesherRawResponse    Json?
+  kesherReceiptLink    String?   // Link to digital receipt from Kesher
+  kesherDocNumber      String?   // Document number from Kesher
   
   isSuccess       Boolean       @default(false)
   failureReason   String?

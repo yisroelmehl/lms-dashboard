@@ -58,6 +58,7 @@ export function ShipmentsTable({
 }) {
   const [shipments, setShipments] = useState(initialShipments);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
   const filtered =
@@ -81,6 +82,30 @@ export function ShipmentsTable({
       console.error("Failed to refresh status:", e);
     } finally {
       setRefreshingId(null);
+    }
+  }
+
+  async function sendToCarrier(id: string) {
+    if (!confirm("לשלוח את המשלוח לחברת המשלוחים?")) return;
+    setSendingId(id);
+    try {
+      const res = await fetch(`/api/shipments/${id}/send`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShipments((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, ...data } : s))
+        );
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.error || "שגיאה בשליחה לחברת המשלוחים");
+      }
+    } catch (e) {
+      console.error("Failed to send to carrier:", e);
+      alert("שגיאה בשליחה לחברת המשלוחים");
+    } finally {
+      setSendingId(null);
     }
   }
 
@@ -189,7 +214,18 @@ export function ShipmentsTable({
                           "he-IL"
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 space-x-reverse space-x-2">
+                        {shipment.status === "pending" && shipment.carrier === "yahav_baldar" && (
+                          <button
+                            onClick={() => sendToCarrier(shipment.id)}
+                            disabled={sendingId === shipment.id}
+                            className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded px-2 py-1 disabled:opacity-50"
+                          >
+                            {sendingId === shipment.id
+                              ? "שולח..."
+                              : "📤 שלח לבלדר"}
+                          </button>
+                        )}
                         {shipment.trackingNumber && (
                           <button
                             onClick={() => refreshStatus(shipment.id)}

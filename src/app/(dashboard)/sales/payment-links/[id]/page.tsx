@@ -172,6 +172,7 @@ export default async function PaymentLinkDetailPage({
                 <th className="py-2 text-right text-xs font-medium text-muted-foreground">אמצעי</th>
                 <th className="py-2 text-right text-xs font-medium text-muted-foreground">סטטוס</th>
                 <th className="py-2 text-right text-xs font-medium text-muted-foreground">תאריך</th>
+                <th className="py-2 text-right text-xs font-medium text-muted-foreground">קבלה</th>
               </tr>
             </thead>
             <tbody>
@@ -187,6 +188,22 @@ export default async function PaymentLinkDetailPage({
                     </span>
                   </td>
                   <td className="py-2 text-sm">{p.processedAt ? formatDateTimeHe(p.processedAt) : "—"}</td>
+                  <td className="py-2 text-sm">
+                    {p.kesherReceiptLink ? (
+                      <a
+                        href={p.kesherReceiptLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-xs"
+                      >
+                        🧾 {p.kesherDocNumber || "צפה בקבלה"}
+                      </a>
+                    ) : p.kesherDocNumber ? (
+                      <span className="text-xs text-muted-foreground">מס׳ {p.kesherDocNumber}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

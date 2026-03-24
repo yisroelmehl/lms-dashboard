@@ -29,6 +29,8 @@ async function processPayment(
     transactionNumber: string | null;
     obligationRef: string | null;
     ref: string | null;
+    receiptLink: string | null;
+    docNumber: string | null;
     rawData: Record<string, unknown>;
   }
 ) {
@@ -45,6 +47,8 @@ async function processPayment(
       kesherOKNum: params.ref,
       kesherStatus: params.isSuccess ? "success" : "failed",
       kesherRawResponse: params.rawData as Record<string, string>,
+      kesherReceiptLink: params.receiptLink,
+      kesherDocNumber: params.docNumber,
       isSuccess: params.isSuccess,
       failureReason: params.isSuccess ? null : "Payment declined",
       processedAt: new Date(),
@@ -236,6 +240,7 @@ export async function POST(request: Request) {
     adddata,
     ref,
     docNumber,
+    receiptLink,
   } = body as Record<string, string>;
 
   const amount = total ? parseFloat(total) : null;
@@ -262,6 +267,8 @@ export async function POST(request: Request) {
     transactionNumber: transactionNumber || null,
     obligationRef: obligationRef || null,
     ref: ref || null,
+    receiptLink: receiptLink || null,
+    docNumber: docNumber || null,
     rawData: body,
   });
 
@@ -281,6 +288,7 @@ export async function GET(request: Request) {
   const ref = searchParams.get("ref");
   const docNumber = searchParams.get("docNumber");
   const obligationRef = searchParams.get("obligationRef");
+  const receiptLink = searchParams.get("receiptLink");
 
   const amount = total ? parseFloat(total) : null;
   const link = await findLink(adddata, amount);
@@ -296,6 +304,8 @@ export async function GET(request: Request) {
       transactionNumber: transactionNumber || null,
       obligationRef: obligationRef || null,
       ref: ref || null,
+      receiptLink: receiptLink || null,
+      docNumber: docNumber || null,
       rawData: Object.fromEntries(searchParams.entries()),
     });
   }
