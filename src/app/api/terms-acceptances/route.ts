@@ -76,13 +76,22 @@ const TERMS_TEXT = `תקנון הצטרפות לקורס:
 export async function POST(request: NextRequest) {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await request.json();
-    const { studentId, firstName, email, courseName, signature } = body;
+    const { token, studentId, firstName, email, courseName, signature } = body;
+
+    // Auth: either via session (admin dashboard) or via payment token (public terms page)
+    if (token) {
+      const link = await prisma.paymentLink.findUnique({ where: { token } });
+      if (!link || link.studentId !== studentId) {
+        return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      }
+    } else {
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
 
     if (!studentId || !firstName || !email || !signature) {
       return NextResponse.json(

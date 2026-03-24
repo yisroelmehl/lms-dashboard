@@ -148,6 +148,20 @@ export default async function PaymentSuccessPage({ searchParams }: PageProps) {
             </div>
           )}
 
+          {/* Terms Acceptance */}
+          <div className="bg-amber-50 rounded-lg p-6 border border-amber-200 text-center">
+            <h3 className="text-lg font-bold text-amber-900 mb-2">שלב אחרון - אישור תקנון</h3>
+            <p className="text-amber-700 text-sm mb-4">
+              לפני שנתחיל, עליך לקרוא ולחתום על תקנון הקורס.
+            </p>
+            <a
+              href={`/terms/${linkToken}`}
+              className="inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors w-full shadow-md"
+            >
+              קריאה וחתימה על התקנון
+            </a>
+          </div>
+
           <div className="text-center text-sm text-gray-500 pt-4 border-t flex flex-col items-center gap-2">
             {!link.isRegistrationOnly && <p>קבלה דיגיטלית תשלח אליך למייל בקרוב.</p>}
             <p className="flex items-center gap-1.5"><span className="w-4 h-4" /> לשאלות ותמיכה, ניתן לפנות למזכירות.</p>
