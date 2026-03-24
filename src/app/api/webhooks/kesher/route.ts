@@ -84,6 +84,29 @@ async function processPayment(
           });
         }
       }
+      // Auto-create shipment for new enrollment
+      const student = await prisma.student.findUnique({
+        where: { id: link.studentId },
+        select: { hebrewName: true, firstNameOverride: true, lastNameOverride: true, firstNameMoodle: true, lastNameMoodle: true, city: true, address: true, phoneMoodle: true, phoneOverride: true, emailMoodle: true, emailOverride: true },
+      });
+      if (student) {
+        const studentName = student.hebrewName || 
+          `${student.firstNameOverride || student.firstNameMoodle || link.firstName} ${student.lastNameOverride || student.lastNameMoodle || link.lastName}`.trim();
+        await prisma.shipment.create({
+          data: {
+            studentId: link.studentId,
+            carrier: "yahav_baldar",
+            recipientName: studentName,
+            address: student.address || undefined,
+            city: student.city || undefined,
+            country: "IL",
+            phone: student.phoneOverride || student.phoneMoodle || undefined,
+            email: student.emailOverride || student.emailMoodle || link.email || undefined,
+            status: "pending",
+          },
+        });
+      }
+
       await prisma.paymentLink.update({
         where: { id: link.id },
         data: { moodleEnrolled: false },

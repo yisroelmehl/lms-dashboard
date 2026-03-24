@@ -226,6 +226,7 @@ model Student {
   jotformSubmissions  JotformSubmission[]
   termsAcceptances    TermsAcceptance[]
   onboardings         StudentOnboarding[]
+  shipments           Shipment[]
 
   @@map("students")
 }
@@ -1053,4 +1054,58 @@ model StudentOnboarding {
   
   @@map("student_onboardings")
   @@index([studentId])
+}
+
+// ============================================================
+// SHIPMENTS (משלוחים)
+// ============================================================
+
+enum ShipmentCarrier {
+  yahav_baldar  // יהב לוגיסטיקה - בלדר (ארץ)
+  dhl           // DHL (חו"ל)
+  other
+}
+
+enum ShipmentStatus {
+  pending       // ממתין לאישור/שליחה
+  created       // נוצר אצל חברת המשלוחים
+  in_transit    // בדרך
+  delivered     // נמסר
+  cancelled     // בוטל
+  returned      // הוחזר
+}
+
+model Shipment {
+  id           String  @id @default(cuid())
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  carrier        ShipmentCarrier @default(yahav_baldar)
+  status         ShipmentStatus  @default(pending)
+  trackingNumber String?         // מספר מעקב מחברת המשלוחים
+  
+  // Destination address
+  recipientName  String
+  address        String?
+  city           String?
+  country        String  @default("IL")
+  phone          String?
+  email          String?
+
+  // Shipment details
+  packageCount   Int     @default(1)
+  remarks        String?
+  
+  // Carrier-specific data
+  carrierRef       String?  // מזהה פנימי של חברת המשלוחים (Baldar barcode / DHL tracking)
+  carrierStatus    String?  // סטטוס גולמי מחברת המשלוחים
+  carrierRawData   Json?    // תשובה מלאה מה-API
+
+  deliveredAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("shipments")
+  @@index([studentId])
+  @@index([trackingNumber])
 }

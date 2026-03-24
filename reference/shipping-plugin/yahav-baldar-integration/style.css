@@ -1,0 +1,241 @@
+.column-action button {
+}
+.loader {
+	border: 6px solid transparent;
+	border-radius: 50%;
+	border-top: 6px solid white;
+	width: 50px;
+	height: 50px;
+	-webkit-animation: spin 0.7s linear infinite;
+	animation: spin 0.7s linear infinite;
+	margin: 0 auto;
+}
+
+/* Safari */
+@-webkit-keyframes spin {
+	0% {
+		-webkit-transform: rotate(0deg);
+	}
+	100% {
+		-webkit-transform: rotate(360deg);
+	}
+}
+
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+.loader-modal {
+	width: 100%;
+	height: 100%;
+	position: fixed;
+	top: 0;
+	left: 0;
+	background: #0000005e;
+	z-index: 22222222;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	display: none;
+}
+
+.loader-modal-content h3 {
+	color: white;
+	font-size: 32px;
+}
+.column-action button.declineOrder {
+	margin-top: 10px;
+	margin-right: 0;
+}
+
+.column-action button i {
+	vertical-align: middle;
+	display: inline-block;
+	margin-left: 2px;
+}
+.general-message {
+	padding: 17px;
+	color: white;
+	font-size: 20px;
+	margin: 0;
+	margin-bottom: 19px;
+}
+.general-message.success {
+	background: #4caf50;
+}
+.general-message.error {
+	background: #f44336;
+}
+.column-action {
+	text-align: center !important;
+}
+body.toplevel_page_yahav_main_slug .orderOptions {
+	padding: 9px;
+	border-radius: 6px;
+	border: 1px solid black;
+	background: gray;
+	color: white;
+	font-weight: bold;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+body.toplevel_page_yahav_main_slug .orderOptions i {
+	margin-left: 8px;
+}
+.ui-dialog {
+	right: unset;
+}
+input[name="barcode-generate"] {
+	width: 30px;
+	height: 30px;
+}
+
+input[name="barcode-generate"]:checked::before {
+	width: 36px;
+  margin: -3px 0;
+  margin-left: -6px;
+}
+
+.rtl input[name="barcode-generate"]:checked::before {
+  margin-left: 0;
+  margin-right: -3px;
+}
+
+label[for="barcode-generate"] {
+	font-size: 17px;
+	display: block;
+	margin-top: 10px;
+}
+#print-barcodes {
+	position: fixed;
+	right: 0;
+	top: 10%;
+	text-align: center;
+	padding: 10px 0;
+	background: #3f51b5;
+	border-top-left-radius: 100px;
+	border-bottom-left-radius: 100px;
+	width: 100px;
+	padding-right: 12px;
+	display: none;
+	cursor: pointer;
+	z-index: 99999999;
+	padding-left: 10px;
+}
+
+#print-barcodes img {
+	width: 45px;
+}
+
+#print-barcodes h4 {
+	margin: 0;
+	color: white;
+	line-height: 1.1em;
+	font-size: 14px;
+	font-weight: bold;
+}
+
+.rtl #print-barcodes {
+	left: 0;
+	right: unset;
+	border-radius: 0;
+	border-top-right-radius: 100px;
+	border-bottom-right-radius: 100px;
+}
+
+.yahav-button {
+	padding: 7px 20px;
+	border-radius: 6px;
+	border: 1px solid black;
+	background: #4caf50;
+	color: white;
+	font-weight: bold;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.yahav-button.red {
+	background: #f44336;
+}
+
+.yahav-button.gray {
+	background: gray;
+}
+
+.yahav-button.small {
+	padding: 4px 8px;
+}
+
+body:not(.toplevel_page_yahav_main_slug) .wp-dialog.extra-options-yahav .ui-dialog-titlebar-close::before {
+	display: none;
+}
+
+body:not(.toplevel_page_yahav_main_slug) .wp-dialog.extra-options-yahav .ui-dialog-titlebar-close {
+	font-size: 0;
+	width: 20px;
+	right: 10px;
+}
+
+.yahav-orders-page-success input[name="barcode-generate"] {
+	width: 30px;
+	height: 30px;
+	margin: 0;
+	margin-right: 5px;
+  flex: 0 0 auto;
+}
+
+.rtl .yahav-orders-page-success input[name="barcode-generate"] {
+	margin-right: 0;
+	margin-left: 5px;
+}
+
+.yahav-orders-page-success .success-text {
+	color: #4caf50;
+}
+
+.yahav-orders-page-success label[for="barcode-generate"] {
+	font-size: 15px;
+	line-height: 1em;
+	margin: 0;
+}
+
+.yahav-orders-page-print-checkbox {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-top: 4px;
+}
+
+.order-field[name="remarks-fill"] {
+	width: 100%;
+	height: 100px;
+}
+
+body.toplevel_page_yahav_main_slug .remarks-fill-row {
+	display: none;
+}
+
+.yahav-orders-page-denied .denied-text {
+	color: #f57c00;
+}
+
+/* #yahav-baldar-main-table td.column-cb, */
+#yahav-baldar-main-table td.column-type {
+  width: fit-content !important;
+}
+
+#select-all-baldar-page-print-checkboxes{
+  margin-left: 10px;
+}
+
+.rtl #select-all-baldar-page-print-checkboxes{
+  margin-left: 0;
+  margin-right: 10px;
+}

@@ -65,6 +65,9 @@ export default async function StudentDetailPage({
         include: { salesAgent: true, course: true },
         orderBy: { createdAt: "desc" },
       },
+      shipments: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -402,6 +405,58 @@ export default async function StudentDetailPage({
                     : req.status === "resolved"
                     ? "טופל"
                     : "בוטל"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Shipments */}
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h2 className="mb-4 text-lg font-semibold">📦 משלוחים</h2>
+        {student.shipments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">אין משלוחים</p>
+        ) : (
+          <div className="space-y-2">
+            {student.shipments.map((shipment) => (
+              <div
+                key={shipment.id}
+                className="flex items-center justify-between rounded-md border border-border p-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    {shipment.recipientName}
+                    {shipment.city && <span className="text-muted-foreground"> — {shipment.city}</span>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {shipment.carrier === "yahav_baldar" ? "יהב / בלדר" : shipment.carrier === "dhl" ? "DHL" : "אחר"}
+                    {shipment.trackingNumber && <span className="font-mono mr-2">#{shipment.trackingNumber}</span>}
+                    {" · "}
+                    {formatDateHe(shipment.createdAt)}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs ${
+                    shipment.status === "pending"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : shipment.status === "created"
+                      ? "bg-blue-100 text-blue-700"
+                      : shipment.status === "in_transit"
+                      ? "bg-purple-100 text-purple-700"
+                      : shipment.status === "delivered"
+                      ? "bg-green-100 text-green-700"
+                      : shipment.status === "cancelled"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-orange-100 text-orange-700"
+                  }`}
+                >
+                  {shipment.carrierStatus || 
+                    (shipment.status === "pending" ? "ממתין" :
+                     shipment.status === "created" ? "נוצר" :
+                     shipment.status === "in_transit" ? "בדרך" :
+                     shipment.status === "delivered" ? "נמסר" :
+                     shipment.status === "cancelled" ? "בוטל" : "הוחזר")}
                 </span>
               </div>
             ))}
