@@ -71,9 +71,10 @@ export async function POST(
       );
     }
   } catch (e) {
-    console.error("Failed to send shipment to Baldar:", e);
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    console.error("Failed to send shipment to Baldar:", errorMsg, e);
     return NextResponse.json(
-      { error: "Failed to communicate with Baldar API" },
+      { error: `Failed to communicate with Baldar API: ${errorMsg}` },
       { status: 502 }
     );
   }

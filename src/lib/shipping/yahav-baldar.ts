@@ -103,18 +103,40 @@ export async function createBaldarShipment(params: BaldarCreateParams): Promise<
     date: dateStr,
   });
 
-  const response = await fetch(BALDAR_CREATE_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-  const data = await response.json();
+  let response: Response;
+  try {
+    response = await fetch(BALDAR_CREATE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      signal: controller.signal,
+    });
+  } catch (fetchErr) {
+    clearTimeout(timeout);
+    const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    return { success: false, error: `Network error: ${msg}` };
+  } finally {
+    clearTimeout(timeout);
+  }
 
-  if (data.DeliveryNumber && parseInt(data.DeliveryNumber) > 0) {
-    const driver = data.DeliveryNumberString
-      ? data.DeliveryNumberString.split(";")[1] || ""
-      : "";
+  if (!response.ok) {
+    return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+  }
+
+  const text = await response.text();
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { success: false, error: `Invalid JSON response: ${text.slice(0, 200)}` };
+  }
+
+  if (data.DeliveryNumber && parseInt(String(data.DeliveryNumber)) > 0) {
+    const dnsStr = typeof data.DeliveryNumberString === "string" ? data.DeliveryNumberString : "";
+    const driver = dnsStr ? dnsStr.split(";")[1] || "" : "";
 
     return {
       success: true,
@@ -137,7 +159,19 @@ export async function getBaldarStatus(trackingNumber: string): Promise<BaldarSta
 
   const url = `${BALDAR_STATUS_URL}?customerId=${encodeURIComponent(config.clientCode)}&deliveryNumbers=${encodeURIComponent(trackingNumber)}`;
 
-  const response = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch (fetchErr) {
+    clearTimeout(timeout);
+    const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    return { success: false, error: `Network error: ${msg}` };
+  } finally {
+    clearTimeout(timeout);
+  }
   const xmlText = await response.text();
 
   // Parse XML response - extract key fields
