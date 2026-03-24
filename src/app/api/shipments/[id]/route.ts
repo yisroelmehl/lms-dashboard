@@ -60,6 +60,8 @@ export async function PATCH(
     "city",
     "country",
     "postalCode",
+    "state",
+    "recipientNameEn",
     "phone",
     "email",
     "packageCount",

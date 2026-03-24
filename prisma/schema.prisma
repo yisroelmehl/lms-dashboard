@@ -1087,13 +1087,15 @@ model Shipment {
   trackingNumber String?         // מספר מעקב מחברת המשלוחים
   
   // Destination address
-  recipientName  String
-  address        String?
-  city           String?
-  country        String  @default("IL")
-  postalCode     String?  // מיקוד (חובה עבור DHL)
-  phone          String?
-  email          String?
+  recipientName    String
+  recipientNameEn  String?  // שם באנגלית (חובה עבור DHL - תווית)
+  address          String?
+  city             String?
+  country          String  @default("IL")
+  state            String?  // מדינה (חובה עבור ארה״ב - e.g. NY, CA)
+  postalCode       String?  // מיקוד (חובה עבור DHL)
+  phone            String?
+  email            String?
 
   // Shipment details
   packageCount   Int     @default(1)

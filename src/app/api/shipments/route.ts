@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
     weight,
     contentDescription,
     postalCode,
+    // DHL English name + state
+    recipientNameEn,
+    state,
   } = body;
 
   if (!studentId || !recipientName) {
@@ -93,6 +96,8 @@ export async function POST(request: NextRequest) {
       weight: weight ? parseFloat(weight) : undefined,
       contentDescription,
       postalCode: postalCode || undefined,
+      recipientNameEn: recipientNameEn || undefined,
+      state: state || undefined,
       status: "pending",
     },
   });
@@ -147,6 +152,8 @@ export async function POST(request: NextRequest) {
     if (!address) missingDhlFields.push("כתובת");
     if (!phone) missingDhlFields.push("טלפון");
     if (!postalCode) missingDhlFields.push("מיקוד");
+    if (!recipientNameEn) missingDhlFields.push("שם באנגלית (לתווית DHL)");
+    if (country === "US" && !state) missingDhlFields.push("מדינה (State)");
     if (missingDhlFields.length > 0) {
       // Still create locally but don't send — return with error
       return NextResponse.json(
@@ -157,9 +164,10 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await createDhlShipment({
-        recipientName,
+        recipientName: recipientNameEn || recipientName,
         address: address || "",
         city,
+        state: state || undefined,
         countryCode: country || "US",
         postalCode: postalCode || undefined,
         phone: phone || "",

@@ -47,9 +47,11 @@ interface Shipment {
   status: string;
   trackingNumber: string | null;
   recipientName: string;
+  recipientNameEn: string | null;
   address: string | null;
   city: string | null;
   country: string;
+  state: string | null;
   postalCode: string | null;
   phone: string | null;
   email: string | null;
@@ -95,9 +97,11 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
   // Edit form state
   const [form, setForm] = useState({
     recipientName: shipment.recipientName,
+    recipientNameEn: shipment.recipientNameEn || "",
     address: shipment.address || "",
     city: shipment.city || "",
     country: shipment.country,
+    state: shipment.state || "",
     postalCode: shipment.postalCode || "",
     phone: shipment.phone || "",
     email: shipment.email || "",
@@ -113,9 +117,11 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
   function startEdit() {
     setForm({
       recipientName: shipment.recipientName,
+      recipientNameEn: shipment.recipientNameEn || "",
       address: shipment.address || "",
       city: shipment.city || "",
       country: shipment.country,
+      state: shipment.state || "",
       postalCode: shipment.postalCode || "",
       phone: shipment.phone || "",
       email: shipment.email || "",
@@ -466,6 +472,20 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
                   className="w-full rounded-md border border-input px-3 py-2 text-sm"
                 />
               </div>
+              {form.carrier === "dhl" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">שם באנגלית (לתווית DHL) <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={form.recipientNameEn}
+                    onChange={(e) => setForm({ ...form, recipientNameEn: e.target.value })}
+                    placeholder="Recipient full name in English"
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm text-left"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">DHL לא תומך בעברית על התווית</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">כתובת</label>
                 <input
@@ -508,6 +528,20 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
                   placeholder={form.carrier === "dhl" ? "חובה עבור DHL" : ""}
                 />
               </div>
+              {form.country === "US" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">מדינה (State) <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={form.state}
+                    onChange={(e) => setForm({ ...form, state: e.target.value.toUpperCase() })}
+                    placeholder="e.g. NY, CA, FL"
+                    maxLength={2}
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm text-left uppercase"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">טלפון</label>
                 <input
@@ -546,9 +580,11 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
           ) : (
             <div className="space-y-2 text-sm">
               <InfoRow label="שם הנמען" value={shipment.recipientName} />
+              {shipment.recipientNameEn && <InfoRow label="שם באנגלית" value={shipment.recipientNameEn} />}
               <InfoRow label="כתובת" value={shipment.address || "—"} />
               <InfoRow label="עיר" value={shipment.city || "—"} />
               <InfoRow label="ארץ" value={countryLabel} />
+              {shipment.state && <InfoRow label="מדינה" value={shipment.state} />}
               {shipment.postalCode && <InfoRow label="מיקוד" value={shipment.postalCode} />}
               <InfoRow label="טלפון" value={shipment.phone || "—"} />
               <InfoRow label="אימייל" value={shipment.email || "—"} />

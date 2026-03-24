@@ -91,6 +91,8 @@ export async function POST(
     if (!shipment.phone) missingFields.push("טלפון");
     if (!shipment.postalCode) missingFields.push("מיקוד");
     if (!shipment.country || shipment.country.length !== 2) missingFields.push("ארץ (קוד ISO בן 2 אותיות)");
+    if (!shipment.recipientNameEn) missingFields.push("שם באנגלית (לתווית DHL)");
+    if (shipment.country === "US" && !shipment.state) missingFields.push("מדינה (State)");
     if (missingFields.length > 0) {
       return NextResponse.json(
         { error: `חסרים שדות חובה למשלוח DHL: ${missingFields.join(", ")}` },
@@ -100,9 +102,10 @@ export async function POST(
 
     try {
       const result = await createDhlShipment({
-        recipientName: shipment.recipientName,
+        recipientName: shipment.recipientNameEn || shipment.recipientName,
         address: shipment.address!,
         city: shipment.city!,
+        state: shipment.state || undefined,
         countryCode: shipment.country,
         postalCode: shipment.postalCode || undefined,
         phone: shipment.phone!,

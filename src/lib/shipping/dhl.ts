@@ -33,10 +33,11 @@ function getAuthHeader(apiKey: string, apiSecret: string): string {
 
 // ─── Types ──────────────────────────────────────────────────
 export interface DhlShipmentParams {
-  recipientName: string;
+  recipientName: string;  // English name for the label
   recipientCompany?: string;
   address: string;
   city: string;
+  state?: string;         // Province/state code (required for US, e.g. "NY")
   postalCode?: string;
   countryCode: string;    // ISO 2-letter (e.g. "US", "DE")
   phone: string;
@@ -217,6 +218,7 @@ export async function createDhlShipment(params: DhlShipmentParams): Promise<DhlS
       receiverDetails: {
         postalAddress: {
           ...(params.postalCode ? { postalCode: params.postalCode } : {}),
+          ...(params.state ? { provinceCode: params.state } : {}),
           cityName: params.city,
           countryCode: params.countryCode,
           addressLine1: params.address,

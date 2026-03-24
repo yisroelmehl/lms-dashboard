@@ -65,6 +65,8 @@ export function CreateShipmentModal({
   const [weight, setWeight] = useState("");
   const [contentDescription, setContentDescription] = useState("ספרים / חומרי לימוד");
   const [postalCode, setPostalCode] = useState("");
+  const [recipientNameEn, setRecipientNameEn] = useState("");
+  const [state, setState] = useState("");
 
   // Load all students once
   useEffect(() => {
@@ -137,6 +139,8 @@ export function CreateShipmentModal({
             weight: weight || "1",
             contentDescription,
             postalCode,
+            recipientNameEn,
+            state,
           }),
         }),
       });
@@ -306,6 +310,19 @@ export function CreateShipmentModal({
               <div className="col-span-2 text-xs font-medium text-yellow-700 dark:text-yellow-400">
                 🌍 פרטים למשלוח בינלאומי (DHL)
               </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">שם הנמען באנגלית <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={recipientNameEn}
+                  onChange={(e) => setRecipientNameEn(e.target.value)}
+                  placeholder="Recipient full name in English"
+                  required
+                  className="w-full rounded-md border border-input px-3 py-2 text-sm text-left"
+                />
+                <p className="text-xs text-muted-foreground mt-1">שם באנגלית לתווית המשלוח (DHL לא תומך בעברית)</p>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">מיקוד</label>
                 <input
@@ -315,6 +332,21 @@ export function CreateShipmentModal({
                   className="w-full rounded-md border border-input px-3 py-2 text-sm"
                 />
               </div>
+              {country === "US" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">מדינה (State) <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={state}
+                    onChange={(e) => setState(e.target.value.toUpperCase())}
+                    placeholder="e.g. NY, CA, FL"
+                    maxLength={2}
+                    required
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm text-left uppercase"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">משקל (ק&quot;ג)</label>
                 <input
