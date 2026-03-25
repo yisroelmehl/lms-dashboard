@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { COUNTRIES, getStatesForCountry, validatePostalCode } from "@/lib/shipping/countries";
 
 interface Student {
   id: string;
@@ -14,28 +15,6 @@ interface Student {
   phone: string | null;
   email: string | null;
 }
-
-// Common countries with ISO 2-letter codes
-const COUNTRIES = [
-  { code: "IL", label: "Israel - ישראל" },
-  { code: "US", label: "United States - ארה״ב" },
-  { code: "GB", label: "United Kingdom - בריטניה" },
-  { code: "FR", label: "France - צרפת" },
-  { code: "DE", label: "Germany - גרמניה" },
-  { code: "NL", label: "Netherlands - הולנד" },
-  { code: "BE", label: "Belgium - בלגיה" },
-  { code: "IT", label: "Italy - איטליה" },
-  { code: "ES", label: "Spain - ספרד" },
-  { code: "CA", label: "Canada - קנדה" },
-  { code: "AU", label: "Australia - אוסטרליה" },
-  { code: "SG", label: "Singapore - סינגפור" },
-  { code: "HK", label: "Hong Kong - הונג קונג" },
-  { code: "JP", label: "Japan - יפן" },
-  { code: "CN", label: "China - סין" },
-  { code: "IN", label: "India - הודו" },
-  { code: "BR", label: "Brazil - ברזיל" },
-  { code: "MX", label: "Mexico - מקסיקו" },
-];
 
 export function CreateShipmentModal({
   onClose,
@@ -67,6 +46,9 @@ export function CreateShipmentModal({
   const [postalCode, setPostalCode] = useState("");
   const [recipientNameEn, setRecipientNameEn] = useState("");
   const [state, setState] = useState("");
+  const [postalCodeError, setPostalCodeError] = useState<string | null>(null);
+  const [countrySearch, setCountrySearch] = useState("");
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
 
   // Load all students once
   useEffect(() => {
@@ -114,9 +96,29 @@ export function CreateShipmentModal({
     }
   }
 
+  // Filter countries based on search
+  const filteredCountries = countrySearch.length >= 1
+    ? COUNTRIES.filter((c) => {
+        const q = countrySearch.toLowerCase();
+        return c.name.toLowerCase().includes(q) || c.hebrewName.includes(countrySearch) || c.code.toLowerCase() === q;
+      })
+    : COUNTRIES;
+
+  // Get states for selected country (if applicable)
+  const statesForCountry = getStatesForCountry(country);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedStudent) return;
+
+    // Validate postal code
+    if (carrier === "dhl" && postalCode) {
+      const err = validatePostalCode(country, postalCode);
+      if (err) {
+        setPostalCodeError(err);
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -270,19 +272,49 @@ export function CreateShipmentModal({
                 className="w-full rounded-md border border-input px-3 py-2 text-sm"
               />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium mb-1">ארץ</label>
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
+              <div
+                onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background cursor-pointer flex justify-between items-center"
               >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                <span>{COUNTRIES.find((c) => c.code === country)?.hebrewName || country}</span>
+                <span className="text-muted-foreground text-xs">▼</span>
+              </div>
+              {countryDropdownOpen && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-card shadow-lg">
+                  <input
+                    type="text"
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    placeholder="חפש ארץ..."
+                    className="w-full border-b border-border px-3 py-2 text-sm bg-transparent outline-none"
+                    autoFocus
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredCountries.map((c) => (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => {
+                          setCountry(c.code);
+                          setState("");
+                          setPostalCode("");
+                          setPostalCodeError(null);
+                          setCountrySearch("");
+                          setCountryDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-sm text-right hover:bg-muted/50 flex justify-between ${
+                          c.code === country ? "bg-muted/30 font-medium" : ""
+                        }`}
+                      >
+                        <span className="text-xs text-muted-foreground font-mono">{c.code}</span>
+                        <span>{c.hebrewName} - {c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">טלפון</label>
@@ -328,23 +360,33 @@ export function CreateShipmentModal({
                 <input
                   type="text"
                   value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                  onChange={(e) => {
+                    setPostalCode(e.target.value);
+                    setPostalCodeError(null);
+                  }}
+                  placeholder={COUNTRIES.find((c) => c.code === country)?.postalCodeExample || ""}
+                  className={`w-full rounded-md border px-3 py-2 text-sm ${postalCodeError ? "border-red-500" : "border-input"}`}
                 />
+                {postalCodeError && (
+                  <p className="text-xs text-red-500 mt-1">{postalCodeError}</p>
+                )}
               </div>
-              {country === "US" && (
+              {statesForCountry && (
                 <div>
                   <label className="block text-sm font-medium mb-1">מדינה (State) <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    dir="ltr"
+                  <select
                     value={state}
-                    onChange={(e) => setState(e.target.value.toUpperCase())}
-                    placeholder="e.g. NY, CA, FL"
-                    maxLength={2}
+                    onChange={(e) => setState(e.target.value)}
                     required
-                    className="w-full rounded-md border border-input px-3 py-2 text-sm text-left uppercase"
-                  />
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
+                  >
+                    <option value="">בחר מדינה...</option>
+                    {statesForCountry.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.code} - {s.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
               <div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { COUNTRIES, getStatesForCountry, validatePostalCode } from "@/lib/shipping/countries";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   pending: { label: "ממתין", color: "bg-yellow-100 text-yellow-800" },
@@ -19,26 +20,7 @@ const CARRIER_LABELS: Record<string, string> = {
   other: "אחר",
 };
 
-const COUNTRIES = [
-  { code: "IL", label: "Israel - ישראל" },
-  { code: "US", label: "United States - ארה״ב" },
-  { code: "GB", label: "United Kingdom - בריטניה" },
-  { code: "FR", label: "France - צרפת" },
-  { code: "DE", label: "Germany - גרמניה" },
-  { code: "NL", label: "Netherlands - הולנד" },
-  { code: "BE", label: "Belgium - בלגיה" },
-  { code: "IT", label: "Italy - איטליה" },
-  { code: "ES", label: "Spain - ספרד" },
-  { code: "CA", label: "Canada - קנדה" },
-  { code: "AU", label: "Australia - אוסטרליה" },
-  { code: "SG", label: "Singapore - סינגפור" },
-  { code: "HK", label: "Hong Kong - הונג קונג" },
-  { code: "JP", label: "Japan - יפן" },
-  { code: "CN", label: "China - סין" },
-  { code: "IN", label: "India - הודו" },
-  { code: "BR", label: "Brazil - ברזיל" },
-  { code: "MX", label: "Mexico - מקסיקו" },
-];
+
 
 interface Shipment {
   id: string;
@@ -93,6 +75,7 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
   const [sendingToCarrier, setSendingToCarrier] = useState(false);
   const [refreshingStatus, setRefreshingStatus] = useState(false);
   const [downloadingLabel, setDownloadingLabel] = useState(false);
+  const [postalCodeError, setPostalCodeError] = useState<string | null>(null);
 
   // Edit form state
   const [form, setForm] = useState({
@@ -138,6 +121,16 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
 
   async function handleSave() {
     setSaving(true);
+    // Validate DHL postal code
+    if (form.carrier === "dhl") {
+      const err = validatePostalCode(form.country, form.postalCode);
+      if (err) {
+        setPostalCodeError(err);
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch(`/api/shipments/${shipment.id}`, {
         method: "PATCH",
@@ -162,6 +155,8 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
       setSaving(false);
     }
   }
+
+  const statesForCountry = getStatesForCountry(form.country);
 
   async function handleDelete() {
     if (!confirm("למחוק את המשלוח? פעולה זו לא ניתנת לביטול.")) return;
@@ -251,7 +246,7 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
     label: shipment.status,
     color: "bg-gray-100 text-gray-800",
   };
-  const countryLabel = COUNTRIES.find((c) => c.code === shipment.country)?.label || shipment.country;
+  const countryLabel = COUNTRIES.find((c) => c.code === shipment.country)?.hebrewName || shipment.country;
 
   return (
     <div className="space-y-6">
@@ -513,7 +508,7 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
                 >
                   {COUNTRIES.map((c) => (
                     <option key={c.code} value={c.code}>
-                      {c.label}
+                      {c.hebrewName} - {c.name}
                     </option>
                   ))}
                 </select>
@@ -523,12 +518,32 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
                 <input
                   type="text"
                   value={form.postalCode}
-                  onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, postalCode: e.target.value });
+                    setPostalCodeError(null);
+                  }}
                   className="w-full rounded-md border border-input px-3 py-2 text-sm"
                   placeholder={form.carrier === "dhl" ? "חובה עבור DHL" : ""}
                 />
+                {postalCodeError && <p className="text-xs text-red-500 mt-1">{postalCodeError}</p>}
               </div>
-              {form.country === "US" && (
+              {statesForCountry ? (
+                <div>
+                  <label className="block text-sm font-medium mb-1">מדינה (State) <span className="text-red-500">*</span></label>
+                  <select
+                    value={form.state}
+                    onChange={(e) => setForm({ ...form, state: e.target.value })}
+                    className="w-full rounded-md border border-input px-3 py-2 text-sm bg-background"
+                  >
+                    <option value="">בחר מדינה</option>
+                    {statesForCountry.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.code} - {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : form.country === "US" ? (
                 <div>
                   <label className="block text-sm font-medium mb-1">מדינה (State) <span className="text-red-500">*</span></label>
                   <input
@@ -541,7 +556,7 @@ export function ShipmentDetailClient({ shipment: initial }: { shipment: Shipment
                     className="w-full rounded-md border border-input px-3 py-2 text-sm text-left uppercase"
                   />
                 </div>
-              )}
+              ) : null}
               <div>
                 <label className="block text-sm font-medium mb-1">טלפון</label>
                 <input
