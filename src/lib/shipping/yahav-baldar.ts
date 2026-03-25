@@ -7,6 +7,41 @@
  * - Check status: GET http://212.150.254.6/Baldarp/Service.asmx/ListDeliveryDetails
  */
 
+interface ServerCarrierLog {
+  shipmentId: string;
+  carrier: "baldar";
+  timestamp: string;
+  request: {
+    body: string;
+    endpoint: string;
+  };
+  response: {
+    status: number | null;
+    body: string;
+    error?: string;
+  };
+}
+
+// Store server-side logs in memory (simple approach - in prod use database)
+const serverLogs: ServerCarrierLog[] = [];
+const MAX_SERVER_LOGS = 100;
+
+function logServerRequest(log: ServerCarrierLog) {
+  serverLogs.push(log);
+  if (serverLogs.length > MAX_SERVER_LOGS) {
+    serverLogs.shift();
+  }
+  console.log(`[Baldar Log] ${log.shipmentId}:`, {
+    timestamp: log.timestamp,
+    status: log.response.status,
+    error: log.response.error,
+  });
+}
+
+export function getBaldarServerLogs() {
+  return serverLogs;
+}
+
 const BALDAR_SERVICE_URL = "http://212.150.254.6/Baldarp/Service.asmx";
 const BALDAR_STATUS_URL = `${BALDAR_SERVICE_URL}/ListDeliveryDetails`;
 
@@ -144,18 +179,23 @@ function buildSoapEnvelope(pParam: string): string {
 
 /**
  * Create a new shipment in Baldar via official SOAP Web Service
+ * Also logs all request/response data for debugging
  */
-export async function createBaldarShipment(params: BaldarCreateParams): Promise<BaldarCreateResult> {
+export async function createBaldarShipment(params: BaldarCreateParams, shipmentId?: string): Promise<BaldarCreateResult> {
   const config = getConfig();
   const pParam = buildPParam(params, config);
   const soapBody = buildSoapEnvelope(pParam);
+  const id = shipmentId || `local-${Date.now()}`;
 
-  console.log("[Baldar] Sending SOAP request to SaveData");
+  console.log("[Baldar] Creating shipment", id);
+  console.log("[Baldar] pParam (28 fields):", pParam);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   let response: Response;
+  let responseText = "";
+  
   try {
     response = await fetch(BALDAR_SERVICE_URL, {
       method: "POST",
@@ -166,37 +206,82 @@ export async function createBaldarShipment(params: BaldarCreateParams): Promise<
       body: soapBody,
       signal: controller.signal,
     });
+    responseText = await response.text();
   } catch (fetchErr) {
     clearTimeout(timeout);
     const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-    return { success: false, error: `Network error: ${msg}` };
+    const errorMsg = `Network error: ${msg}`;
+    
+    logServerRequest({
+      shipmentId: id,
+      carrier: "baldar",
+      timestamp: new Date().toISOString(),
+      request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+      response: { status: null, body: "", error: errorMsg },
+    });
+    
+    return { success: false, error: errorMsg };
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    const errText = await response.text().catch(() => "");
-    return { success: false, error: `HTTP ${response.status}: ${response.statusText} - ${errText.slice(0, 300)}` };
+    const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+    logServerRequest({
+      shipmentId: id,
+      carrier: "baldar",
+      timestamp: new Date().toISOString(),
+      request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+      response: { status: response.status, body: responseText.slice(0, 1000), error: errorMsg },
+    });
+    return { success: false, error: `${errorMsg} - ${responseText.slice(0, 300)}` };
   }
 
-  const xmlText = await response.text();
-  console.log("[Baldar] SaveData response:", xmlText.slice(0, 500));
+  console.log("[Baldar] Response status:", response.status);
+  console.log("[Baldar] Response body (first 1000 chars):", responseText.slice(0, 1000));
 
-  // Parse the SOAP response - extract the SaveDataResult
-  const resultMatch = xmlText.match(/<SaveDataResult>([^<]*)<\/SaveDataResult>/);
+  // Parse the SOAP response
+  const resultMatch = responseText.match(/<SaveDataResult>([^<]*)<\/SaveDataResult>/);
+  
   if (!resultMatch) {
-    return { success: false, error: `Could not parse SaveData response: ${xmlText.slice(0, 300)}` };
+    const errorMsg = `Could not parse SaveData response`;
+    logServerRequest({
+      shipmentId: id,
+      carrier: "baldar",
+      timestamp: new Date().toISOString(),
+      request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+      response: { status: 200, body: responseText.slice(0, 1000), error: errorMsg },
+    });
+    return { success: false, error: `${errorMsg}: ${responseText.slice(0, 300)}` };
   }
 
   const resultValue = resultMatch[1].trim();
   const deliveryNum = parseInt(resultValue);
 
   if (isNaN(deliveryNum)) {
-    return { success: false, error: `Unexpected result value: ${resultValue}` };
+    const errorMsg = `Unexpected result value: ${resultValue}`;
+    logServerRequest({
+      shipmentId: id,
+      carrier: "baldar",
+      timestamp: new Date().toISOString(),
+      request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+      response: { status: 200, body: responseText, error: errorMsg },
+    });
+    return { success: false, error: errorMsg };
   }
+
+  // Log successful response
+  logServerRequest({
+    shipmentId: id,
+    carrier: "baldar",
+    timestamp: new Date().toISOString(),
+    request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+    response: { status: 200, body: responseText },
+  });
 
   // Positive number = success (delivery number)
   if (deliveryNum > 0) {
+    console.log("[Baldar] ✅ Success! Delivery number:", deliveryNum);
     return {
       success: true,
       deliveryNumber: String(deliveryNum),
@@ -212,20 +297,45 @@ export async function createBaldarShipment(params: BaldarCreateParams): Promise<
   // -200 = error in param 1, -210 = error in param 10, etc.
   if (deliveryNum <= -200 && deliveryNum > -300) {
     const paramNum = Math.abs(deliveryNum) - 200;
-    return { success: false, error: `שגיאה בפרמטר מספר ${paramNum === 0 ? "ראשון" : paramNum * 10}` };
+    const msg = `שגיאה בפרמטר מספר ${paramNum === 0 ? "ראשון" : paramNum * 10}`;
+    logServerRequest({
+      shipmentId: id,
+      carrier: "baldar",
+      timestamp: new Date().toISOString(),
+      request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+      response: { status: 200, body: responseText, error: msg },
+    });
+    return { success: false, error: msg };
   }
 
-  // If it's a large negative number, it might be a duplicate (e.g., -4289333)
+  // If it's a large negative number, it might be a duplicate
   if (deliveryNum < -1000) {
+    const msg = `חשד לכפול - משלוח קיים מספר ${Math.abs(deliveryNum)}`;
+    logServerRequest({
+      shipmentId: id,
+      carrier: "baldar",
+      timestamp: new Date().toISOString(),
+      request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+      response: { status: 200, body: responseText, error: msg },
+    });
     return { 
       success: false, 
-      error: `חשד לכפול - משלוח קיים מספר ${Math.abs(deliveryNum)}` 
+      error: msg
     };
   }
 
+  const finalError = errorMessages[deliveryNum] || `שגיאה מבלדר: קוד ${deliveryNum}`;
+  logServerRequest({
+    shipmentId: id,
+    carrier: "baldar",
+    timestamp: new Date().toISOString(),
+    request: { body: pParam, endpoint: BALDAR_SERVICE_URL },
+    response: { status: 200, body: responseText, error: finalError },
+  });
+
   return {
     success: false,
-    error: errorMessages[deliveryNum] || `שגיאה מבלדר: קוד ${deliveryNum}`,
+    error: finalError,
   };
 }
 

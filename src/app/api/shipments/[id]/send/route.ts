@@ -55,7 +55,7 @@ export async function POST(
         orderNum: shipment.id.slice(-8),
         remarks: shipment.remarks || undefined,
         packageCount: shipment.packageCount,
-      });
+      }, shipment.id);  // Pass shipment ID for logging
 
       if (result.success && result.deliveryNumber) {
         const updated = await prisma.shipment.update({
