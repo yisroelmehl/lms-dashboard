@@ -123,6 +123,7 @@ model Admin {
   syncLogs              SyncLog[]
   serviceRequestActions ServiceRequest[] @relation("HandledBy")
   lecturerProfile       Lecturer?
+  selfStudyContactLogs  SelfStudyContactLog[]
 
   @@map("admins")
 }
@@ -227,6 +228,7 @@ model Student {
   termsAcceptances    TermsAcceptance[]
   onboardings         StudentOnboarding[]
   shipments           Shipment[]
+  selfStudyEnrollments SelfStudyEnrollment[]
 
   @@map("students")
 }
@@ -315,6 +317,7 @@ model Course {
   tasks             Task[]
   paymentLinks      PaymentLink[]
   coupons           Coupon[]
+  selfStudyEnrollments SelfStudyEnrollment[]
 
   @@map("courses")
 }
@@ -1118,4 +1121,68 @@ model Shipment {
   @@map("shipments")
   @@index([studentId])
   @@index([trackingNumber])
+}
+
+// ============================================================
+// SELF-STUDY ENROLLMENTS (תלמידים עצמאיים)
+// ============================================================
+
+enum SelfStudyStatus {
+  active      // לומד כרגע
+  paused      // מושהה
+  completed   // סיים
+  withdrawn   // פרש
+}
+
+model SelfStudyEnrollment {
+  id         String          @id @default(cuid())
+  studentId  String
+  courseId    String          // הקורס שאליו משוייך במודל
+  
+  status     SelfStudyStatus @default(active)
+  studyTopic String?         // נושא לימוד (טקסט חופשי, לפילטר)
+  
+  // Exam info
+  nextExamDate    DateTime?   // מתי הבחינה הקרובה
+  examUnits       String?     // על איזה יחידות לימוד (טקסט חופשי)
+  examNotes       String?     // הערות מיוחדות לבחינה
+  
+  // Next contact scheduling
+  nextContactDate DateTime?   // מתי ליצור קשר בפעם הבאה
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  contactLogs SelfStudyContactLog[]
+  
+  @@unique([studentId, courseId])
+  @@map("self_study_enrollments")
+  @@index([studentId])
+  @@index([courseId])
+  @@index([nextContactDate])
+  @@index([status])
+}
+
+// ============================================================
+// SELF-STUDY CONTACT LOG (יומן תקשורת עם תלמידים עצמאיים)
+// ============================================================
+
+model SelfStudyContactLog {
+  id                    String @id @default(cuid())
+  selfStudyEnrollmentId String
+  adminId               String // מי יצר קשר
+  
+  summary         String   // תקציר השיחה
+  nextContactDate DateTime? // מתי ליצור קשר בפעם הבאה
+  taskId          String?  // משימה שנוצרה אוטומטית
+  
+  createdAt DateTime @default(now())
+  
+  selfStudyEnrollment SelfStudyEnrollment @relation(fields: [selfStudyEnrollmentId], references: [id], onDelete: Cascade)
+  admin               Admin               @relation(fields: [adminId], references: [id])
+  
+  @@map("self_study_contact_logs")
+  @@index([selfStudyEnrollmentId])
 }

@@ -68,6 +68,17 @@ export default async function StudentDetailPage({
       shipments: {
         orderBy: { createdAt: "desc" },
       },
+      selfStudyEnrollments: {
+        include: {
+          course: { select: { id: true, fullNameMoodle: true, fullNameOverride: true } },
+          contactLogs: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: { admin: { select: { name: true } } },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -293,6 +304,65 @@ export default async function StudentDetailPage({
         </div>
       )}
     </div>
+
+      {/* Self-Study Enrollments */}
+      {student.selfStudyEnrollments.length > 0 && (
+        <div className="rounded-lg border-2 border-purple-200 bg-purple-50/30 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">📖 לימוד עצמאי</h2>
+            <Link
+              href="/students/self-study"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              לדף תלמידים עצמאיים &larr;
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {student.selfStudyEnrollments.map((se) => {
+              const courseName = resolveField(se.course.fullNameMoodle, se.course.fullNameOverride) || "קורס";
+              const lastLog = se.contactLogs[0];
+              const contactOverdue = se.nextContactDate && new Date(se.nextContactDate) <= new Date();
+              return (
+                <div key={se.id} className="rounded-md border border-purple-200 bg-white p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">{courseName}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${
+                      se.status === "active" ? "bg-green-100 text-green-700"
+                      : se.status === "paused" ? "bg-amber-100 text-amber-700"
+                      : se.status === "completed" ? "bg-blue-100 text-blue-700"
+                      : "bg-red-100 text-red-700"
+                    }`}>
+                      {se.status === "active" ? "פעיל" : se.status === "paused" ? "מושהה" : se.status === "completed" ? "סיים" : "פרש"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    {se.studyTopic && (
+                      <div><span className="text-muted-foreground">נושא:</span> {se.studyTopic}</div>
+                    )}
+                    {se.nextExamDate && (
+                      <div><span className="text-muted-foreground">בחינה:</span> {formatDateHe(se.nextExamDate)}</div>
+                    )}
+                    {se.examUnits && (
+                      <div><span className="text-muted-foreground">יחידות:</span> {se.examUnits}</div>
+                    )}
+                    {se.nextContactDate && (
+                      <div className={contactOverdue ? "text-red-600 font-medium" : ""}>
+                        <span className="text-muted-foreground">קשר הבא:</span> {formatDateHe(se.nextContactDate)}
+                        {contactOverdue && " ⚠️"}
+                      </div>
+                    )}
+                  </div>
+                  {lastLog && (
+                    <div className="mt-2 pt-2 border-t border-purple-100 text-xs text-muted-foreground">
+                      שיחה אחרונה ({lastLog.admin.name}, {formatDateHe(lastLog.createdAt)}): {lastLog.summary.substring(0, 100)}{lastLog.summary.length > 100 ? "..." : ""}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Academic Overview from Moodle */}
       <AcademicOverview studentId={id} />
