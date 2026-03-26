@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
 import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
+import { CalendarWidgetWrapper } from "@/components/dashboard/calendar-widget-wrapper";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -187,6 +188,9 @@ export default async function DashboardPage() {
           </div>
           <TaskList tasks={tasks as any} />
         </div>
+
+        {/* Upcoming Events Widget */}
+        <CalendarWidgetWrapper />
 
         {/* At-Risk Students Widget */}
         <div className="rounded-lg border border-border bg-card p-6">
