@@ -7,6 +7,8 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "לוח בקרה", icon: "🏠" },
+  { href: "/students/new", label: "תלמידים חדשים", icon: "🆕" },
+  { href: "/students/onboarding", label: "חיבור תלמידים חדשים", icon: "🔗" },
   { href: "/students", label: "תלמידים", icon: "👥" },
   {
     href: "/students/self-study",

@@ -5,6 +5,7 @@ import { AcademicOverview } from "@/components/students/academic-overview";
 import { StudentAdminClassification } from "@/components/students/student-admin-classification";
 import { StudentSemesterEnrollments } from "@/components/students/student-semester-enrollments";
 import { StudentTasks } from "@/components/tasks/student-tasks";
+import { StudentMessageActions } from "@/components/students/student-message-actions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
@@ -125,7 +126,12 @@ export default async function StudentDetailPage({
               </Link>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-start gap-3">
+            <StudentMessageActions
+              studentName={student.hebrewName || `${firstName} ${lastName}`}
+              phone={phone}
+              email={email}
+            />
             <SourceBadge source={student.firstNameSource} />
           </div>
         </div>
