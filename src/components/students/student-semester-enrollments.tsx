@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatDateHe } from "@/lib/utils";
+import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
 
 interface SemesterEnrollmentProps {
   studentId: string;
@@ -109,14 +110,17 @@ export function StudentSemesterEnrollments({
                       <option value="withdrawn">פרש</option>
                     </select>
 
-                    <div className="flex items-center gap-1 text-xs">
-                      <span className="text-muted-foreground">תאריך:</span>
-                      <input 
-                        type="date" 
-                        value={data.joinedAt}
-                        onChange={(e) => setLocalData(prev => prev.map(p => p.semesterId === semester.id ? { ...p, joinedAt: e.target.value } : p))}
-                        className="border rounded px-2 py-1 text-xs w-32"
-                      />
+                    <div className="flex flex-col items-start gap-0.5 text-xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">תאריך:</span>
+                        <input 
+                          type="date" 
+                          value={data.joinedAt}
+                          onChange={(e) => setLocalData(prev => prev.map(p => p.semesterId === semester.id ? { ...p, joinedAt: e.target.value } : p))}
+                          className="border rounded px-2 py-1 text-xs w-32"
+                        />
+                      </div>
+                      <HebrewDateDisplay dateValue={data.joinedAt} />
                     </div>
                     
                     <button 

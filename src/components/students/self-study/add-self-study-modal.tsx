@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
 
 interface StudentOption {
   id: string;
@@ -176,6 +177,7 @@ export function AddSelfStudyModal({
                   onChange={(e) => setFormData({ ...formData, nextExamDate: e.target.value })}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <HebrewDateDisplay dateValue={formData.nextExamDate} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">יחידות לימוד לבחינה</label>
@@ -209,6 +211,7 @@ export function AddSelfStudyModal({
               onChange={(e) => setFormData({ ...formData, nextContactDate: e.target.value })}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
+            <HebrewDateDisplay dateValue={formData.nextContactDate} />
             <p className="text-xs text-muted-foreground mt-1">
               תיווצר משימה אוטומטית לתזכורת יצירת קשר
             </p>

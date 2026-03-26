@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
+import { toHebrewDateString } from "@/lib/hebrew-date";
 
 export function CourseGeneralSettingsForm({
   courseId,
@@ -119,9 +121,22 @@ export function CourseGeneralSettingsForm({
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                if (e.target.value) {
+                  try {
+                    const d = new Date(e.target.value);
+                    if (!isNaN(d.getTime())) {
+                      setHebrewStartDate(toHebrewDateString(d));
+                    }
+                  } catch {
+                    // ignore conversion errors
+                  }
+                }
+              }}
               className="w-full rounded-md border p-2"
             />
+            <HebrewDateDisplay dateValue={startDate} />
           </div>
 
           <div>

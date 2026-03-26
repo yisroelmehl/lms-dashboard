@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDateHe } from "@/lib/utils";
+import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
 
 interface Semester {
   id: string;
@@ -158,10 +159,12 @@ export function CourseSemestersManager({
             <div>
               <label className="block text-xs text-muted-foreground mb-1">תאריך התחלה (אופציונלי)</label>
               <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} className="w-full border rounded px-3 py-1.5 text-sm" />
+              <HebrewDateDisplay dateValue={formData.startDate} />
             </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">תאריך סיום (אופציונלי)</label>
               <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} className="w-full border rounded px-3 py-1.5 text-sm" />
+              <HebrewDateDisplay dateValue={formData.endDate} />
             </div>
             <div>
               <label className="block text-xs text-muted-foreground mb-1">סדר תצוגה (מספר)</label>

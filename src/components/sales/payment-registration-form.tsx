@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
 
 interface Props {
   token: string;
@@ -414,6 +415,7 @@ export function PaymentRegistrationForm({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 dir="ltr"
               />
+              <HebrewDateDisplay dateValue={formData.dateOfBirth} />
             </div>
           </fieldset>
 

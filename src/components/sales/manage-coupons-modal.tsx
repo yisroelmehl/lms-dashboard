@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
 
 interface Coupon {
   id: string;
@@ -208,6 +209,7 @@ export function ManageCouponsModal({
                 className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
                 dir="ltr"
               />
+              <HebrewDateDisplay dateValue={newExpiresAt} />
             </div>
             <button
               onClick={handleCreate}
