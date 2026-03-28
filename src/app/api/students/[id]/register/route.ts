@@ -18,6 +18,11 @@ export async function POST(
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
+    // Combine address + addressNum for DB storage (schema has single address field)
+    const combinedAddress = body.addressNum
+      ? `${body.address || ''} ${body.addressNum}`.trim()
+      : body.address;
+
     // Update student local fields
     const updated = await prisma.student.update({
       where: { id },
@@ -25,7 +30,7 @@ export async function POST(
         hebrewName: body.hebrewName || student.hebrewName,
         phoneOverride: body.phone || student.phoneOverride,
         city: body.city || student.city,
-        address: body.address || student.address,
+        address: combinedAddress || student.address,
         torahBackground: body.torahBackground || student.torahBackground,
         smichaBackground: body.smichaBackground || student.smichaBackground,
         studyPreferences: body.studyPreferences || student.studyPreferences,

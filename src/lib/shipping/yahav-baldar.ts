@@ -119,18 +119,29 @@ function buildPParam(params: BaldarCreateParams, config: ReturnType<typeof getCo
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
 
+  // Fallback: extract house number from address if addressNum is empty
+  let finalAddress = params.address;
+  let finalAddressNum = params.addressNum || "";
+  if (!finalAddressNum.trim() && finalAddress) {
+    const numbers = finalAddress.match(/\d+/g);
+    if (numbers) {
+      finalAddressNum = numbers.join("/");
+      finalAddress = finalAddress.replace(/\d+/g, "").replace(/\s+/g, " ").trim();
+    }
+  }
+
   const fields: string[] = [
     /* 1  shipment type */       "1",                                        // 1=shipping, 2=collection, 3=transfer
     /* 2  origin street */       sanitize(config.originStreet),
     /* 3  origin house num */    sanitize(config.originStreetNum),
     /* 4  origin city */         sanitize(config.originCity),
-    /* 5  dest street */         sanitize(params.address),
-    /* 6  dest house num */      sanitize(params.addressNum || ""),
+    /* 5  dest street */         sanitize(finalAddress),
+    /* 6  dest house num */      sanitize(finalAddressNum),
     /* 7  dest city */           sanitize(params.city),
     /* 8  origin company */      sanitize(config.originCompany),
     /* 9  dest company */        sanitize(params.recipientName),
     /* 10 instructions */        sanitize(params.remarks || ""),
-    /* 11 urgency */             "0",                                        // 0=regular
+    /* 11 urgency */             "1",                                        // 1=urgent
     /* 12 today/tomorrow */      "0",                                        // 0=default
     /* 13 vehicle type */        "1",                                        // 1=regular, 4=motorcycle
     /* 14 num packages */        String(params.packageCount || 1),

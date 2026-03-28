@@ -63,6 +63,7 @@ export default async function RegisterStudentPage({
               phone: phone,
               city: student.city || "",
               address: student.address || "",
+              addressNum: "",
               dateOfBirth: student.dateOfBirth ? student.dateOfBirth.toISOString().split("T")[0] : "",
               torahBackground: student.torahBackground || "",
               smichaBackground: student.smichaBackground || "",

@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     carrier = "yahav_baldar",
     recipientName,
     address,
+    addressNum,
     city,
     country = "IL",
     phone,
@@ -80,13 +81,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Combine address + addressNum for DB storage (schema has single address field)
+  const combinedAddress = addressNum ? `${address || ''} ${addressNum}`.trim() : address;
+
   // Create shipment record
   const shipment = await prisma.shipment.create({
     data: {
       studentId,
       carrier,
       recipientName,
-      address,
+      address: combinedAddress,
       city,
       country,
       phone,
@@ -108,6 +112,7 @@ export async function POST(request: NextRequest) {
       const result = await createBaldarShipment({
         recipientName,
         address: address || "",
+        addressNum: addressNum || "",
         city,
         phone: phone || "",
         email: email || "",

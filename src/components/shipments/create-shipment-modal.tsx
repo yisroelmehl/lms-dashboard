@@ -32,8 +32,7 @@ export function CreateShipmentModal({
 
   const [carrier, setCarrier] = useState("yahav_baldar");
   const [recipientName, setRecipientName] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
+  const [address, setAddress] = useState("");    const [addressNum, setAddressNum] = useState("");  const [city, setCity] = useState("");
   const [country, setCountry] = useState("IL");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -129,8 +128,7 @@ export function CreateShipmentModal({
           studentId: selectedStudent.id,
           carrier,
           recipientName,
-          address,
-          city,
+          address,           addressNum,          city,
           country,
           phone,
           email,
@@ -253,12 +251,22 @@ export function CreateShipmentModal({
                 className="w-full rounded-md border border-input px-3 py-2 text-sm"
               />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">כתובת</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+            <div>
+               <label className="block text-sm font-medium mb-1">רחוב</label>
+               <input
+                 type="text"
+                 value={address}
+                 onChange={(e) => setAddress(e.target.value)}
+                 className="w-full rounded-md border border-input px-3 py-2 text-sm"
+               />
+             </div>
+             <div>
+               <label className="block text-sm font-medium mb-1">מספר בית</label>
+               <input
+                 type="text"
+                 value={addressNum}
+                 onChange={(e) => setAddressNum(e.target.value)}
+                 placeholder="לדוגמה: 12"
                 className="w-full rounded-md border border-input px-3 py-2 text-sm"
               />
             </div>
