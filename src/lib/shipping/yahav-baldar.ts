@@ -143,9 +143,9 @@ function buildPParam(params: BaldarCreateParams, config: ReturnType<typeof getCo
     /* 10 instructions */        sanitize(params.remarks || ""),
     /* 11 urgency */             "1",                                        // 1=urgent
     /* 12 today/tomorrow */      "0",                                        // 0=default
-    /* 13 vehicle type */        "1",                                        // 1=regular, 4=motorcycle
+    /* 13 vehicle type */        "2",                                        // 2=car, 1=motorcycle (per PHP reference)
     /* 14 num packages */        String(params.packageCount || 1),
-    /* 15 is go and return */    "0",                                        // 0=no
+    /* 15 shipping type */       "1",                                        // 1=normal, 2=double, 5=govaina
     /* 16 cartons (not used) */  "0",
     /* 17 your order number */   sanitize(params.orderNum),
     /* 18 customer code */       config.clientCode,
@@ -308,7 +308,7 @@ export async function createBaldarShipment(params: BaldarCreateParams, shipmentI
   // -200 = error in param 1, -210 = error in param 10, etc.
   if (deliveryNum <= -200 && deliveryNum > -300) {
     const paramNum = Math.abs(deliveryNum) - 200;
-    const msg = `שגיאה בפרמטר מספר ${paramNum === 0 ? "ראשון" : paramNum * 10}`;
+    const msg = `שגיאה בפרמטר מספר ${paramNum === 0 ? "ראשון" : paramNum}`;
     logServerRequest({
       shipmentId: id,
       carrier: "baldar",
