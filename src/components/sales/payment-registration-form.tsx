@@ -165,10 +165,6 @@ export function PaymentRegistrationForm({
       setError("יש לאשר את התקנון כדי להמשיך");
       return;
     }
-    if (!signature) {
-      setError("נא לחתום על התקנון");
-      return;
-    }
 
     setStatus("saving");
     setError("");
@@ -196,8 +192,8 @@ export function PaymentRegistrationForm({
           setCouponDiscountAmount(data.discountAmount);
         }
 
-        // Generate terms PDF and send emails (before payment)
-        if (data.studentId) {
+        // Generate terms PDF and send emails (before payment) - only if signed
+        if (data.studentId && signature) {
           try {
             await fetch("/api/terms-acceptances", {
               method: "POST",
@@ -604,7 +600,7 @@ export function PaymentRegistrationForm({
 
           <button
             type="submit"
-            disabled={status === "saving" || !termsAccepted || !signature}
+            disabled={status === "saving" || !termsAccepted}
             className="w-full rounded-md bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {status === "saving"
