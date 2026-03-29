@@ -5,6 +5,34 @@ import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
 import PDFDocument from "pdfkit";
 import path from "path";
+import fs from "fs";
+
+// Pre-load font buffers at module level for reliability
+let hebrewRegularFont: Buffer | null = null;
+let hebrewBoldFont: Buffer | null = null;
+
+function loadFonts() {
+  if (hebrewRegularFont && hebrewBoldFont) return;
+  
+  const possiblePaths = [
+    // npm package (most reliable)
+    path.join(process.cwd(), "node_modules", "@embedpdf", "fonts-hebrew", "fonts"),
+    // public folder
+    path.join(process.cwd(), "public", "fonts"),
+  ];
+
+  for (const dir of possiblePaths) {
+    const regular = path.join(dir, "NotoSansHebrew-Regular.ttf");
+    const bold = path.join(dir, "NotoSansHebrew-Bold.ttf");
+    if (fs.existsSync(regular) && fs.existsSync(bold)) {
+      hebrewRegularFont = fs.readFileSync(regular);
+      hebrewBoldFont = fs.readFileSync(bold);
+      console.log("[Terms] Loaded Hebrew fonts from:", dir);
+      return;
+    }
+  }
+  console.error("[Terms] Hebrew fonts not found in any path!");
+}
 
 // Terms text - with placeholders for student info
 const TERMS_TEXT = `תקנון הצטרפות לקורס:
@@ -76,15 +104,18 @@ const TERMS_TEXT = `תקנון הצטרפות לקורס:
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[Terms] POST received");
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const body = await request.json();
     const { token, studentId, firstName, email, courseName, signature } = body;
+    console.log("[Terms] Student:", firstName, "Email:", email, "HasSignature:", !!signature);
 
     // Auth: either via session (admin dashboard) or via payment token (public terms page)
     if (token) {
       const link = await prisma.paymentLink.findUnique({ where: { token } });
       if (!link || link.studentId !== studentId) {
+        console.error("[Terms] Auth failed - token mismatch. Link studentId:", link?.studentId, "Requested:", studentId);
         return NextResponse.json({ error: "Invalid token" }, { status: 401 });
       }
     } else {
@@ -111,16 +142,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate PDF
+    console.log("[Terms] Generating PDF...");
     const pdfBuffer = await generateTermsPDF({
       studentName: firstName,
       studentEmail: email,
       courseName: courseName || "לא צוין",
       signature,
     });
+    console.log("[Terms] PDF generated, size:", pdfBuffer.length, "bytes");
 
     const fileName = `terms-${studentId}-${Date.now()}.pdf`;
 
     // Save to database
+    console.log("[Terms] Saving to database...");
     const termsAcceptance = await (prisma as any).termsAcceptance.create({
       data: {
         studentId,
@@ -134,10 +168,14 @@ export async function POST(request: NextRequest) {
         userAgent: request.headers.get("user-agent") || undefined,
       },
     });
+    console.log("[Terms] Saved to DB, id:", termsAcceptance.id);
+
+    const pdfBase64 = pdfBuffer.toString("base64");
 
     // Send email to student with PDF attachment
     try {
-      await resend.emails.send({
+      console.log("[Terms] Sending email to student:", email);
+      const studentEmailResult = await resend.emails.send({
         from: "noreply@lemaanyilmedo.org",
         to: email,
         subject: `אישור התקנון - ${firstName}`,
@@ -150,20 +188,20 @@ export async function POST(request: NextRequest) {
         attachments: [
           {
             filename: fileName,
-            content: pdfBuffer,
-            contentType: "application/pdf",
+            content: pdfBase64,
           },
         ],
       });
+      console.log("[Terms] Student email sent:", JSON.stringify(studentEmailResult));
     } catch (emailError) {
-      console.error("Failed to send email to student:", emailError);
-      // Don't fail the request if email fails
+      console.error("[Terms] Failed to send email to student:", emailError);
     }
 
     // Send notification to office
     try {
       const officeEmail = "office@lemaanyilmedo.org";
-      await resend.emails.send({
+      console.log("[Terms] Sending email to office:", officeEmail);
+      const officeEmailResult = await resend.emails.send({
         from: "noreply@lemaanyilmedo.org",
         to: officeEmail,
         subject: `אישור תקנון חדש - ${firstName}`,
@@ -180,13 +218,13 @@ export async function POST(request: NextRequest) {
         attachments: [
           {
             filename: fileName,
-            content: pdfBuffer,
-            contentType: "application/pdf",
+            content: pdfBase64,
           },
         ],
       });
+      console.log("[Terms] Office email sent:", JSON.stringify(officeEmailResult));
     } catch (emailError) {
-      console.error("Failed to send office notification:", emailError);
+      console.error("[Terms] Failed to send office notification:", emailError);
     }
 
     return NextResponse.json({
@@ -217,13 +255,17 @@ async function generateTermsPDF(data: {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // Register Hebrew fonts
-    const fontDir = path.join(process.cwd(), "public", "fonts");
-    const regularFont = path.join(fontDir, "NotoSansHebrew-Regular.ttf");
-    const boldFont = path.join(fontDir, "NotoSansHebrew-Bold.ttf");
-
-    doc.registerFont("Hebrew", regularFont);
-    doc.registerFont("Hebrew-Bold", boldFont);
+    // Register Hebrew fonts from pre-loaded buffers
+    loadFonts();
+    if (hebrewRegularFont && hebrewBoldFont) {
+      doc.registerFont("Hebrew", hebrewRegularFont);
+      doc.registerFont("Hebrew-Bold", hebrewBoldFont);
+    } else {
+      // Fallback: use built-in font (won't render Hebrew correctly but won't crash)
+      doc.registerFont("Hebrew", "Helvetica");
+      doc.registerFont("Hebrew-Bold", "Helvetica-Bold");
+      console.error("[Terms] Using fallback Helvetica fonts - Hebrew will not render!");
+    }
 
     const textOptions = { align: "right" as const, features: ["rtla" as any] };
     const pageWidth = doc.page.width - 100; // margins

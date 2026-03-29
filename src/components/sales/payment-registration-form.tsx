@@ -195,7 +195,7 @@ export function PaymentRegistrationForm({
         // Generate terms PDF and send emails (before payment) - only if signed
         if (data.studentId && signature) {
           try {
-            await fetch("/api/terms-acceptances", {
+            const termsRes = await fetch("/api/terms-acceptances", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -207,6 +207,12 @@ export function PaymentRegistrationForm({
                 signature,
               }),
             });
+            if (!termsRes.ok) {
+              const termsData = await termsRes.json().catch(() => ({}));
+              console.error("Terms API error:", termsRes.status, termsData);
+            } else {
+              console.log("Terms PDF sent successfully");
+            }
           } catch (termsErr) {
             console.error("Terms PDF/email error (non-blocking):", termsErr);
           }
