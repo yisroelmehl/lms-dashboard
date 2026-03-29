@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
 import PDFDocument from "pdfkit";
+import path from "path";
 
 // Terms text - with placeholders for student info
 const TERMS_TEXT = `תקנון הצטרפות לקורס:
@@ -216,36 +217,70 @@ async function generateTermsPDF(data: {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
+    // Register Hebrew fonts
+    const fontDir = path.join(process.cwd(), "public", "fonts");
+    const regularFont = path.join(fontDir, "NotoSansHebrew-Regular.ttf");
+    const boldFont = path.join(fontDir, "NotoSansHebrew-Bold.ttf");
+
+    doc.registerFont("Hebrew", regularFont);
+    doc.registerFont("Hebrew-Bold", boldFont);
+
+    const textOptions = { align: "right" as const, features: ["rtla" as any] };
+    const pageWidth = doc.page.width - 100; // margins
+
     // Title
-    doc.fontSize(16).font("Helvetica-Bold").text("תקנון הצטרפות לקורס", { align: "right" });
+    doc.font("Hebrew-Bold").fontSize(18).text("תקנון הצטרפות לקורס", { ...textOptions, width: pageWidth });
     doc.moveDown(0.5);
 
     // Student info
-    doc.fontSize(11).font("Helvetica");
-    doc.text(`שם התלמיד: ${data.studentName}`, { align: "right" });
-    doc.text(`אימייל: ${data.studentEmail}`, { align: "right" });
-    doc.text(`קורס: ${data.courseName}`, { align: "right" });
-    doc.text(`תאריך: ${new Date().toLocaleDateString("he-IL")}`, { align: "right" });
+    doc.font("Hebrew").fontSize(11);
+    doc.text(`שם התלמיד: ${data.studentName}`, { ...textOptions, width: pageWidth });
+    doc.text(`אימייל: ${data.studentEmail}`, { ...textOptions, width: pageWidth });
+    doc.text(`קורס: ${data.courseName}`, { ...textOptions, width: pageWidth });
+    doc.text(`תאריך: ${new Date().toLocaleDateString("he-IL")}`, { ...textOptions, width: pageWidth });
     doc.moveDown();
 
-    // Terms text (simplified - full text would be too long)
-    doc.fontSize(10).text(
-      "מרכז 'למען ילמדו' מתחייב להכין ולהגיש את התלמיד לבחינות. התלמיד מודע לתנאים המפורטים בתקנון ומסכים להם.",
-      {
-        align: "right",
-        width: 500,
+    // Full terms text - split by double newlines into paragraphs
+    const termsContent = TERMS_TEXT
+      .replace("{studentName}", data.studentName)
+      .replace("{studentName}", data.studentName)
+      .replace("{studentEmail}", data.studentEmail)
+      .replace("{courseName}", data.courseName)
+      .replace("{date}", new Date().toLocaleDateString("he-IL"));
+
+    doc.font("Hebrew").fontSize(9);
+    const paragraphs = termsContent.split("\n\n");
+    for (const paragraph of paragraphs) {
+      const trimmed = paragraph.trim();
+      if (!trimmed || trimmed === "[signature]") continue;
+
+      // Check if we need a new page
+      if (doc.y > doc.page.height - 100) {
+        doc.addPage();
       }
-    );
-    doc.moveDown(2);
+
+      // Section headers (short lines ending with colon or single-word lines)
+      if (trimmed.length < 40 && (trimmed.endsWith(":") || !trimmed.includes(" ") || trimmed.startsWith("תנאי") || trimmed.startsWith("קדימון") || trimmed.startsWith("קניין") || trimmed.startsWith("תוכן") || trimmed.startsWith("ניהול") || trimmed.startsWith("גילוי") || trimmed.startsWith("איזור"))) {
+        doc.moveDown(0.3);
+        doc.font("Hebrew-Bold").fontSize(10).text(trimmed, { ...textOptions, width: pageWidth });
+        doc.font("Hebrew").fontSize(9);
+      } else {
+        doc.text(trimmed, { ...textOptions, width: pageWidth });
+      }
+      doc.moveDown(0.3);
+    }
+
+    doc.moveDown(1);
 
     // Signature image
     if (data.signature && data.signature.startsWith("data:")) {
       try {
         const buffer = Buffer.from(data.signature.split(",")[1], "base64");
-        doc.text("חתימת התלמיד:", { align: "right" });
-        doc.image(buffer, { width: 200, align: "right" });
-      } catch (e) {
-        doc.text("חתימה: [לא ניתן לטעון את התמונה]", { align: "right" });
+        doc.font("Hebrew-Bold").fontSize(11).text("חתימת התלמיד:", { ...textOptions, width: pageWidth });
+        doc.moveDown(0.3);
+        doc.image(buffer, doc.page.width - 250, doc.y, { width: 200 });
+      } catch {
+        doc.text("[לא ניתן לטעון את החתימה]", { ...textOptions, width: pageWidth });
       }
     }
 
