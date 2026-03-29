@@ -212,6 +212,14 @@ export async function POST(request: NextRequest) {
     });
     console.log("[Terms] Saved to DB, id:", termsAcceptance.id);
 
+    // Return response immediately - don't block on email sending
+    const response = NextResponse.json({
+      success: true,
+      termsAcceptanceId: termsAcceptance.id,
+      fileName,
+    });
+
+    // Send emails in background (fire-and-forget)
     const pdfBase64 = pdfBuffer.toString("base64");
 
     // Helper: send email via Gmail (primary) or Resend (fallback)
@@ -239,48 +247,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send email to student with PDF attachment
-    try {
-      console.log("[Terms] Sending email to student:", email);
-      const result = await sendEmail(
-        email,
-        `אישור התקנון - ${firstName}`,
-        `<h2>שלום ${firstName},</h2>
-         <p>אישור התקנון שלך התקבל בהצלחה!</p>
-         <p>מצורף לכאן עותק של התקנון עם החתימה שלך.</p>
-         <p>בברכה,<br/>צוות "למען ילמדו"</p>`
-      );
-      console.log("[Terms] Student email sent:", result);
-    } catch (emailError) {
-      console.error("[Terms] Failed to send email to student:", emailError);
-    }
+    // Fire-and-forget email sending
+    (async () => {
+      try {
+        console.log("[Terms] Sending email to student:", email);
+        const result = await sendEmail(
+          email,
+          `אישור התקנון - ${firstName}`,
+          `<h2>שלום ${firstName},</h2>
+           <p>אישור התקנון שלך התקבל בהצלחה!</p>
+           <p>מצורף לכאן עותק של התקנון עם החתימה שלך.</p>
+           <p>בברכה,<br/>צוות "למען ילמדו"</p>`
+        );
+        console.log("[Terms] Student email sent:", result);
+      } catch (emailError) {
+        console.error("[Terms] Failed to send email to student:", emailError);
+      }
 
-    // Send notification to office
-    try {
-      const officeEmail = "office@lemaanyilmedo.org";
-      console.log("[Terms] Sending email to office:", officeEmail);
-      const result = await sendEmail(
-        officeEmail,
-        `אישור תקנון חדש - ${firstName}`,
-        `<h3>תקנון חדש אושר</h3>
-         <ul>
-           <li><strong>שם:</strong> ${firstName}</li>
-           <li><strong>אימייל:</strong> ${email}</li>
-           <li><strong>קורס:</strong> ${courseName || "לא צוין"}</li>
-           <li><strong>תאריך הגשה:</strong> ${new Date().toLocaleString("he-IL")}</li>
-         </ul>
-         <p><a href="https://lms-dashboard-qx2u.onrender.com/admin/terms-acceptances">צפה בניהול</a></p>`
-      );
-      console.log("[Terms] Office email sent:", result);
-    } catch (emailError) {
-      console.error("[Terms] Failed to send office notification:", emailError);
-    }
+      try {
+        const officeEmail = "office@lemaanyilmedo.org";
+        console.log("[Terms] Sending email to office:", officeEmail);
+        const result = await sendEmail(
+          officeEmail,
+          `אישור תקנון חדש - ${firstName}`,
+          `<h3>תקנון חדש אושר</h3>
+           <ul>
+             <li><strong>שם:</strong> ${firstName}</li>
+             <li><strong>אימייל:</strong> ${email}</li>
+             <li><strong>קורס:</strong> ${courseName || "לא צוין"}</li>
+             <li><strong>תאריך הגשה:</strong> ${new Date().toLocaleString("he-IL")}</li>
+           </ul>
+           <p><a href="https://lms-dashboard-qx2u.onrender.com/admin/terms-acceptances">צפה בניהול</a></p>`
+        );
+        console.log("[Terms] Office email sent:", result);
+      } catch (emailError) {
+        console.error("[Terms] Failed to send office notification:", emailError);
+      }
+    })();
 
-    return NextResponse.json({
-      success: true,
-      termsAcceptanceId: termsAcceptance.id,
-      fileName,
-    });
+    return response;
   } catch (error) {
     console.error("Terms acceptance error:", error);
     return NextResponse.json(

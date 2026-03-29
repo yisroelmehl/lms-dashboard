@@ -193,29 +193,25 @@ export function PaymentRegistrationForm({
         }
 
         // Generate terms PDF and send emails (before payment) - only if signed
+        // Fire-and-forget: don't block the payment flow
         if (data.studentId && signature) {
-          try {
-            const termsRes = await fetch("/api/terms-acceptances", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                token,
-                studentId: data.studentId,
-                firstName: formData.firstName || initialData.firstName,
-                email: formData.email || initialData.email,
-                courseName: courseName || "לא צוין",
-                signature,
-              }),
-            });
-            if (!termsRes.ok) {
-              const termsData = await termsRes.json().catch(() => ({}));
-              console.error("Terms API error:", termsRes.status, termsData);
-            } else {
-              console.log("Terms PDF sent successfully");
-            }
-          } catch (termsErr) {
-            console.error("Terms PDF/email error (non-blocking):", termsErr);
-          }
+          fetch("/api/terms-acceptances", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token,
+              studentId: data.studentId,
+              firstName: formData.firstName || initialData.firstName,
+              email: formData.email || initialData.email,
+              courseName: courseName || "לא צוין",
+              signature,
+            }),
+          }).then(r => {
+            if (!r.ok) console.error("Terms API error:", r.status);
+            else console.log("Terms PDF sent successfully");
+          }).catch(err => {
+            console.error("Terms PDF/email error:", err);
+          });
         }
         
         if (hasKesherPayment && kesherPaymentPageId) {
