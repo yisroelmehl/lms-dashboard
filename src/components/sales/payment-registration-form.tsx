@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { HebrewDateDisplay } from "@/components/ui/hebrew-date-display";
+import { SignaturePad } from "@/components/terms/signature-pad";
 
 interface Props {
   token: string;
@@ -41,6 +42,7 @@ export function PaymentRegistrationForm({
   const [status, setStatus] = useState<"form" | "saving" | "success" | "payment_success">("form");
   const [error, setError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [signature, setSignature] = useState("");
   const [showPayment, setShowPayment] = useState(false);
   const [couponValidation, setCouponValidation] = useState<{
     valid: boolean;
@@ -163,6 +165,10 @@ export function PaymentRegistrationForm({
       setError("יש לאשר את התקנון כדי להמשיך");
       return;
     }
+    if (!signature) {
+      setError("נא לחתום על התקנון");
+      return;
+    }
 
     setStatus("saving");
     setError("");
@@ -175,7 +181,7 @@ export function PaymentRegistrationForm({
           token,
           registrationData: formData,
           termsAccepted: true,
-          termsText, // Keep track of the exact text they agreed to
+          termsText,
           couponCode: couponValidation?.valid ? formData.couponCode : undefined,
         }),
       });
@@ -188,6 +194,26 @@ export function PaymentRegistrationForm({
         }
         if (data.discountAmount !== undefined) {
           setCouponDiscountAmount(data.discountAmount);
+        }
+
+        // Generate terms PDF and send emails (before payment)
+        if (data.studentId) {
+          try {
+            await fetch("/api/terms-acceptances", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                token,
+                studentId: data.studentId,
+                firstName: formData.firstName || initialData.firstName,
+                email: formData.email || initialData.email,
+                courseName: courseName || "לא צוין",
+                signature,
+              }),
+            });
+          } catch (termsErr) {
+            console.error("Terms PDF/email error (non-blocking):", termsErr);
+          }
         }
         
         if (hasKesherPayment && kesherPaymentPageId) {
@@ -561,11 +587,24 @@ export function PaymentRegistrationForm({
                 קראתי ומסכים/ה לתנאי השימוש והתקנון *
               </label>
             </div>
+
+            {/* Signature Pad */}
+            {termsAccepted && (
+              <div className="pt-3 border-t border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  חתימתך *
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  חתום בעזרת העכבר או באצבע
+                </p>
+                <SignaturePad onSignatureChange={setSignature} />
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={status === "saving" || !termsAccepted}
+            disabled={status === "saving" || !termsAccepted || !signature}
             className="w-full rounded-md bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {status === "saving"

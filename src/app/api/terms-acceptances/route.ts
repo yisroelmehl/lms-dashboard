@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     // Send notification to office
     try {
-      const officeEmail = process.env.OFFICE_EMAIL || "office@lemaanyilmedo.org";
+      const officeEmail = "office@lemaanyilmedo.org";
       await resend.emails.send({
         from: "noreply@lemaanyilmedo.org",
         to: officeEmail,
