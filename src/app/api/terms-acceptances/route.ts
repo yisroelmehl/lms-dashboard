@@ -283,37 +283,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send emails (awaited so they complete before function terminates)
-    // Client doesn't wait for this response anyway (fire-and-forget on client side)
+    // Send welcome email to student with PDF attachment
     try {
-      console.log("[Terms] Sending email to student:", email);
+      console.log("[Terms] Sending welcome email to student:", email);
       const result = await sendEmail(
         email,
-        `אישור התקנון - ${firstName}`,
-        `<h2>שלום ${firstName},</h2>
-         <p>אישור התקנון שלך התקבל בהצלחה!</p>
-         <p>מצורף לכאן עותק של התקנון עם החתימה שלך.</p>
-         <p>בברכה,<br/>צוות "למען ילמדו"</p>`
+        `ברוך הבא ל${courseName || "קורס"} - למען ילמדו`,
+        `<div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #1e40af; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">ברוך הבא, ${firstName}!</h1>
+            <p style="margin: 8px 0 0; opacity: 0.9;">המכללה להכשרה תורנית - למען ילמדו</p>
+          </div>
+          
+          <div style="padding: 30px; background: #f9fafb; border: 1px solid #e5e7eb;">
+            <p style="font-size: 16px; color: #374151;">שמחים שהצטרפת לקורס <strong>${courseName || ""}</strong>!</p>
+            
+            <p style="color: #6b7280;">הרישום שלך התקבל בהצלחה ואישור התקנון החתום מצורף למייל זה.</p>
+            
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="margin: 0 0 12px; color: #1e40af;">מה הלאה?</h3>
+              <p style="margin: 4px 0;"><span style="color: #1e40af;">1.</span> כנס לאתר הלימודים שלנו:</p>
+              <p style="margin: 4px 0 12px;"><a href="https://school.lemaanyilmedo.org" style="color: #1e40af; font-weight: bold;">school.lemaanyilmedo.org</a></p>
+              <p style="margin: 4px 0;"><span style="color: #1e40af;">2.</span> התחבר עם המייל שנרשמת איתו: <strong>${email}</strong></p>
+              <p style="margin: 4px 0;"><span style="color: #1e40af;">3.</span> השלם את הפרופיל הלימודי שלך באזור האישי</p>
+            </div>
+
+            <p style="color: #6b7280; font-size: 13px;">לכל שאלה ניתן לפנות אלינו במייל: <a href="mailto:office@lemaanyilmedo.org" style="color: #1e40af;">office@lemaanyilmedo.org</a></p>
+          </div>
+          
+          <div style="padding: 15px; text-align: center; color: #9ca3af; font-size: 12px;">
+            <p>למען ילמדו - המכללה להכשרה תורנית</p>
+          </div>
+        </div>`
       );
-      console.log("[Terms] Student email sent:", result);
+      console.log("[Terms] Student welcome email sent:", result);
     } catch (emailError) {
       console.error("[Terms] Failed to send email to student:", emailError);
     }
 
+    // Send notification to office with PDF
     try {
       const officeEmail = "office@lemaanyilmedo.org";
-      console.log("[Terms] Sending email to office:", officeEmail);
+      console.log("[Terms] Sending notification to office:", officeEmail);
       const result = await sendEmail(
         officeEmail,
-        `אישור תקנון חדש - ${firstName}`,
-        `<h3>תקנון חדש אושר</h3>
-         <ul>
-           <li><strong>שם:</strong> ${firstName}</li>
-           <li><strong>אימייל:</strong> ${email}</li>
-           <li><strong>קורס:</strong> ${courseName || "לא צוין"}</li>
-           <li><strong>תאריך הגשה:</strong> ${new Date().toLocaleString("he-IL")}</li>
-         </ul>
-         <p><a href="https://lms-dashboard-qx2u.onrender.com/admin/terms-acceptances">צפה בניהול</a></p>`
+        `תלמיד חדש נרשם - ${firstName} - ${courseName || ""}`,
+        `<div dir="rtl" style="font-family: Arial, sans-serif;">
+          <h2 style="color: #1e40af;">תלמיד חדש נרשם לקורס</h2>
+          <table style="border-collapse: collapse; width: 100%; max-width: 400px;">
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">שם</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;"><strong>${firstName}</strong></td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">אימייל</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${email}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">קורס</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${courseName || "לא צוין"}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">תאריך</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${new Date().toLocaleDateString("he-IL", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td></tr>
+          </table>
+          <p style="margin-top: 16px;"><a href="https://lms-dashboard-qx2u.onrender.com/admin/terms-acceptances" style="color: #1e40af;">צפה בניהול התקנונים</a></p>
+          <p style="color: #9ca3af; font-size: 12px;">התקנון החתום מצורף כ-PDF.</p>
+        </div>`
       );
       console.log("[Terms] Office email sent:", result);
     } catch (emailError) {
@@ -349,74 +374,119 @@ async function generateTermsPDF(data: {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // Register Hebrew fonts from pre-loaded buffers
+    // Register Hebrew fonts
     loadFonts();
     if (hebrewRegularFont && hebrewBoldFont) {
       doc.registerFont("Hebrew", hebrewRegularFont);
       doc.registerFont("Hebrew-Bold", hebrewBoldFont);
     } else {
-      // Fallback: use built-in font (won't render Hebrew correctly but won't crash)
       doc.registerFont("Hebrew", "Helvetica");
       doc.registerFont("Hebrew-Bold", "Helvetica-Bold");
-      console.error("[Terms] Using fallback Helvetica fonts - Hebrew will not render!");
     }
 
-    const textOptions = { align: "right" as const, features: ["rtla" as any] };
-    const pageWidth = doc.page.width - 100; // margins
+    // Sanitize text: replace problematic Unicode chars with safe equivalents
+    function clean(text: string): string {
+      return text
+        .replace(/[""״]/g, '"')
+        .replace(/[''׳]/g, "'")
+        .replace(/–/g, "-")
+        .replace(/…/g, "...")
+        .replace(/\u00A0/g, " ");
+    }
 
-    // Title
-    doc.font("Hebrew-Bold").fontSize(18).text("תקנון הצטרפות לקורס", { ...textOptions, width: pageWidth });
-    doc.moveDown(0.5);
+    const textOpts = { align: "right" as const, features: ["rtla" as any] };
+    const pageWidth = doc.page.width - 100;
+    const dateStr = new Date().toLocaleDateString("he-IL", { year: "numeric", month: "long", day: "numeric" });
 
-    // Student info
-    doc.font("Hebrew").fontSize(11);
-    doc.text(`שם התלמיד: ${data.studentName}`, { ...textOptions, width: pageWidth });
-    doc.text(`אימייל: ${data.studentEmail}`, { ...textOptions, width: pageWidth });
-    doc.text(`קורס: ${data.courseName}`, { ...textOptions, width: pageWidth });
-    doc.text(`תאריך: ${new Date().toLocaleDateString("he-IL")}`, { ...textOptions, width: pageWidth });
-    doc.moveDown();
+    // ── Header ──
+    doc.rect(0, 0, doc.page.width, 90).fill("#1e40af");
+    doc.fill("#ffffff").font("Hebrew-Bold").fontSize(22)
+      .text(clean('תקנון הצטרפות לקורס'), 50, 25, { ...textOpts, width: pageWidth });
+    doc.fontSize(12)
+      .text(clean('המכללה להכשרה תורנית - "למען ילמדו"'), 50, 55, { ...textOpts, width: pageWidth });
 
-    // Full terms text - split by double newlines into paragraphs
+    // ── Student info box ──
+    doc.fill("#000000");
+    const infoY = 105;
+    doc.roundedRect(40, infoY, doc.page.width - 80, 70, 5).lineWidth(1).stroke("#d1d5db");
+    doc.font("Hebrew").fontSize(10);
+    doc.text(`שם התלמיד: ${clean(data.studentName)}`, 55, infoY + 12, { ...textOpts, width: pageWidth - 30 });
+    doc.text(`קורס: ${clean(data.courseName)}`, 55, infoY + 28, { ...textOpts, width: pageWidth - 30 });
+    doc.text(`אימייל: ${data.studentEmail}`, 55, infoY + 44, { ...textOpts, width: pageWidth - 30 });
+
+    // Date on the left side
+    doc.fontSize(9).fill("#6b7280")
+      .text(`תאריך: ${dateStr}`, 55, infoY + 12, { align: "left", width: 200 });
+    doc.fill("#000000");
+
+    // ── Terms content ──
+    doc.y = infoY + 85;
+
     const termsContent = TERMS_TEXT
-      .replace("{studentName}", data.studentName)
-      .replace("{studentName}", data.studentName)
+      .replace(/\{studentName\}/g, data.studentName)
       .replace("{studentEmail}", data.studentEmail)
       .replace("{courseName}", data.courseName)
-      .replace("{date}", new Date().toLocaleDateString("he-IL"));
+      .replace("{date}", dateStr);
 
-    doc.font("Hebrew").fontSize(9);
     const paragraphs = termsContent.split("\n\n");
+    const sectionHeaders = ["תנאי שימוש", "קדימון", "קניין רוחני", "תוכן האתר", "ניהול משתמשים", "גילוי נאות", "איזור שיפוט"];
+
     for (const paragraph of paragraphs) {
-      const trimmed = paragraph.trim();
+      const trimmed = clean(paragraph.trim());
       if (!trimmed || trimmed === "[signature]") continue;
 
-      // Check if we need a new page
-      if (doc.y > doc.page.height - 100) {
+      if (doc.y > doc.page.height - 80) {
         doc.addPage();
       }
 
-      // Section headers (short lines ending with colon or single-word lines)
-      if (trimmed.length < 40 && (trimmed.endsWith(":") || !trimmed.includes(" ") || trimmed.startsWith("תנאי") || trimmed.startsWith("קדימון") || trimmed.startsWith("קניין") || trimmed.startsWith("תוכן") || trimmed.startsWith("ניהול") || trimmed.startsWith("גילוי") || trimmed.startsWith("איזור"))) {
+      // Detect section headers
+      const isHeader = sectionHeaders.some(h => trimmed.startsWith(h)) ||
+        (trimmed.length < 30 && !trimmed.includes("."));
+
+      if (isHeader) {
+        doc.moveDown(0.5);
+        doc.font("Hebrew-Bold").fontSize(11).fill("#1e40af")
+          .text(trimmed, 50, doc.y, { ...textOpts, width: pageWidth });
+        doc.fill("#000000").font("Hebrew").fontSize(9);
+        // Underline
+        doc.moveTo(50, doc.y + 2).lineTo(doc.page.width - 50, doc.y + 2)
+          .lineWidth(0.5).stroke("#d1d5db");
         doc.moveDown(0.3);
-        doc.font("Hebrew-Bold").fontSize(10).text(trimmed, { ...textOptions, width: pageWidth });
-        doc.font("Hebrew").fontSize(9);
       } else {
-        doc.text(trimmed, { ...textOptions, width: pageWidth });
+        doc.font("Hebrew").fontSize(9).lineGap(3)
+          .text(trimmed, 50, doc.y, { ...textOpts, width: pageWidth });
       }
-      doc.moveDown(0.3);
+      doc.moveDown(0.2);
+    }
+
+    // ── Signature section ──
+    if (doc.y > doc.page.height - 180) {
+      doc.addPage();
     }
 
     doc.moveDown(1);
+    doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y)
+      .lineWidth(1).stroke("#1e40af");
+    doc.moveDown(0.5);
 
-    // Signature image
+    doc.font("Hebrew-Bold").fontSize(10).fill("#000000")
+      .text(`אני, ${clean(data.studentName)}, מצהיר/ה בזאת שקראתי את התקנון בעיון ומסכים/ה לכל תנאיו.`, 50, doc.y, { ...textOpts, width: pageWidth });
+    doc.moveDown(0.3);
+    doc.font("Hebrew").fontSize(9)
+      .text(`תאריך חתימה: ${dateStr}`, 50, doc.y, { ...textOpts, width: pageWidth });
+    doc.moveDown(1);
+
     if (data.signature && data.signature.startsWith("data:")) {
       try {
         const buffer = Buffer.from(data.signature.split(",")[1], "base64");
-        doc.font("Hebrew-Bold").fontSize(11).text("חתימת התלמיד:", { ...textOptions, width: pageWidth });
+        doc.font("Hebrew-Bold").fontSize(10)
+          .text("חתימת התלמיד:", 50, doc.y, { ...textOpts, width: pageWidth });
         doc.moveDown(0.3);
-        doc.image(buffer, doc.page.width - 250, doc.y, { width: 200 });
+        // Right-align the signature image
+        const sigX = doc.page.width - 250;
+        doc.image(buffer, sigX, doc.y, { width: 180 });
       } catch {
-        doc.text("[לא ניתן לטעון את החתימה]", { ...textOptions, width: pageWidth });
+        doc.text("[לא ניתן לטעון את החתימה]", 50, doc.y, { ...textOpts, width: pageWidth });
       }
     }
 
