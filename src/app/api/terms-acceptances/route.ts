@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
-import { google } from "googleapis";
 import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
@@ -33,17 +32,52 @@ function loadFonts() {
   console.error("[Terms] Hebrew fonts not found in any path!");
 }
 
-// Gmail API client (uses HTTPS, not SMTP - works on all cloud platforms)
-function getGmailClient() {
+// Gmail API via direct HTTPS fetch (no heavy googleapis package)
+async function getGmailAccessToken(): Promise<string | null> {
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
   const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
-
   if (!clientId || !clientSecret || !refreshToken) return null;
 
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
-  return google.gmail({ version: "v1", auth: oauth2Client });
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("[Email] Failed to refresh Gmail token:", err);
+    return null;
+  }
+
+  const data = await res.json();
+  return data.access_token;
+}
+
+async function sendViaGmailApi(accessToken: string, rawMessage: string) {
+  const encodedMessage = Buffer.from(rawMessage).toString("base64url");
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ raw: encodedMessage }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gmail API error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  return data.id;
 }
 
 // Build RFC 2822 MIME message with attachment
@@ -157,9 +191,9 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[Terms] POST received");
     const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-    const gmail = getGmailClient();
+    const gmailAccessToken = await getGmailAccessToken();
 
-    if (!resend && !gmail) {
+    if (!resend && !gmailAccessToken) {
       console.error("[Terms] No email service configured! Set Gmail OAuth2 env vars or RESEND_API_KEY");
     }
 
@@ -230,15 +264,11 @@ export async function POST(request: NextRequest) {
 
     // Helper: send email via Gmail API (primary) or Resend (fallback)
     async function sendEmail(to: string, subject: string, html: string) {
-      if (gmail) {
+      if (gmailAccessToken) {
         console.log("[Email] Using Gmail API (HTTPS)");
         const raw = buildMimeMessage(MAIL_FROM, to, subject, html, fileName, pdfBuffer);
-        const encodedMessage = Buffer.from(raw).toString("base64url");
-        const result = await gmail.users.messages.send({
-          userId: "me",
-          requestBody: { raw: encodedMessage },
-        });
-        return result.data.id;
+        const messageId = await sendViaGmailApi(gmailAccessToken, raw);
+        return messageId;
       } else if (resend) {
         const result = await resend.emails.send({
           from: `למען ילמדו <${MAIL_FROM}>`,
