@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 import { autoEnrollStudentInMoodle } from "@/lib/services/moodle-enrollment";
 import { submitToJotform } from "@/lib/services/jotform";
+import { createBaldarShipment } from "@/lib/shipping/yahav-baldar";
 
 /**
  * Kesher Payment Page Callback Handler
@@ -88,26 +89,54 @@ async function processPayment(
           });
         }
       }
-      // Auto-create shipment for new enrollment
+      // Auto-create shipment for new enrollment and send to Baldar
       const student = await prisma.student.findUnique({
         where: { id: link.studentId },
         select: { hebrewName: true, firstNameOverride: true, lastNameOverride: true, firstNameMoodle: true, lastNameMoodle: true, city: true, address: true, phoneMoodle: true, phoneOverride: true, emailMoodle: true, emailOverride: true },
       });
-      if (student) {
+      if (student && student.city) {
         const studentName = student.hebrewName || 
           `${student.firstNameOverride || student.firstNameMoodle || link.firstName} ${student.lastNameOverride || student.lastNameMoodle || link.lastName}`.trim();
-        await prisma.shipment.create({
+        
+        const shipment = await prisma.shipment.create({
           data: {
             studentId: link.studentId,
             carrier: "yahav_baldar",
             recipientName: studentName,
             address: student.address || undefined,
-            city: student.city || undefined,
+            city: student.city,
             country: "IL",
             phone: student.phoneOverride || student.phoneMoodle || undefined,
             email: student.emailOverride || student.emailMoodle || link.email || undefined,
             status: "pending",
           },
+        });
+
+        // Auto-send to Baldar (non-blocking)
+        createBaldarShipment({
+          recipientName: studentName,
+          address: student.address || "",
+          city: student.city,
+          phone: student.phoneOverride || student.phoneMoodle || "",
+          email: student.emailOverride || student.emailMoodle || link.email || "",
+          orderNum: shipment.id.slice(-8),
+          packageCount: 1,
+        }, shipment.id).then(async (result) => {
+          if (result.success && result.deliveryNumber) {
+            await prisma.shipment.update({
+              where: { id: shipment.id },
+              data: {
+                status: "created",
+                trackingNumber: result.deliveryNumber,
+                carrierRef: result.deliveryNumber,
+              },
+            });
+            console.log(`[Auto-Ship] Shipment ${shipment.id} sent to Baldar: ${result.deliveryNumber}`);
+          } else {
+            console.error(`[Auto-Ship] Baldar failed for ${shipment.id}:`, result.error);
+          }
+        }).catch(err => {
+          console.error(`[Auto-Ship] Error sending to Baldar:`, err);
         });
       }
 
