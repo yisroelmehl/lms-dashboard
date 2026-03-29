@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
-import nodemailer from "nodemailer";
+import { google } from "googleapis";
 import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
@@ -16,9 +16,7 @@ function loadFonts() {
   if (hebrewRegularFont && hebrewBoldFont) return;
   
   const possiblePaths = [
-    // npm package (most reliable)
     path.join(process.cwd(), "node_modules", "@embedpdf", "fonts-hebrew", "fonts"),
-    // public folder
     path.join(process.cwd(), "public", "fonts"),
   ];
 
@@ -35,38 +33,54 @@ function loadFonts() {
   console.error("[Terms] Hebrew fonts not found in any path!");
 }
 
-// Create Gmail transporter - supports OAuth2 (preferred) or App Password (fallback)
-function getMailTransporter() {
-  const user = process.env.GMAIL_USER;
-  
-  // OAuth2 (recommended)
-  if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
-    console.log("[Email] Using Gmail OAuth2");
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user,
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      },
-    });
-  }
+// Gmail API client (uses HTTPS, not SMTP - works on all cloud platforms)
+function getGmailClient() {
+  const clientId = process.env.GMAIL_CLIENT_ID;
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
 
-  // App Password fallback
-  if (process.env.GMAIL_APP_PASSWORD) {
-    console.log("[Email] Using Gmail App Password");
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
-  }
+  if (!clientId || !clientSecret || !refreshToken) return null;
 
-  return null;
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  return google.gmail({ version: "v1", auth: oauth2Client });
+}
+
+// Build RFC 2822 MIME message with attachment
+function buildMimeMessage(
+  from: string,
+  to: string,
+  subject: string,
+  html: string,
+  attachmentName: string,
+  attachmentBuffer: Buffer
+): string {
+  const boundary = "boundary_" + Date.now().toString(36);
+
+  const mimeMessage = [
+    `From: =?UTF-8?B?${Buffer.from("למען ילמדו").toString("base64")}?= <${from}>`,
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    `Content-Transfer-Encoding: base64`,
+    ``,
+    Buffer.from(html).toString("base64"),
+    ``,
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${attachmentName}"`,
+    `Content-Disposition: attachment; filename="${attachmentName}"`,
+    `Content-Transfer-Encoding: base64`,
+    ``,
+    attachmentBuffer.toString("base64"),
+    ``,
+    `--${boundary}--`,
+  ].join("\r\n");
+
+  return mimeMessage;
 }
 
 const MAIL_FROM = process.env.GMAIL_USER || "office@lemaanyilmedo.org";
@@ -143,10 +157,10 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[Terms] POST received");
     const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-    const gmailTransporter = process.env.GMAIL_USER ? getMailTransporter() : null;
+    const gmail = getGmailClient();
 
-    if (!resend && !gmailTransporter) {
-      console.error("[Terms] No email service configured! Set RESEND_API_KEY or GMAIL_USER + GMAIL_APP_PASSWORD");
+    if (!resend && !gmail) {
+      console.error("[Terms] No email service configured! Set Gmail OAuth2 env vars or RESEND_API_KEY");
     }
 
     const body = await request.json();
@@ -214,17 +228,17 @@ export async function POST(request: NextRequest) {
 
     const pdfBase64 = pdfBuffer.toString("base64");
 
-    // Helper: send email via Gmail (primary) or Resend (fallback)
+    // Helper: send email via Gmail API (primary) or Resend (fallback)
     async function sendEmail(to: string, subject: string, html: string) {
-      if (gmailTransporter) {
-        const result = await gmailTransporter.sendMail({
-          from: `"למען ילמדו" <${MAIL_FROM}>`,
-          to,
-          subject,
-          html,
-          attachments: [{ filename: fileName, content: pdfBuffer, contentType: "application/pdf" }],
+      if (gmail) {
+        console.log("[Email] Using Gmail API (HTTPS)");
+        const raw = buildMimeMessage(MAIL_FROM, to, subject, html, fileName, pdfBuffer);
+        const encodedMessage = Buffer.from(raw).toString("base64url");
+        const result = await gmail.users.messages.send({
+          userId: "me",
+          requestBody: { raw: encodedMessage },
         });
-        return result.messageId;
+        return result.data.id;
       } else if (resend) {
         const result = await resend.emails.send({
           from: `למען ילמדו <${MAIL_FROM}>`,
