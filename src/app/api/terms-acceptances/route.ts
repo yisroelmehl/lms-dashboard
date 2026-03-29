@@ -35,15 +35,38 @@ function loadFonts() {
   console.error("[Terms] Hebrew fonts not found in any path!");
 }
 
-// Create Gmail SMTP transporter
+// Create Gmail transporter - supports OAuth2 (preferred) or App Password (fallback)
 function getMailTransporter() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER, // e.g. office@lemaanyilmedo.org
-      pass: process.env.GMAIL_APP_PASSWORD, // App Password (not regular password)
-    },
-  });
+  const user = process.env.GMAIL_USER;
+  
+  // OAuth2 (recommended)
+  if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+    console.log("[Email] Using Gmail OAuth2");
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      },
+    });
+  }
+
+  // App Password fallback
+  if (process.env.GMAIL_APP_PASSWORD) {
+    console.log("[Email] Using Gmail App Password");
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    });
+  }
+
+  return null;
 }
 
 const MAIL_FROM = process.env.GMAIL_USER || "office@lemaanyilmedo.org";
@@ -120,7 +143,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[Terms] POST received");
     const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-    const gmailTransporter = process.env.GMAIL_APP_PASSWORD ? getMailTransporter() : null;
+    const gmailTransporter = process.env.GMAIL_USER ? getMailTransporter() : null;
 
     if (!resend && !gmailTransporter) {
       console.error("[Terms] No email service configured! Set RESEND_API_KEY or GMAIL_USER + GMAIL_APP_PASSWORD");
