@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
@@ -33,6 +34,19 @@ function loadFonts() {
   }
   console.error("[Terms] Hebrew fonts not found in any path!");
 }
+
+// Create Gmail SMTP transporter
+function getMailTransporter() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER, // e.g. office@lemaanyilmedo.org
+      pass: process.env.GMAIL_APP_PASSWORD, // App Password (not regular password)
+    },
+  });
+}
+
+const MAIL_FROM = process.env.GMAIL_USER || "office@lemaanyilmedo.org";
 
 // Terms text - with placeholders for student info
 const TERMS_TEXT = `תקנון הצטרפות לקורס:
@@ -105,7 +119,12 @@ const TERMS_TEXT = `תקנון הצטרפות לקורס:
 export async function POST(request: NextRequest) {
   try {
     console.log("[Terms] POST received");
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+    const gmailTransporter = process.env.GMAIL_APP_PASSWORD ? getMailTransporter() : null;
+
+    if (!resend && !gmailTransporter) {
+      console.error("[Terms] No email service configured! Set RESEND_API_KEY or GMAIL_USER + GMAIL_APP_PASSWORD");
+    }
 
     const body = await request.json();
     const { token, studentId, firstName, email, courseName, signature } = body;
@@ -172,27 +191,43 @@ export async function POST(request: NextRequest) {
 
     const pdfBase64 = pdfBuffer.toString("base64");
 
+    // Helper: send email via Gmail (primary) or Resend (fallback)
+    async function sendEmail(to: string, subject: string, html: string) {
+      if (gmailTransporter) {
+        const result = await gmailTransporter.sendMail({
+          from: `"למען ילמדו" <${MAIL_FROM}>`,
+          to,
+          subject,
+          html,
+          attachments: [{ filename: fileName, content: pdfBuffer, contentType: "application/pdf" }],
+        });
+        return result.messageId;
+      } else if (resend) {
+        const result = await resend.emails.send({
+          from: `למען ילמדו <${MAIL_FROM}>`,
+          to,
+          subject,
+          html,
+          attachments: [{ filename: fileName, content: pdfBase64 }],
+        });
+        return JSON.stringify(result);
+      } else {
+        throw new Error("No email service configured");
+      }
+    }
+
     // Send email to student with PDF attachment
     try {
       console.log("[Terms] Sending email to student:", email);
-      const studentEmailResult = await resend.emails.send({
-        from: "noreply@lemaanyilmedo.org",
-        to: email,
-        subject: `אישור התקנון - ${firstName}`,
-        html: `
-          <h2>שלום ${firstName},</h2>
-          <p>אישור התקנון שלך התקבל בהצלחה!</p>
-          <p>מצורף לכאן עותק של התקנון עם החתימה שלך.</p>
-          <p>בברכה,<br/>צוות "למען ילמדו"</p>
-        `,
-        attachments: [
-          {
-            filename: fileName,
-            content: pdfBase64,
-          },
-        ],
-      });
-      console.log("[Terms] Student email sent:", JSON.stringify(studentEmailResult));
+      const result = await sendEmail(
+        email,
+        `אישור התקנון - ${firstName}`,
+        `<h2>שלום ${firstName},</h2>
+         <p>אישור התקנון שלך התקבל בהצלחה!</p>
+         <p>מצורף לכאן עותק של התקנון עם החתימה שלך.</p>
+         <p>בברכה,<br/>צוות "למען ילמדו"</p>`
+      );
+      console.log("[Terms] Student email sent:", result);
     } catch (emailError) {
       console.error("[Terms] Failed to send email to student:", emailError);
     }
@@ -201,28 +236,19 @@ export async function POST(request: NextRequest) {
     try {
       const officeEmail = "office@lemaanyilmedo.org";
       console.log("[Terms] Sending email to office:", officeEmail);
-      const officeEmailResult = await resend.emails.send({
-        from: "noreply@lemaanyilmedo.org",
-        to: officeEmail,
-        subject: `אישור תקנון חדש - ${firstName}`,
-        html: `
-          <h3>תקנון חדש אושר</h3>
-          <ul>
-            <li><strong>שם:</strong> ${firstName}</li>
-            <li><strong>אימייל:</strong> ${email}</li>
-            <li><strong>קורס:</strong> ${courseName || "לא צוין"}</li>
-            <li><strong>תאריך הגשה:</strong> ${new Date().toLocaleString("he-IL")}</li>
-          </ul>
-          <p><a href="https://lms-dashboard.onrender.com/admin/terms-acceptances">צפה בניהול</a></p>
-        `,
-        attachments: [
-          {
-            filename: fileName,
-            content: pdfBase64,
-          },
-        ],
-      });
-      console.log("[Terms] Office email sent:", JSON.stringify(officeEmailResult));
+      const result = await sendEmail(
+        officeEmail,
+        `אישור תקנון חדש - ${firstName}`,
+        `<h3>תקנון חדש אושר</h3>
+         <ul>
+           <li><strong>שם:</strong> ${firstName}</li>
+           <li><strong>אימייל:</strong> ${email}</li>
+           <li><strong>קורס:</strong> ${courseName || "לא צוין"}</li>
+           <li><strong>תאריך הגשה:</strong> ${new Date().toLocaleString("he-IL")}</li>
+         </ul>
+         <p><a href="https://lms-dashboard-qx2u.onrender.com/admin/terms-acceptances">צפה בניהול</a></p>`
+      );
+      console.log("[Terms] Office email sent:", result);
     } catch (emailError) {
       console.error("[Terms] Failed to send office notification:", emailError);
     }
