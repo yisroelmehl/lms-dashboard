@@ -124,6 +124,7 @@ export function PaymentRegistrationForm({
     hebrewName: "",
     city: "",
     address: "",
+    addressNum: "",
     dateOfBirth: "",
     torahBackground: "",
     smichaBackground: "",
@@ -175,7 +176,7 @@ export function PaymentRegistrationForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
-          registrationData: formData,
+          registrationData: { ...formData, signature },
           termsAccepted: true,
           termsText,
           couponCode: couponValidation?.valid ? formData.couponCode : undefined,
@@ -192,27 +193,8 @@ export function PaymentRegistrationForm({
           setCouponDiscountAmount(data.discountAmount);
         }
 
-        // Generate terms PDF and send emails (before payment) - only if signed
-        // Fire-and-forget: don't block the payment flow
-        if (data.studentId && signature) {
-          fetch("/api/terms-acceptances", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              token,
-              studentId: data.studentId,
-              firstName: formData.firstName || initialData.firstName,
-              email: formData.email || initialData.email,
-              courseName: courseName || "לא צוין",
-              signature,
-            }),
-          }).then(r => {
-            if (!r.ok) console.error("Terms API error:", r.status);
-            else console.log("Terms PDF sent successfully");
-          }).catch(err => {
-            console.error("Terms PDF/email error:", err);
-          });
-        }
+        // Generate terms PDF and send emails - AFTER PAYMENT (handled by Kesher webhook)
+        // Just save the signature for later use
         
         if (hasKesherPayment && kesherPaymentPageId) {
           setShowPayment(true);
@@ -418,12 +400,24 @@ export function PaymentRegistrationForm({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">כתובת</label>
+                <label className="mb-1 block text-sm font-medium">כתובת (רחוב)</label>
                 <input
                   type="text"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
+                  placeholder="שם הרחוב"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">מספר בית</label>
+                <input
+                  type="text"
+                  name="addressNum"
+                  value={formData.addressNum}
+                  onChange={handleChange}
+                  placeholder="מס׳"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>

@@ -357,37 +357,42 @@ async function generateTermsPDF(data: {
       doc.registerFont("HebBold", "Helvetica-Bold");
     }
 
+    // PDFKit doesn't support RTL — reverse word order so it displays correctly
+    function rtl(text: string): string {
+      return text.split(" ").reverse().join(" ");
+    }
+
     const W = doc.page.width - 100;
     const R = { align: "right" as const, width: W };
     
-    // Format date manually to avoid locale issues
     const now = new Date();
-    const hebrewMonths = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-    const dateStr = `${now.getDate()} ${hebrewMonths[now.getMonth()]} ${now.getFullYear()}`;
+    const day = now.getDate();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
 
     // ── HEADER ──
     doc.rect(0, 0, doc.page.width, 80).fill("#1a3a6b");
     doc.font("HebBold").fill("#ffffff");
-    doc.fontSize(20).text("למען ילמדו", 50, 18, R);
-    doc.fontSize(11).text("המכללה להכשרה תורנית", 50, 44, R);
+    doc.fontSize(20).text(rtl("למען ילמדו"), 50, 18, R);
+    doc.fontSize(11).text(rtl("המכללה להכשרה תורנית"), 50, 44, R);
     doc.fill("#000000");
     doc.y = 95;
 
-    // ── STUDENT INFO TABLE ──
+    // ── STUDENT INFO ──
     const boxY = 95;
     doc.roundedRect(45, boxY, W + 10, 65, 4)
       .lineWidth(0.5).fillAndStroke("#f0f4f8", "#c5cdd8");
     
     doc.fill("#1a3a6b").font("HebBold").fontSize(12);
-    doc.text("אישור הצטרפות לקורס", 50, boxY + 8, R);
+    doc.text(rtl("אישור הצטרפות לקורס"), 50, boxY + 8, R);
     
     doc.fill("#333333").font("Heb").fontSize(9.5);
-    doc.text(`${data.studentName}  :תלמיד`, 50, boxY + 28, R);
-    doc.text(`${data.courseName}  :קורס`, 50, boxY + 42, R);
+    doc.text(rtl("תלמיד: " + data.studentName), 50, boxY + 28, R);
+    doc.text(rtl("קורס: " + data.courseName), 50, boxY + 42, R);
     
-    // Date and email on the left
-    doc.fill("#666666").fontSize(8.5);
-    doc.text(dateStr, 55, boxY + 28, { align: "left", width: 200 });
+    // Date and email using Helvetica (has digits)
+    doc.fill("#666666").font("Helvetica").fontSize(8.5);
+    doc.text(`${day}/${month}/${year}`, 55, boxY + 28, { align: "left", width: 200 });
     doc.text(data.studentEmail, 55, boxY + 42, { align: "left", width: 250 });
     
     doc.fill("#000000");
@@ -401,8 +406,7 @@ async function generateTermsPDF(data: {
       if (section.title) {
         doc.moveDown(0.4);
         doc.font("HebBold").fontSize(10.5).fill("#1a3a6b");
-        doc.text(`${section.title}  .${sectionNum}`, 50, doc.y, R);
-        // underline
+        doc.text(rtl(section.title), 50, doc.y, R);
         doc.moveTo(50, doc.y + 2).lineTo(doc.page.width - 50, doc.y + 2)
           .lineWidth(0.3).stroke("#c5cdd8");
         doc.moveDown(0.2);
@@ -410,7 +414,12 @@ async function generateTermsPDF(data: {
       }
 
       doc.font("Heb").fontSize(9).fill("#333333").lineGap(2.5);
-      doc.text(section.body, 50, doc.y, R);
+      // Split long text into sentences for better RTL handling
+      const sentences = section.body.split(". ").filter(Boolean);
+      for (const sentence of sentences) {
+        const s = sentence.endsWith(".") ? sentence : sentence + ".";
+        doc.text(rtl(s), 50, doc.y, R);
+      }
       doc.moveDown(0.3);
     }
 
@@ -423,38 +432,35 @@ async function generateTermsPDF(data: {
     doc.moveDown(0.6);
 
     doc.font("HebBold").fontSize(10).fill("#000000");
-    doc.text(
-      `אני ${data.studentName} מצהיר בזאת שקראתי את התקנון בעיון ומסכים לכל תנאיו`,
-      50, doc.y, R
-    );
+    doc.text(rtl("אני " + data.studentName + " מצהיר בזאת שקראתי את התקנון בעיון ומסכים לכל תנאיו"), 50, doc.y, R);
     doc.moveDown(0.3);
+    
+    // Date with Helvetica for the numbers
     doc.font("Heb").fontSize(9).fill("#555555");
-    doc.text(`${dateStr}  :תאריך חתימה`, 50, doc.y, R);
+    doc.text(rtl("תאריך חתימה:"), 50, doc.y, R);
+    doc.font("Helvetica").fontSize(9);
+    doc.text(`${day}/${month}/${year}`, 55, doc.y - 12, { align: "left", width: 100 });
     doc.moveDown(0.8);
 
     if (data.signature && data.signature.startsWith("data:")) {
       try {
         const sigBuffer = Buffer.from(data.signature.split(",")[1], "base64");
         doc.font("HebBold").fontSize(9.5).fill("#000000");
-        doc.text("חתימה", 50, doc.y, R);
+        doc.text(rtl("חתימה:"), 50, doc.y, R);
         doc.moveDown(0.3);
         const sigX = doc.page.width - 240;
         doc.image(sigBuffer, sigX, doc.y, { width: 170 });
       } catch {
-        doc.font("Heb").fontSize(9).text("חתימה לא זמינה", 50, doc.y, R);
+        // skip
       }
     }
 
-    // ── FOOTER on each page ──
+    // ── FOOTER ──
     const pages = doc.bufferedPageRange();
     for (let i = pages.start; i < pages.start + pages.count; i++) {
       doc.switchToPage(i);
       doc.font("Heb").fontSize(7).fill("#aaaaaa");
-      doc.text(
-        `למען ילמדו - המכללה להכשרה תורנית`,
-        50, doc.page.height - 30,
-        { align: "center", width: W }
-      );
+      doc.text(rtl("למען ילמדו - המכללה להכשרה תורנית"), 50, doc.page.height - 30, { align: "center", width: W });
     }
 
     doc.end();

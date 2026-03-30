@@ -62,7 +62,9 @@ export async function POST(
           phoneOverride: phone || undefined,
           hebrewName: registrationData.hebrewName || undefined,
           city: registrationData.city || undefined,
-          address: registrationData.address || undefined,
+          address: registrationData.addressNum
+            ? `${registrationData.address || ""} ${registrationData.addressNum}`.trim()
+            : registrationData.address || undefined,
           dateOfBirth: registrationData.dateOfBirth
             ? new Date(registrationData.dateOfBirth)
             : undefined,
@@ -83,7 +85,9 @@ export async function POST(
           phoneOverride: phone || null,
           hebrewName: registrationData.hebrewName || null,
           city: registrationData.city || null,
-          address: registrationData.address || null,
+          address: registrationData.addressNum
+            ? `${registrationData.address || ""} ${registrationData.addressNum}`.trim()
+            : registrationData.address || null,
           dateOfBirth: registrationData.dateOfBirth
             ? new Date(registrationData.dateOfBirth)
             : null,

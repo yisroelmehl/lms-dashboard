@@ -164,6 +164,33 @@ async function processPayment(
           console.error(`Failed to submit to Jotform in background:`, err);
         });
       }
+
+      // Generate terms PDF + send welcome email (after payment confirmed)
+      if (link.studentId && link.registrationData) {
+        const regData = link.registrationData as Record<string, string>;
+        const sig = regData.signature;
+        if (sig) {
+          const courseName = link.course?.fullNameOverride || link.course?.fullNameMoodle || link.courseName || "";
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lms-dashboard-qx2u.onrender.com";
+          fetch(`${appUrl}/api/terms-acceptances`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token: link.token,
+              studentId: link.studentId,
+              firstName: regData.firstName || link.firstName,
+              email: regData.email || link.email || "",
+              courseName,
+              signature: sig,
+            }),
+          }).then(r => {
+            if (r.ok) console.log(`[Terms] Welcome email sent after payment for ${link.firstName}`);
+            else console.error(`[Terms] Failed to send after payment:`, r.status);
+          }).catch(err => {
+            console.error(`[Terms] Error sending welcome email:`, err);
+          });
+        }
+      }
     }
 
     await prisma.notification.create({
@@ -202,6 +229,7 @@ type LinkWithCourse = {
   finalAmount: number;
   currency: string;
   status: string;
+  registrationData: Record<string, unknown> | null;
   course: { fullNameMoodle: string; fullNameOverride: string | null } | null;
 };
 
