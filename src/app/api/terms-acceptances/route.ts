@@ -119,73 +119,46 @@ function buildMimeMessage(
 
 const MAIL_FROM = process.env.GMAIL_USER || "office@lemaanyilmedo.org";
 
-// Terms text - with placeholders for student info
-const TERMS_TEXT = `תקנון הצטרפות לקורס:
-
-{studentName}, שם הקורס: {courseName}
-
-מרכז "למען ילמדו" מתחייב להכין ולהגיש את התלמיד לבחינות באמצעות שיעורים, מצגות וחוברות לימוד. כל תכני הקורס נקבעים ע"י הנהלת המכון בלבד, עם זאת המכון שומר לעצמו את הזכות לשינויים בתכני השיעור, זהות המרצים, וזמני השיעורים באם יהיו אילוצים.
-
-התלמיד מודע לכך שהצלחה במבחנים תלויה בהשתתפות בשיעורים, חזרה על החומר בבית, ומילוי שאלות החזרה ומטלות הכיתה. התשלום עבור החודש הראשון לא יוחזר אף אם לא החל התלמיד את הקורס.
-
-תלמיד המצטרף לקורס מתחייב על כל משך הקורס, לאחר הכניסה לקורס אין אפשרות לפרוש כלל. במקרים חריגים ובאישור ההנהלה בלבד נוהל הביטול יהיה שאחרי השתתפות בשיעור אחד יהיה אפשרות לפרוש בניכוי תשלום עבור החודש הראשון ובהחזרת כל החומר הלימודי עד השיעור שני. בביטול לאחר השיעור השני יוחזר רק חצי מסכום דמי הקורס, לאחר השיעור השלישי לא תהיה כלל אפשרות לקבלת החזר.
-
-מכון 'למען ילמדו', מעביר לתלמידים חומר בכתב או במייל או בכל אמצעי מדיה אחר. הזכויות של חומרי הלימודים שייכות ל'למען ילמדו' ונתונה הרשות לתלמידים לשימוש אישי בלבד, חובת התלמיד לשמור על הזכויות ולא להעביר חומרי לימוד לאף אחד. כמו"כ התלמיד מודע לכך שחלק מן הבחינות נעשות באמצעות גורם חיצוני המעניק את הציון ואת התעודה. קבלת התעודה מטעם המכון מותנית באישור ועדת הבחינות של המכון ע"פ הקריטריונים שנקבעו ע"י ועדת ההסמכה בלבד, ולאחר סיום התשלום על הקורס.
-
-תנאי שימוש באתר "למען ילמדו":
-
-תקנון השימוש באתר הנ"ל נכתב בלשון זכר אך האמור בו מתייחס לנשים וגברים כאחד.
-
-קדימון
-
-אתר "למען ילמדו" (להלן "האתר") הוא אתר המשתמש כאתר (המכללה להכשרה תורנית) ייצוגי עבור "שם האתר שלכם" והנך מוזמן לקחת בו חלק בכפוף להסכמתך לתנאי השימוש אשר יפורטו להלן
-
-בנוסף השימוש באתר זה על כל תכניו והשירותים המוצעים בו, הורדות של קבצים, מדיה כגון תמונות וסרטונים והתכנים השונים המוצעים לקהל המבקרים עשויים להשתנות מעת לעת או בהתאם לסוג התוכן.
-
-הנהלת האתר שומרת לעצמה הזכות לעדכן את תנאי השימוש המוצגים להלן מעת לעת וללא התראה או אזכור מיוחד בערוצי האתר השונים.
-
-קניין רוחני
-
-האתר כמו גם כל המידע שבו לרבות עיצוב האתר, קוד האתר, קבצי מדיה לרבות גרפיקות, סרטונים, תמונות, טקסטים, קבצים המוצעים להורדה וכל חומר אחר אשר מוצג באתר שייכים במלואם לאתר הנ"ל ומהווים קניין רוחני בלעדי של אתר "למען ילמדו" ואין לעשות בהם שימוש ללא אישור כתוב מראש מאתר "למען ילמדו".
-
-בנוסף אין להפיץ, להעתיק, לשכפל, לפרסם, לחקות או לעבד פיסות קוד, גרפיקות, סרטונים, סימנים מסחריים או כל מדיה ותוכן אחר מבלי שיש ברשותכם אישור כתוב מראש.
-
-תוכן האתר
-
-אנו שואפים לספק לכם את המידע המוצג באתר ללא הפרעות אך יתכנו בשל שיקולים טכניים, תקלות צד ג או אחרים, הפרעות בזמינות האתר. ולכן איננו יכולים להתחייב כי האתר יהיה זמין לכם בכל עת ולא יינתן כל פיצוי כספי או אחר בשל הפסקת השירות הורדת האתר.
-
-קישורים לאתר חיצוניים אינם מהווים ערובה כי מדובר באתרים בטוחים, איכותיים או אמינים וביקור בהם נעשה על דעתכם האישית בלבד ונמצאים בתחום האחריות הבלעדי של המשתמש באתר.
-
-התכנים המוצעים באתר הינם בבעלותם הבלעדית של "למען ילמדו" ואין לעשות בהם שימוש אשר נועד את האמור בתקנון זה (ראה סעיף 3) למעט במקרים בהם צוין אחרת או במקרים בהם צוין כי זכויות היוצרים שייכים לגוף חיצוני. במקרים אלו יש לבדוק מהם תנאי השימוש בקישור המצורף ולפעול על פי המצוין באתר החיצוני לו שייכים התכנים.
-
-ניהול משתמשים ומבקרים באתר
-
-הנהלת האתר שומרת לעצמה את הזכות לחסום כל משתמש ובין אם על ידי חסימת כתובת הIP של המחשב שלו, כתובת ה MACID של המחשב שלו או אפילו בהתאם למדינת המוצא ללא צורך לספק תירוץ אשר מקובל על הגולש.
-
-צוות האתר הנהלת האתר יעשה כל שביכולתו להגן על פרטי המשתמשים הרשומים באתר מנויים הרשומים באתר. במקרים בהם יעלה בידיו של צד שלישי להשיג גישה למידע מוסכם בזאת כי לגולשים, משתמשים וחברים באתר לא תהה כל תביעה, טענה או דרישה כלפי צוות האתר "למען ילמדו".
-
-גילוי נאות
-
-באתר זה עשוי לעשות שימוש בקבצי קוקיז (במיוחד עבור משתמשים רשומים ומנויים) ובממשקי סטטיסטיקה פנימיים בכדי לשמור תיעוד סטטיסטי אנונימי של גולשים וניתוח תנועת הגולשים, הרגלי גלישה באתר וניתוח קליקים וזמן שהייה.
-
-בכל העת ולבד מאשר גולשים המחוברים לאתר המידע הנשמר הוא אנונימי לחלוטין ואין בו את שם הגולש או כל פרט מזהה אחר.
-
-איזור שיפוט
-
-בעת שאתם עושים שימוש באתר ובמקרה בו התגלעה כל מחלוקת אתם מסכימים להלן כי האמור לעיל נמצא תחת סמכות השיפוט הבלעדי של בית הדין של הרב לנדא בבני ברק בלבד.
-
----
-
-אני מודה בי שקראתי את התקנון בעיון והסכמתי לכל תנאיו.
-
-תאריך: {date}
-
-תלמיד: {studentName}
-אימייל: {studentEmail}
-
-חתימת תלמיד:
-[signature]
-`;
+// Terms text - cleaned of all problematic characters for PDF rendering
+const TERMS_TEXT_SECTIONS = [
+  {
+    title: "תקנון הצטרפות לקורס",
+    body: `מרכז "למען ילמדו" מתחייב להכין ולהגיש את התלמיד לבחינות באמצעות שיעורים, מצגות וחוברות לימוד. כל תכני הקורס נקבעים על ידי הנהלת המכון בלבד, עם זאת המכון שומר לעצמו את הזכות לשינויים בתכני השיעור, זהות המרצים, וזמני השיעורים באם יהיו אילוצים.`
+  },
+  {
+    body: `התלמיד מודע לכך שהצלחה במבחנים תלויה בהשתתפות בשיעורים, חזרה על החומר בבית, ומילוי שאלות החזרה ומטלות הכיתה. התשלום עבור החודש הראשון לא יוחזר אף אם לא החל התלמיד את הקורס.`
+  },
+  {
+    body: `תלמיד המצטרף לקורס מתחייב על כל משך הקורס, לאחר הכניסה לקורס אין אפשרות לפרוש כלל. במקרים חריגים ובאישור ההנהלה בלבד נוהל הביטול יהיה שאחרי השתתפות בשיעור אחד יהיה אפשרות לפרוש בניכוי תשלום עבור החודש הראשון ובהחזרת כל החומר הלימודי עד השיעור שני. בביטול לאחר השיעור השני יוחזר רק חצי מסכום דמי הקורס, לאחר השיעור השלישי לא תהיה כלל אפשרות לקבלת החזר.`
+  },
+  {
+    body: `מכון "למען ילמדו" מעביר לתלמידים חומר בכתב או במייל או בכל אמצעי מדיה אחר. הזכויות של חומרי הלימודים שייכות ל"למען ילמדו" ונתונה הרשות לתלמידים לשימוש אישי בלבד, חובת התלמיד לשמור על הזכויות ולא להעביר חומרי לימוד לאף אחד. כמו כן התלמיד מודע לכך שחלק מן הבחינות נעשות באמצעות גורם חיצוני המעניק את הציון ואת התעודה. קבלת התעודה מטעם המכון מותנית באישור ועדת הבחינות של המכון על פי הקריטריונים שנקבעו על ידי ועדת ההסמכה בלבד, ולאחר סיום התשלום על הקורס.`
+  },
+  {
+    title: "תנאי שימוש באתר",
+    body: `תקנון השימוש באתר נכתב בלשון זכר אך האמור בו מתייחס לנשים וגברים כאחד. אתר "למען ילמדו" הוא אתר המכללה להכשרה תורנית. השימוש באתר זה על כל תכניו והשירותים המוצעים בו עשויים להשתנות מעת לעת. הנהלת האתר שומרת לעצמה הזכות לעדכן את תנאי השימוש מעת לעת וללא התראה מיוחדת.`
+  },
+  {
+    title: "קניין רוחני",
+    body: `האתר וכל המידע שבו לרבות עיצוב האתר, קוד האתר, קבצי מדיה וכל חומר אחר שייכים במלואם לאתר ומהווים קניין רוחני בלעדי של "למען ילמדו" ואין לעשות בהם שימוש ללא אישור כתוב מראש. אין להפיץ, להעתיק, לשכפל, לפרסם, לחקות או לעבד כל תוכן מבלי שיש ברשותכם אישור כתוב מראש.`
+  },
+  {
+    title: "תוכן האתר",
+    body: `אנו שואפים לספק לכם את המידע המוצג באתר ללא הפרעות אך יתכנו הפרעות בזמינות האתר. לכן איננו יכולים להתחייב כי האתר יהיה זמין לכם בכל עת. קישורים לאתרים חיצוניים אינם מהווים ערובה כי מדובר באתרים בטוחים וביקור בהם נעשה על דעתכם האישית בלבד.`
+  },
+  {
+    title: "ניהול משתמשים",
+    body: `הנהלת האתר שומרת לעצמה את הזכות לחסום כל משתמש ללא צורך לספק תירוץ. צוות האתר יעשה כל שביכולתו להגן על פרטי המשתמשים הרשומים באתר.`
+  },
+  {
+    title: "גילוי נאות",
+    body: `באתר זה עשוי להיעשות שימוש בקבצי קוקיז ובממשקי סטטיסטיקה פנימיים. המידע הנשמר הוא אנונימי לחלוטין ואין בו את שם הגולש או כל פרט מזהה אחר.`
+  },
+  {
+    title: "אזור שיפוט",
+    body: `בעת שאתם עושים שימוש באתר ובמקרה בו התגלעה כל מחלוקת, אתם מסכימים כי האמור לעיל נמצא תחת סמכות השיפוט הבלעדי של בית הדין של הרב לנדא בבני ברק בלבד.`
+  },
+];
 
 export async function POST(request: NextRequest) {
   try {
@@ -367,127 +340,121 @@ async function generateTermsPDF(data: {
   signature: string;
 }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
+    const doc = new PDFDocument({ size: "A4", margins: { top: 40, bottom: 40, left: 50, right: 50 } });
     const chunks: Buffer[] = [];
 
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    // Register Hebrew fonts
+    // Register Hebrew font
     loadFonts();
     if (hebrewRegularFont && hebrewBoldFont) {
-      doc.registerFont("Hebrew", hebrewRegularFont);
-      doc.registerFont("Hebrew-Bold", hebrewBoldFont);
+      doc.registerFont("Heb", hebrewRegularFont);
+      doc.registerFont("HebBold", hebrewBoldFont);
     } else {
-      doc.registerFont("Hebrew", "Helvetica");
-      doc.registerFont("Hebrew-Bold", "Helvetica-Bold");
+      doc.registerFont("Heb", "Helvetica");
+      doc.registerFont("HebBold", "Helvetica-Bold");
     }
 
-    // Sanitize text: replace problematic Unicode chars with safe equivalents
-    function clean(text: string): string {
-      return text
-        .replace(/[""״]/g, '"')
-        .replace(/[''׳]/g, "'")
-        .replace(/–/g, "-")
-        .replace(/…/g, "...")
-        .replace(/\u00A0/g, " ");
-    }
+    const W = doc.page.width - 100;
+    const R = { align: "right" as const, width: W };
+    
+    // Format date manually to avoid locale issues
+    const now = new Date();
+    const hebrewMonths = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+    const dateStr = `${now.getDate()} ${hebrewMonths[now.getMonth()]} ${now.getFullYear()}`;
 
-    const textOpts = { align: "right" as const, features: ["rtla" as any] };
-    const pageWidth = doc.page.width - 100;
-    const dateStr = new Date().toLocaleDateString("he-IL", { year: "numeric", month: "long", day: "numeric" });
-
-    // ── Header ──
-    doc.rect(0, 0, doc.page.width, 90).fill("#1e40af");
-    doc.fill("#ffffff").font("Hebrew-Bold").fontSize(22)
-      .text(clean('תקנון הצטרפות לקורס'), 50, 25, { ...textOpts, width: pageWidth });
-    doc.fontSize(12)
-      .text(clean('המכללה להכשרה תורנית - "למען ילמדו"'), 50, 55, { ...textOpts, width: pageWidth });
-
-    // ── Student info box ──
+    // ── HEADER ──
+    doc.rect(0, 0, doc.page.width, 80).fill("#1a3a6b");
+    doc.font("HebBold").fill("#ffffff");
+    doc.fontSize(20).text("למען ילמדו", 50, 18, R);
+    doc.fontSize(11).text("המכללה להכשרה תורנית", 50, 44, R);
     doc.fill("#000000");
-    const infoY = 105;
-    doc.roundedRect(40, infoY, doc.page.width - 80, 70, 5).lineWidth(1).stroke("#d1d5db");
-    doc.font("Hebrew").fontSize(10);
-    doc.text(`שם התלמיד: ${clean(data.studentName)}`, 55, infoY + 12, { ...textOpts, width: pageWidth - 30 });
-    doc.text(`קורס: ${clean(data.courseName)}`, 55, infoY + 28, { ...textOpts, width: pageWidth - 30 });
-    doc.text(`אימייל: ${data.studentEmail}`, 55, infoY + 44, { ...textOpts, width: pageWidth - 30 });
+    doc.y = 95;
 
-    // Date on the left side
-    doc.fontSize(9).fill("#6b7280")
-      .text(`תאריך: ${dateStr}`, 55, infoY + 12, { align: "left", width: 200 });
+    // ── STUDENT INFO TABLE ──
+    const boxY = 95;
+    doc.roundedRect(45, boxY, W + 10, 65, 4)
+      .lineWidth(0.5).fillAndStroke("#f0f4f8", "#c5cdd8");
+    
+    doc.fill("#1a3a6b").font("HebBold").fontSize(12);
+    doc.text("אישור הצטרפות לקורס", 50, boxY + 8, R);
+    
+    doc.fill("#333333").font("Heb").fontSize(9.5);
+    doc.text(`${data.studentName}  :תלמיד`, 50, boxY + 28, R);
+    doc.text(`${data.courseName}  :קורס`, 50, boxY + 42, R);
+    
+    // Date and email on the left
+    doc.fill("#666666").fontSize(8.5);
+    doc.text(dateStr, 55, boxY + 28, { align: "left", width: 200 });
+    doc.text(data.studentEmail, 55, boxY + 42, { align: "left", width: 250 });
+    
     doc.fill("#000000");
+    doc.y = boxY + 78;
 
-    // ── Terms content ──
-    doc.y = infoY + 85;
+    // ── TERMS SECTIONS ──
+    let sectionNum = 1;
+    for (const section of TERMS_TEXT_SECTIONS) {
+      if (doc.y > doc.page.height - 90) doc.addPage();
 
-    const termsContent = TERMS_TEXT
-      .replace(/\{studentName\}/g, data.studentName)
-      .replace("{studentEmail}", data.studentEmail)
-      .replace("{courseName}", data.courseName)
-      .replace("{date}", dateStr);
-
-    const paragraphs = termsContent.split("\n\n");
-    const sectionHeaders = ["תנאי שימוש", "קדימון", "קניין רוחני", "תוכן האתר", "ניהול משתמשים", "גילוי נאות", "איזור שיפוט"];
-
-    for (const paragraph of paragraphs) {
-      const trimmed = clean(paragraph.trim());
-      if (!trimmed || trimmed === "[signature]") continue;
-
-      if (doc.y > doc.page.height - 80) {
-        doc.addPage();
-      }
-
-      // Detect section headers
-      const isHeader = sectionHeaders.some(h => trimmed.startsWith(h)) ||
-        (trimmed.length < 30 && !trimmed.includes("."));
-
-      if (isHeader) {
-        doc.moveDown(0.5);
-        doc.font("Hebrew-Bold").fontSize(11).fill("#1e40af")
-          .text(trimmed, 50, doc.y, { ...textOpts, width: pageWidth });
-        doc.fill("#000000").font("Hebrew").fontSize(9);
-        // Underline
+      if (section.title) {
+        doc.moveDown(0.4);
+        doc.font("HebBold").fontSize(10.5).fill("#1a3a6b");
+        doc.text(`${section.title}  .${sectionNum}`, 50, doc.y, R);
+        // underline
         doc.moveTo(50, doc.y + 2).lineTo(doc.page.width - 50, doc.y + 2)
-          .lineWidth(0.5).stroke("#d1d5db");
-        doc.moveDown(0.3);
-      } else {
-        doc.font("Hebrew").fontSize(9).lineGap(3)
-          .text(trimmed, 50, doc.y, { ...textOpts, width: pageWidth });
+          .lineWidth(0.3).stroke("#c5cdd8");
+        doc.moveDown(0.2);
+        sectionNum++;
       }
-      doc.moveDown(0.2);
+
+      doc.font("Heb").fontSize(9).fill("#333333").lineGap(2.5);
+      doc.text(section.body, 50, doc.y, R);
+      doc.moveDown(0.3);
     }
 
-    // ── Signature section ──
-    if (doc.y > doc.page.height - 180) {
-      doc.addPage();
-    }
+    // ── SIGNATURE SECTION ──
+    if (doc.y > doc.page.height - 160) doc.addPage();
 
-    doc.moveDown(1);
+    doc.moveDown(0.8);
     doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y)
-      .lineWidth(1).stroke("#1e40af");
-    doc.moveDown(0.5);
+      .lineWidth(1).stroke("#1a3a6b");
+    doc.moveDown(0.6);
 
-    doc.font("Hebrew-Bold").fontSize(10).fill("#000000")
-      .text(`אני, ${clean(data.studentName)}, מצהיר/ה בזאת שקראתי את התקנון בעיון ומסכים/ה לכל תנאיו.`, 50, doc.y, { ...textOpts, width: pageWidth });
+    doc.font("HebBold").fontSize(10).fill("#000000");
+    doc.text(
+      `אני ${data.studentName} מצהיר בזאת שקראתי את התקנון בעיון ומסכים לכל תנאיו`,
+      50, doc.y, R
+    );
     doc.moveDown(0.3);
-    doc.font("Hebrew").fontSize(9)
-      .text(`תאריך חתימה: ${dateStr}`, 50, doc.y, { ...textOpts, width: pageWidth });
-    doc.moveDown(1);
+    doc.font("Heb").fontSize(9).fill("#555555");
+    doc.text(`${dateStr}  :תאריך חתימה`, 50, doc.y, R);
+    doc.moveDown(0.8);
 
     if (data.signature && data.signature.startsWith("data:")) {
       try {
-        const buffer = Buffer.from(data.signature.split(",")[1], "base64");
-        doc.font("Hebrew-Bold").fontSize(10)
-          .text("חתימת התלמיד:", 50, doc.y, { ...textOpts, width: pageWidth });
+        const sigBuffer = Buffer.from(data.signature.split(",")[1], "base64");
+        doc.font("HebBold").fontSize(9.5).fill("#000000");
+        doc.text("חתימה", 50, doc.y, R);
         doc.moveDown(0.3);
-        // Right-align the signature image
-        const sigX = doc.page.width - 250;
-        doc.image(buffer, sigX, doc.y, { width: 180 });
+        const sigX = doc.page.width - 240;
+        doc.image(sigBuffer, sigX, doc.y, { width: 170 });
       } catch {
-        doc.text("[לא ניתן לטעון את החתימה]", 50, doc.y, { ...textOpts, width: pageWidth });
+        doc.font("Heb").fontSize(9).text("חתימה לא זמינה", 50, doc.y, R);
       }
+    }
+
+    // ── FOOTER on each page ──
+    const pages = doc.bufferedPageRange();
+    for (let i = pages.start; i < pages.start + pages.count; i++) {
+      doc.switchToPage(i);
+      doc.font("Heb").fontSize(7).fill("#aaaaaa");
+      doc.text(
+        `למען ילמדו - המכללה להכשרה תורנית`,
+        50, doc.page.height - 30,
+        { align: "center", width: W }
+      );
     }
 
     doc.end();
