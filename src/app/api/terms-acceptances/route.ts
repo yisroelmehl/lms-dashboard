@@ -357,9 +357,9 @@ async function generateTermsPDF(data: {
       doc.registerFont("HebBold", "Helvetica-Bold");
     }
 
-    // PDFKit doesn't support RTL — reverse word order so it displays correctly
+    // PDFKit doesn't support RTL — reverse character order so it displays correctly
     function rtl(text: string): string {
-      return text.split(" ").reverse().join(" ");
+      return text.split('').reverse().join('');
     }
 
     const W = doc.page.width - 100;
