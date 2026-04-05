@@ -7,6 +7,26 @@ import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
 
+// Pre-reorder Hebrew (logical → visual) so PDFKit renders RTL correctly.
+// For pure Hebrew runs, visual order = character reversal of each RTL run.
+// We split on whitespace, reverse word order, then reverse each word's chars.
+function toVisualHebrew(text: string): string {
+  // Handle empty / latin-only strings unchanged
+  if (!text) return text;
+  // Split preserving spaces, reverse the whole array but keep char order per word
+  const words = text.split(/(\s+)/);
+  return words
+    .reverse()
+    .map((token) => {
+      // Only reverse tokens that contain Hebrew characters
+      if (/[\u0590-\u05FF\uFB1D-\uFB4F]/.test(token)) {
+        return token.split("").reverse().join("");
+      }
+      return token;
+    })
+    .join("");
+}
+
 // Pre-load font buffers at module level for reliability
 let hebrewRegularFont: Buffer | null = null;
 let hebrewBoldFont: Buffer | null = null;
@@ -357,9 +377,9 @@ async function generateTermsPDF(data: {
       doc.registerFont("HebBold", "Helvetica-Bold");
     }
 
-    // PDFKit doesn't support RTL — reverse character order so it displays correctly
+    // Use the pre-reorder helper; fall back silently.
     function rtl(text: string): string {
-      return text.split('').reverse().join('');
+      try { return toVisualHebrew(text); } catch { return text; }
     }
 
     const W = doc.page.width - 100;
