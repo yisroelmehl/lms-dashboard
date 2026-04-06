@@ -23,6 +23,8 @@
     "bcryptjs": "^3.0.3",
     "bidi-js": "^1.0.3",
     "clsx": "^2.1.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "next": "^15.5.13",
     "next-auth": "^4.24.13",
     "papaparse": "^5.5.3",

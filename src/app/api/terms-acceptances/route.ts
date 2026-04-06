@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { token, studentId, firstName, email, courseName, signature } = body;
-    console.log("[Terms] Student:", firstName, "Email:", email, "HasSignature:", !!signature);
+    const { token, studentId, firstName, email, courseName, signature, pdfBase64 } = body;
+    console.log("[Terms] Student:", firstName, "Email:", email, "HasSignature:", !!signature, "HasClientPDF:", !!pdfBase64);
 
     // Auth: either via session (admin dashboard) or via payment token (public terms page)
     if (token) {
@@ -204,15 +204,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    // Generate PDF
-    console.log("[Terms] Generating PDF...");
-    const pdfBuffer = await generateTermsPDF({
-      studentName: firstName,
-      studentEmail: email,
-      courseName: courseName || "לא צוין",
-      signature,
-    });
-    console.log("[Terms] PDF generated, size:", pdfBuffer.length, "bytes");
+    // Use client-captured PDF if provided, otherwise fall back to server-generated
+    let pdfBuffer: Buffer;
+    if (pdfBase64) {
+      console.log("[Terms] Using client-captured PDF");
+      pdfBuffer = Buffer.from(pdfBase64, "base64");
+    } else {
+      console.log("[Terms] Generating PDF on server (fallback)...");
+      pdfBuffer = await generateTermsPDF({
+        studentName: firstName,
+        studentEmail: email,
+        courseName: courseName || "לא צוין",
+        signature,
+      });
+    }
+    console.log("[Terms] PDF ready, size:", pdfBuffer.length, "bytes");
 
     const fileName = `terms-${studentId}-${Date.now()}.pdf`;
 
@@ -233,7 +239,7 @@ export async function POST(request: NextRequest) {
     });
     console.log("[Terms] Saved to DB, id:", termsAcceptance.id);
 
-    const pdfBase64 = pdfBuffer.toString("base64");
+    const pdfBase64ForEmail = pdfBuffer.toString("base64");
 
     // Helper: send email via Gmail API (primary) or Resend (fallback)
     async function sendEmail(to: string, subject: string, html: string) {
@@ -248,7 +254,7 @@ export async function POST(request: NextRequest) {
           to,
           subject,
           html,
-          attachments: [{ filename: fileName, content: pdfBase64 }],
+          attachments: [{ filename: fileName, content: pdfBase64ForEmail }],
         });
         return JSON.stringify(result);
       } else {

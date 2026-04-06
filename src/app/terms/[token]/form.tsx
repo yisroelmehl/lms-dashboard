@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { SignaturePad } from "@/components/terms/signature-pad";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 const TERMS_TEXT = `תקנון הצטרפות לקורס:
 
@@ -47,6 +49,67 @@ export default function TermsPublicForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const capturePDF = async (): Promise<string> => {
+    const el = printRef.current;
+    if (!el) throw new Error("Print element not found");
+
+    // Temporarily show the hidden print div
+    el.style.display = "block";
+
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth - 20; // 10mm margins
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let yOffset = 10;
+      let remainingHeight = imgHeight;
+
+      // If the image fits on one page
+      if (imgHeight <= pageHeight - 20) {
+        pdf.addImage(imgData, "JPEG", 10, 10, imgWidth, imgHeight);
+      } else {
+        // Multi-page: slice the canvas
+        const pageContentHeight = pageHeight - 20;
+        const sliceHeight = (canvas.width * pageContentHeight) / imgWidth;
+        let srcY = 0;
+        let page = 0;
+
+        while (remainingHeight > 0) {
+          if (page > 0) pdf.addPage();
+
+          const currentSliceHeight = Math.min(sliceHeight, canvas.height - srcY);
+          const sliceCanvas = document.createElement("canvas");
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = currentSliceHeight;
+          const ctx = sliceCanvas.getContext("2d")!;
+          ctx.drawImage(canvas, 0, srcY, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
+
+          const sliceImg = sliceCanvas.toDataURL("image/jpeg", 0.95);
+          const drawHeight = (currentSliceHeight * imgWidth) / canvas.width;
+          pdf.addImage(sliceImg, "JPEG", 10, 10, imgWidth, drawHeight);
+
+          srcY += currentSliceHeight;
+          remainingHeight -= pageContentHeight;
+          page++;
+        }
+      }
+
+      return btoa(String.fromCharCode(...new Uint8Array(pdf.output("arraybuffer"))));
+    } finally {
+      el.style.display = "none";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +128,9 @@ export default function TermsPublicForm({
     setLoading(true);
 
     try {
+      // Capture the terms page as a PDF on the client side
+      const pdfBase64 = await capturePDF();
+
       const response = await fetch("/api/terms-acceptances", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +141,7 @@ export default function TermsPublicForm({
           email,
           courseName: courseName || "לא צוין",
           signature,
+          pdfBase64,
         }),
       });
 
@@ -166,6 +233,55 @@ export default function TermsPublicForm({
       {/* Footer Info */}
       <div className="bg-gray-50 p-4 text-sm text-gray-600 border-t text-center">
         <p>שם: <strong>{firstName}</strong> | אימייל: <strong>{email}</strong>{courseName ? ` | קורס: ${courseName}` : ""}</p>
+      </div>
+
+      {/* Hidden print-ready div for PDF capture */}
+      <div
+        ref={printRef}
+        style={{ display: "none", width: "794px", position: "absolute", left: "-9999px", top: 0, background: "#fff" }}
+        dir="rtl"
+      >
+        <div style={{ fontFamily: "Arial, sans-serif", padding: "40px", color: "#000" }}>
+          {/* Header */}
+          <div style={{ background: "#1a3a6b", color: "#fff", padding: "20px 30px", borderRadius: "8px 8px 0 0", textAlign: "center" }}>
+            <h1 style={{ margin: 0, fontSize: "24px" }}>למען ילמדו</h1>
+            <p style={{ margin: "4px 0 0", opacity: 0.9, fontSize: "14px" }}>המכללה להכשרה תורנית</p>
+          </div>
+
+          {/* Student Info */}
+          <div style={{ background: "#f0f4f8", border: "1px solid #c5cdd8", padding: "15px 20px", marginTop: "0", borderRadius: "0 0 8px 8px" }}>
+            <h3 style={{ margin: "0 0 8px", color: "#1a3a6b", fontSize: "14px" }}>אישור הצטרפות לקורס</h3>
+            <p style={{ margin: "4px 0", fontSize: "12px" }}>תלמיד: {firstName}</p>
+            <p style={{ margin: "4px 0", fontSize: "12px" }}>קורס: {courseName || "לא צוין"}</p>
+          </div>
+
+          {/* Terms Text */}
+          <div style={{ marginTop: "20px", lineHeight: "1.8", fontSize: "12px" }}>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: "Arial, sans-serif", margin: 0, fontSize: "12px" }}>
+              {TERMS_TEXT}
+            </pre>
+          </div>
+
+          {/* Signature Section */}
+          <div style={{ marginTop: "30px", borderTop: "2px solid #1a3a6b", paddingTop: "15px" }}>
+            <p style={{ fontWeight: "bold", fontSize: "13px" }}>
+              אני, {firstName}, מצהיר בזאת שקראתי את התקנון בעיון ומסכים לכל תנאיו
+            </p>
+            <p style={{ fontSize: "12px", color: "#555" }}>תאריך חתימה: {new Date().toLocaleDateString("he-IL")}</p>
+            {signature && (
+              <div style={{ marginTop: "10px" }}>
+                <p style={{ fontSize: "11px", color: "#666", marginBottom: "5px" }}>חתימה:</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={signature} alt="חתימה" style={{ maxWidth: "250px", maxHeight: "100px", border: "1px solid #ddd", borderRadius: "4px" }} />
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div style={{ marginTop: "30px", textAlign: "center", color: "#aaa", fontSize: "10px" }}>
+            <p>למען ילמדו - המכללה להכשרה תורנית</p>
+          </div>
+        </div>
       </div>
     </form>
   );
