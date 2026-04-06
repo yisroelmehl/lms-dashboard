@@ -298,7 +298,10 @@ export function PaymentRegistrationForm({
     params.set("name", `${formData.firstName} ${formData.lastName}`);
     params.set("total", String(effectiveFinalAmount));
     params.set("currency", currency === "USD" ? "2" : "1");
-    if (numPayments > 1) params.set("numpayment", String(numPayments));
+    if (numPayments > 1) {
+      params.set("numpayment", String(numPayments));
+      params.set("credittype", "8"); // 8 = installments mode in Kesher
+    }
     if (formData.phone) params.set("tel", formData.phone);
     if (formData.email) params.set("mail", formData.email);
     params.set("firstName", formData.firstName);

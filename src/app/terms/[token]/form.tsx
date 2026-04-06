@@ -55,37 +55,43 @@ export default function TermsPublicForm({
     const el = printRef.current;
     if (!el) throw new Error("Print element not found");
 
-    // Temporarily show the hidden print div
+    // Move to visible area (offscreen but rendered) so html2canvas can capture
     el.style.display = "block";
+    el.style.position = "fixed";
+    el.style.left = "0";
+    el.style.top = "0";
+    el.style.zIndex = "-9999";
+    el.style.opacity = "1";
+
+    // Wait for browser to render the element and load images
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     try {
       const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
+        width: 794,
+        windowWidth: 794,
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = pageWidth - 20; // 10mm margins
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      let yOffset = 10;
-      let remainingHeight = imgHeight;
-
-      // If the image fits on one page
       if (imgHeight <= pageHeight - 20) {
         pdf.addImage(imgData, "JPEG", 10, 10, imgWidth, imgHeight);
       } else {
-        // Multi-page: slice the canvas
+        // Multi-page: slice the canvas into page-sized chunks
         const pageContentHeight = pageHeight - 20;
         const sliceHeight = (canvas.width * pageContentHeight) / imgWidth;
         let srcY = 0;
         let page = 0;
 
-        while (remainingHeight > 0) {
+        while (srcY < canvas.height) {
           if (page > 0) pdf.addPage();
 
           const currentSliceHeight = Math.min(sliceHeight, canvas.height - srcY);
@@ -95,19 +101,28 @@ export default function TermsPublicForm({
           const ctx = sliceCanvas.getContext("2d")!;
           ctx.drawImage(canvas, 0, srcY, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
 
-          const sliceImg = sliceCanvas.toDataURL("image/jpeg", 0.95);
+          const sliceImg = sliceCanvas.toDataURL("image/jpeg", 0.92);
           const drawHeight = (currentSliceHeight * imgWidth) / canvas.width;
           pdf.addImage(sliceImg, "JPEG", 10, 10, imgWidth, drawHeight);
 
           srcY += currentSliceHeight;
-          remainingHeight -= pageContentHeight;
           page++;
         }
       }
 
-      return btoa(String.fromCharCode(...new Uint8Array(pdf.output("arraybuffer"))));
+      // Safe base64 encoding for large buffers (no stack overflow)
+      const arrayBuf = pdf.output("arraybuffer");
+      const bytes = new Uint8Array(arrayBuf);
+      let binary = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+      }
+      return btoa(binary);
     } finally {
       el.style.display = "none";
+      el.style.position = "absolute";
+      el.style.left = "-9999px";
     }
   };
 
@@ -128,8 +143,14 @@ export default function TermsPublicForm({
     setLoading(true);
 
     try {
-      // Capture the terms page as a PDF on the client side
-      const pdfBase64 = await capturePDF();
+      // Try to capture the terms page as a PDF on the client side
+      let pdfBase64: string | null = null;
+      try {
+        pdfBase64 = await capturePDF();
+        console.log("[Terms] Client PDF captured, size:", pdfBase64.length);
+      } catch (pdfErr) {
+        console.warn("[Terms] Client PDF capture failed, will use server fallback:", pdfErr);
+      }
 
       const response = await fetch("/api/terms-acceptances", {
         method: "POST",
@@ -141,7 +162,7 @@ export default function TermsPublicForm({
           email,
           courseName: courseName || "לא צוין",
           signature,
-          pdfBase64,
+          ...(pdfBase64 ? { pdfBase64 } : {}),
         }),
       });
 

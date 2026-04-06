@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       total: String(finalAmount),
       currency: kesherCurrency,
       numpayment: numPayments > 1 ? String(numPayments) : "",
+      credittype: numPayments > 1 ? "8" : "",
       tel: phone || "",
       mail: email || "",
       firstName,
