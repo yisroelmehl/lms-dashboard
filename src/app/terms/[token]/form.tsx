@@ -57,10 +57,9 @@ export default function TermsPublicForm({
 
     // Move to visible area (offscreen but rendered) so html2canvas can capture
     el.style.display = "block";
-    el.style.position = "fixed";
-    el.style.left = "0";
+    el.style.position = "absolute";
+    el.style.left = "-9999px";
     el.style.top = "0";
-    el.style.zIndex = "-9999";
     el.style.opacity = "1";
 
     // Wait for browser to render the element and load images
@@ -71,8 +70,10 @@ export default function TermsPublicForm({
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-        width: 794,
-        windowWidth: 794,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.92);

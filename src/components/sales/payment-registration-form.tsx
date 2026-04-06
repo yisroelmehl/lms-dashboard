@@ -41,6 +41,7 @@ export function PaymentRegistrationForm({
 }: Props) {
   const [status, setStatus] = useState<"form" | "saving" | "success" | "payment_success">("form");
   const [error, setError] = useState("");
+  const [paymentUrl, setPaymentUrl] = useState<string>("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [signature, setSignature] = useState("");
   const [showPayment, setShowPayment] = useState(false);
@@ -197,7 +198,20 @@ export function PaymentRegistrationForm({
         // Just save the signature for later use
         
         if (hasKesherPayment && kesherPaymentPageId) {
-          setShowPayment(true);
+          // Request Kesher token on backend securely
+          const kesherRes = await fetch(`/api/payment-links/${linkId}/kesher-token`, { method: "POST" });
+          if (kesherRes.ok) {
+            const kesherData = await kesherRes.json();
+            if (kesherData.paymentPageUrl) {
+              setPaymentUrl(kesherData.paymentPageUrl);
+              setShowPayment(true);
+              setStatus("form");
+              return;
+            }
+          }
+          // If kesher request failed, log error
+          console.error("Kesher init failed");
+          setError("אירעה שגיאה בטעינת דף התשלום. אנא פנה למשרד.");
           setStatus("form");
         } else {
           // No payment required (Registration Only) - redirect directly to success page
@@ -641,12 +655,14 @@ export function PaymentRegistrationForm({
           </div>
 
           <div className="mt-6 w-full max-w-2xl mx-auto overflow-hidden rounded-lg border border-gray-200 shadow-md h-[700px]">
-            <iframe
-              src={buildPaymentUrl()}
-              className="w-full h-full border-0"
-              title="Kesher Payment Page"
-              sandbox="allow-scripts allow-forms allow-same-origin allow-top-navigation allow-popups"
-            />
+            {paymentUrl && (
+              <iframe
+                src={paymentUrl}
+                className="w-full h-full border-0"
+                title="Kesher Payment Page"
+                sandbox="allow-scripts allow-forms allow-same-origin allow-top-navigation allow-popups"
+              />
+            )}
           </div>
 
           <div className="flex flex-col items-center justify-center gap-2 mt-4">
