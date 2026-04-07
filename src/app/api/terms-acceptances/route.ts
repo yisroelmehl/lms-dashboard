@@ -4,30 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
 
-// Pre-load font buffers at module level for reliability
-let hebrewRegularFont: Buffer | null = null;
-let hebrewBoldFont: Buffer | null = null;
-
-function loadFonts() {
-  if (hebrewRegularFont && hebrewBoldFont) return;
-  
-  const possiblePaths = [
-    path.join(process.cwd(), "node_modules", "@embedpdf", "fonts-hebrew", "fonts"),
-    path.join(process.cwd(), "public", "fonts"),
-  ];
-
-  for (const dir of possiblePaths) {
-    const regular = path.join(dir, "NotoSansHebrew-Regular.ttf");
-    const bold = path.join(dir, "NotoSansHebrew-Bold.ttf");
-    if (fs.existsSync(regular) && fs.existsSync(bold)) {
-      hebrewRegularFont = fs.readFileSync(regular);
-      hebrewBoldFont = fs.readFileSync(bold);
-      console.log("[Terms] Loaded Hebrew fonts from:", dir);
-      return;
-    }
-  }
-  console.error("[Terms] Hebrew fonts not found in any path!");
-}
 
 // Gmail API via direct HTTPS fetch (no heavy googleapis package)
 async function getGmailAccessToken(): Promise<string | null> {
@@ -332,134 +308,61 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateTermsPDF(data: {
+async function generateTermsPDF({ content, signature, studentName, courseName, date }: {
+  content: string;
+  signature: string | null;
   studentName: string;
-  studentEmail: string;
   courseName: string;
-  signature: string;
+  date: string;
 }): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margins: { top: 40, bottom: 40, left: 50, right: 50 } });
-    const chunks: Buffer[] = [];
-
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-
-    // Register Hebrew font
-        if (hebrewRegularFont && hebrewBoldFont) {
-      doc.registerFont("Heb", hebrewRegularFont);
-      doc.registerFont("HebBold", hebrewBoldFont);
-    } else {
-      doc.registerFont("Heb", "Helvetica");
-      doc.registerFont("HebBold", "Helvetica-Bold");
-    }
-
-    // PDFKit + fontkit handle BiDi/RTL automatically for TTF Hebrew fonts.
-    // Do NOT pre-reverse — that causes double-reversal and backwards text.
-    // Just pass raw Hebrew strings with align:'right'.
-
-    const W = doc.page.width - 100;
-    const R = { align: "right" as const, width: W };
-    
-    const now = new Date();
-    const day = now.getDate();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-
-    // ── HEADER ──
-    doc.rect(0, 0, doc.page.width, 80).fill("#1a3a6b");
-    doc.font("HebBold").fill("#ffffff");
-    doc.fontSize(20).text("למען ילמדו", 50, 18, R);
-    doc.fontSize(11).text("המכללה להכשרה תורנית", 50, 44, R);
-    doc.fill("#000000");
-    doc.y = 95;
-
-    // ── STUDENT INFO ──
-    const boxY = 95;
-    doc.roundedRect(45, boxY, W + 10, 65, 4)
-      .lineWidth(0.5).fillAndStroke("#f0f4f8", "#c5cdd8");
-    
-    doc.fill("#1a3a6b").font("HebBold").fontSize(12);
-    doc.text("אישור הצטרפות לקורס", 50, boxY + 8, R);
-    
-    doc.fill("#333333").font("Heb").fontSize(9.5);
-    doc.text("תלמיד: " + data.studentName, 50, boxY + 28, R);
-    doc.text("קורס: " + data.courseName, 50, boxY + 42, R);
-    
-    // Date and email using Helvetica (has digits)
-    doc.fill("#666666").font("Helvetica").fontSize(8.5);
-    doc.text(`${day}/${month}/${year}`, 55, boxY + 28, { align: "left", width: 200 });
-    doc.text(data.studentEmail, 55, boxY + 42, { align: "left", width: 250 });
-    
-    doc.fill("#000000");
-    doc.y = boxY + 78;
-
-    // ── TERMS SECTIONS ──
-    let sectionNum = 1;
-    for (const section of TERMS_TEXT_SECTIONS) {
-      if (doc.y > doc.page.height - 90) doc.addPage();
-
-      if (section.title) {
-        doc.moveDown(0.4);
-        doc.font("HebBold").fontSize(10.5).fill("#1a3a6b");
-        doc.text(section.title, 50, doc.y, R);
-        doc.moveTo(50, doc.y + 2).lineTo(doc.page.width - 50, doc.y + 2)
-          .lineWidth(0.3).stroke("#c5cdd8");
-        doc.moveDown(0.2);
-        sectionNum++;
-      }
-
-      doc.font("Heb").fontSize(9).fill("#333333").lineGap(2.5);
-      // Split long text into sentences for better RTL handling
-      const sentences = section.body.split(". ").filter(Boolean);
-      for (const sentence of sentences) {
-        const s = sentence.endsWith(".") ? sentence : sentence + ".";
-        doc.text(s, 50, doc.y, R);
-      }
-      doc.moveDown(0.3);
-    }
-
-    // ── SIGNATURE SECTION ──
-    if (doc.y > doc.page.height - 160) doc.addPage();
-
-    doc.moveDown(0.8);
-    doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y)
-      .lineWidth(1).stroke("#1a3a6b");
-    doc.moveDown(0.6);
-
-    doc.font("HebBold").fontSize(10).fill("#000000");
-    doc.text("אני " + data.studentName + " מצהיר בזאת שקראתי את התקנון בעיון ומסכים לכל תנאיו", 50, doc.y, R);
-    doc.moveDown(0.3);
-    
-    // Date with Helvetica for the numbers
-    doc.font("Heb").fontSize(9).fill("#555555");
-    doc.text("תאריך חתימה:", 50, doc.y, R);
-    doc.font("Helvetica").fontSize(9);
-    doc.text(`${day}/${month}/${year}`, 55, doc.y - 12, { align: "left", width: 100 });
-    doc.moveDown(0.8);
-
-    if (data.signature && data.signature.startsWith("data:")) {
-      try {
-        const sigBuffer = Buffer.from(data.signature.split(",")[1], "base64");
-        doc.font("HebBold").fontSize(9.5).fill("#000000");
-        doc.text("חתימה:", 50, doc.y, R);
-        doc.moveDown(0.3);
-        const sigX = doc.page.width - 240;
-        doc.image(sigBuffer, sigX, doc.y, { width: 170 });
-      } catch {
-        // skip
-      }
-    }
-
-    // ── FOOTER ──
-    const pages = doc.bufferedPageRange();
-    for (let i = pages.start; i < pages.start + pages.count; i++) {
-      doc.switchToPage(i);
-      doc.font("Heb").fontSize(7).fill("#aaaaaa");
-      doc.text("למען ילמדו - המכללה להכשרה תורנית", 50, doc.page.height - 30, { align: "center", width: W });
-    }
-
-    doc.end();
+  const html = `
+    <!DOCTYPE html>
+    <html lang="he" dir="rtl">
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333; padding: 40px; background: #fff; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ddd; padding-bottom: 20px; }
+        .header h1 { font-size: 24px; color: #111; margin-bottom: 10px; }
+        .content { text-align: justify; white-space: pre-wrap; font-size: 15px; }
+        .footer { margin-top: 50px; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .signature-img { max-width: 250px; max-height: 120px; display: block; margin-top: 10px; border-bottom: 1px solid #777; padding-bottom: 5px; }
+        .date { font-size: 14px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>תקנון הרשמה - ${courseName}</h1>
+        <p class="date">תאריך חתימה: ${date}</p>
+      </div>
+      <div class="content">${content.replace(/\n/g, '<br/>')}</div>
+      <div class="footer">
+        <p>אני, <strong>${studentName}</strong>, מצהיר/ה בזאת כי קראתי, הבנתי ואני מסכים/ה לכל תנאי התקנון המפורטים לעיל.</p>
+        <p>חתימה:</p>
+        ${signature ? `<img src="${signature}" class="signature-img" />` : '<p>(לא צורפה חתימה)</p>'}
+        <p><strong>שם החותם:</strong> ${studentName}</p>
+      </div>
+    </body>
+    </html>
+  `;
+  const apiKey = process.env.API2PDF_KEY;
+  if (!apiKey) {
+    console.error("[Terms PDF] API2PDF_KEY is missing! API2PDF_KEY must be in .env");
+    throw new Error('PDF Generation requires Api2Pdf key.');
+  }
+  const res = await fetch('https://v2.api2pdf.com/chrome/pdf/html', {
+    method: 'POST',
+    headers: { 'Authorization': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      html: html, inline: true, fileName: `terms-${studentName}.pdf`,
+      options: { marginTop: 0.5, marginBottom: 0.5, marginLeft: 0.5, marginRight: 0.5, format: "A4" }
+    })
   });
+  if (!res.ok) { throw new Error('PDF Generation via Api2Pdf failed: ' + await res.text()); }
+  const data = await res.json();
+  if (data.success && data.FileUrl) {
+    const pdfRes = await fetch(data.FileUrl);
+    const arrayBuffer = await pdfRes.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } else { throw new Error('PDF Generation failed (invalid response from Api2Pdf).'); }
 }
