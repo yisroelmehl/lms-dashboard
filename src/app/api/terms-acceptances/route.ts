@@ -3,9 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Resend } from "resend";
-import PDFDocument from "pdfkit";
-import path from "path";
-import fs from "fs";
 
 // Pre-load font buffers at module level for reliability
 let hebrewRegularFont: Buffer | null = null;
@@ -171,8 +168,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { token, studentId, firstName, email, courseName, signature, pdfBase64 } = body;
-    console.log("[Terms] Student:", firstName, "Email:", email, "HasSignature:", !!signature, "HasClientPDF:", !!pdfBase64);
+    const { token, studentId, firstName, email, courseName, signature } = body;
+    console.log("[Terms] Student:", firstName, "Email:", email, "HasSignature:", !!signature);
 
     // Auth: either via session (admin dashboard) or via payment token (public terms page)
     if (token) {
@@ -204,20 +201,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
 
-    // Use client-captured PDF if provided, otherwise fall back to server-generated
-    let pdfBuffer: Buffer;
-    if (pdfBase64) {
-      console.log("[Terms] Using client-captured PDF");
-      pdfBuffer = Buffer.from(pdfBase64, "base64");
-    } else {
-      console.log("[Terms] Generating PDF on server (fallback)...");
-      pdfBuffer = await generateTermsPDF({
-        studentName: firstName,
-        studentEmail: email,
-        courseName: courseName || "לא צוין",
-        signature,
-      });
-    }
+    console.log("[Terms] Generating remote PDF via Api2Pdf (Headless Chrome)...");
+    const studentDateStr = new Date().toLocaleDateString('he-IL');
+    const contentText = typeof TERMS_TEXT_SECTIONS !== 'undefined' ? TERMS_TEXT_SECTIONS.join('\\n\\n') : '';
+    const pdfBuffer = await generateTermsPDF({
+      content: contentText,
+      signature,
+      studentName: firstName,
+      courseName: courseName || 'לא צוין',
+      date: studentDateStr,
+    });
     console.log("[Terms] PDF ready, size:", pdfBuffer.length, "bytes");
 
     const fileName = `terms-${studentId}-${Date.now()}.pdf`;
@@ -354,8 +347,7 @@ async function generateTermsPDF(data: {
     doc.on("error", reject);
 
     // Register Hebrew font
-    loadFonts();
-    if (hebrewRegularFont && hebrewBoldFont) {
+        if (hebrewRegularFont && hebrewBoldFont) {
       doc.registerFont("Heb", hebrewRegularFont);
       doc.registerFont("HebBold", hebrewBoldFont);
     } else {

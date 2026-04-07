@@ -296,12 +296,20 @@ export function PaymentRegistrationForm({
     if (!kesherPaymentPageId) return "";
     const params = new URLSearchParams();
     params.set("name", `${formData.firstName} ${formData.lastName}`);
-    params.set("total", String(effectiveFinalAmount));
-    params.set("currency", currency === "USD" ? "2" : "1");
+    
     if (numPayments > 1) {
+      // For installments in Kesher: use standing order (credittype=10)
+      // and send the single monthly amount instead of total amount
+      const monthlyAmount = (effectiveFinalAmount / numPayments).toFixed(2);
+      params.set("total", monthlyAmount);
       params.set("numpayment", String(numPayments));
-      params.set("credittype", "8"); // 8 = installments mode in Kesher
+      params.set("credittype", "10"); // 10 = standing order / payments without catching limit
+    } else {
+      params.set("total", String(effectiveFinalAmount));
+      params.set("credittype", "1"); // 1 = regular payment
     }
+    
+    params.set("currency", currency === "USD" ? "2" : "1");
     if (formData.phone) params.set("tel", formData.phone);
     if (formData.email) params.set("mail", formData.email);
     params.set("firstName", formData.firstName);
