@@ -292,21 +292,24 @@ export function PaymentRegistrationForm({
   }
 
   // Build Kesher payment URL with success/failure redirect URLs
+  // Use a dedicated installments page (325980) when numPayments > 1
+  const KESHER_INSTALLMENTS_PAGE_ID = "325980";
+
   const buildPaymentUrl = () => {
     if (!kesherPaymentPageId) return "";
     const params = new URLSearchParams();
     params.set("name", `${formData.firstName} ${formData.lastName}`);
     
+    // Choose the correct Kesher page: installments page vs single-payment page
+    let pageId = kesherPaymentPageId;
+    
     if (numPayments > 1) {
-      // For installments in Kesher: use standing order (credittype=10)
-      // and send the single monthly amount instead of total amount
-      const monthlyAmount = (effectiveFinalAmount / numPayments).toFixed(2);
-      params.set("total", monthlyAmount);
+      // Use the dedicated installments page that only shows installment options
+      pageId = KESHER_INSTALLMENTS_PAGE_ID;
+      params.set("total", String(effectiveFinalAmount));
       params.set("numpayment", String(numPayments));
-      params.set("credittype", "10"); // 10 = standing order / payments without catching limit
     } else {
       params.set("total", String(effectiveFinalAmount));
-      params.set("credittype", "1"); // 1 = regular payment
     }
     
     params.set("currency", currency === "USD" ? "2" : "1");
@@ -319,7 +322,7 @@ export function PaymentRegistrationForm({
     // This ensures our webhook receives the token even via action path
     params.set("addactiondata", token);
     params.set("hidetotaldetails", "true"); // Clean iframe look
-    return `https://ultra.kesherhk.info/external/paymentPage/${kesherPaymentPageId}?${params.toString()}`;
+    return `https://ultra.kesherhk.info/external/paymentPage/${pageId}?${params.toString()}`;
   };
 
   return (
