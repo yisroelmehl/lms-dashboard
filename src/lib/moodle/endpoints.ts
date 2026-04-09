@@ -108,11 +108,9 @@ export async function getUserByEmail(email: string): Promise<MoodleUser | null> 
   }
 }
 
-const USERS_MANAGER_TOKEN = process.env.MOODLE_USER_MANAGER_TOKEN || "349078ea850295700e45ba417a4d216e";
-
 /**
  * Creates a new user in Moodle with the specified details.
- * We use the local_usersmanager plugin's REST API.
+ * Uses the standard core_user_create_users Moodle API.
  */
 export async function createUser(data: {
   username: string;
@@ -123,42 +121,49 @@ export async function createUser(data: {
   auth?: string;
 }): Promise<number | null> {
   try {
-    const result = await callMoodleApi<any>("local_usersmanager_create_user", {
-      username: data.username.toLowerCase().trim(),
-      password: data.password || "Kalad@2026!",
-      firstname: data.firstname,
-      lastname: data.lastname,
-      email: data.email.toLowerCase().trim()
-    }, 3, USERS_MANAGER_TOKEN);
-    console.log("Moodle createUser (usersmanager) result:", JSON.stringify(result));
+    const params: Record<string, string | number> = {
+      "users[0][username]": data.username.toLowerCase().trim(),
+      "users[0][password]": data.password || "Kalad@2026!",
+      "users[0][firstname]": data.firstname,
+      "users[0][lastname]": data.lastname,
+      "users[0][email]": data.email.toLowerCase().trim(),
+    };
     
-    // The plugin returns { id: 123, username: '...', success: true, message: '...' }
-    if (result && result.success && result.id) {
-      return result.id;
+    if (data.auth) {
+      params["users[0][auth]"] = data.auth;
+    }
+
+    const result = await callMoodleApi<any[]>("core_user_create_users", params);
+    console.log("Moodle core_user_create_users result:", JSON.stringify(result));
+    
+    // Moodle standard API returns an array of created users: [{ id: 123, username: '...' }]
+    if (Array.isArray(result) && result.length > 0 && result[0].id) {
+      return result[0].id;
     }
     return null;
   } catch (error) {
-    console.error("Moodle Error (createUser - usersmanager):", error instanceof Error ? error.message : error);
+    console.error("Moodle Error (core_user_create_users):", error instanceof Error ? error.message : error);
     return null;
   }
 }
 
 /**
  * Enrolls a Moodle user into a specific course.
- * We use the local_usersmanager plugin's REST API.
+ * Uses the standard enrol_manual_enrol_users Moodle API.
  * roleid: 5 is typically 'student' in Moodle.
  */
 export async function enrolUser(userId: number, courseId: number, roleId = 5): Promise<boolean> {
   try {
-    const result = await callMoodleApi<any>("local_usersmanager_enrol_user", {
-      userid: userId,
-      courseid: courseId,
-      roleid: roleId,
-    }, 3, USERS_MANAGER_TOKEN);
-    console.log("Moodle enrolUser (usersmanager) result:", JSON.stringify(result));
+    const result = await callMoodleApi<any>("enrol_manual_enrol_users", {
+      "enrolments[0][userid]": userId,
+      "enrolments[0][courseid]": courseId,
+      "enrolments[0][roleid]": roleId,
+    });
+    console.log("Moodle enrol_manual_enrol_users result:", JSON.stringify(result));
+    // The default enrol API returns null on success
     return true;
   } catch (error) {
-    console.error("Moodle Error (enrolUser - usersmanager):", error instanceof Error ? error.message : error);
+    console.error("Moodle Error (enrol_manual_enrol_users):", error instanceof Error ? error.message : error);
     return false;
   }
 }
