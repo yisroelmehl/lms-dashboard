@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[Terms] Generating remote PDF via Api2Pdf (Headless Chrome)...");
     const studentDateStr = new Date().toLocaleDateString('he-IL');
-    const contentText = typeof TERMS_TEXT_SECTIONS !== 'undefined' ? TERMS_TEXT_SECTIONS.join('\\n\\n') : '';
+    const contentText = TERMS_TEXT_SECTIONS.map(s => (s.title ? s.title + '\n' : '') + s.body).join('\n\n');
     const pdfBuffer = await generateTermsPDF({
       content: contentText,
       signature,
@@ -315,27 +315,35 @@ async function generateTermsPDF({ content, signature, studentName, courseName, d
   courseName: string;
   date: string;
 }): Promise<Buffer> {
+  // Build structured HTML sections from TERMS_TEXT_SECTIONS
+  const sectionsHtml = TERMS_TEXT_SECTIONS.map(s => {
+    const titleHtml = s.title ? `<h3 style="color:#1e40af;margin-top:20px;margin-bottom:8px;">${s.title}</h3>` : '';
+    return `${titleHtml}<p style="text-align:justify;margin-bottom:12px;">${s.body}</p>`;
+  }).join('');
+
   const html = `
     <!DOCTYPE html>
     <html lang="he" dir="rtl">
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333; padding: 40px; background: #fff; }
-        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ddd; padding-bottom: 20px; }
-        .header h1 { font-size: 24px; color: #111; margin-bottom: 10px; }
-        .content { text-align: justify; white-space: pre-wrap; font-size: 15px; }
-        .footer { margin-top: 50px; background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.7; color: #333; padding: 40px; background: #fff; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1e40af; padding-bottom: 20px; }
+        .header h1 { font-size: 22px; color: #1e40af; margin-bottom: 6px; }
+        .header h2 { font-size: 16px; color: #555; font-weight: normal; margin: 0; }
+        .content { margin-bottom: 30px; }
+        .footer { margin-top: 40px; background: #f8fafc; padding: 24px; border-radius: 8px; border: 1px solid #e2e8f0; }
         .signature-img { max-width: 250px; max-height: 120px; display: block; margin-top: 10px; border-bottom: 1px solid #777; padding-bottom: 5px; }
-        .date { font-size: 14px; color: #666; }
+        .date { font-size: 13px; color: #888; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>תקנון הרשמה - ${courseName}</h1>
+        <h1>תקנון הרשמה</h1>
+        <h2>${courseName} - המכללה להכשרה תורנית "למען ילמדו"</h2>
         <p class="date">תאריך חתימה: ${date}</p>
       </div>
-      <div class="content">${content.replace(/\n/g, '<br/>')}</div>
+      <div class="content">${sectionsHtml}</div>
       <div class="footer">
         <p>אני, <strong>${studentName}</strong>, מצהיר/ה בזאת כי קראתי, הבנתי ואני מסכים/ה לכל תנאי התקנון המפורטים לעיל.</p>
         <p>חתימה:</p>
