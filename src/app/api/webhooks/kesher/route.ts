@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { autoEnrollStudentInMoodle } from "@/lib/services/moodle-enrollment";
 import { submitToJotform } from "@/lib/services/jotform";
 import { createBaldarShipment } from "@/lib/shipping/yahav-baldar";
+import { processTermsAcceptance } from "@/lib/services/terms-pdf";
 
 /**
  * Kesher Payment Page Callback Handler
@@ -171,24 +172,20 @@ async function processPayment(
         const sig = regData.signature;
         if (sig) {
           const courseName = link.course?.fullNameOverride || link.course?.fullNameMoodle || link.courseName || "";
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lms-dashboard-qx2u.onrender.com";
-          fetch(`${appUrl}/api/terms-acceptances`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              token: link.token,
-              studentId: link.studentId,
-              firstName: regData.firstName || link.firstName,
-              email: regData.email || link.email || "",
-              courseName,
-              signature: sig,
-            }),
-          }).then(r => {
-            if (r.ok) console.log(`[Terms] Welcome email sent after payment for ${link.firstName}`);
-            else console.error(`[Terms] Failed to send after payment:`, r.status);
+          processTermsAcceptance({
+            studentId: link.studentId,
+            firstName: regData.firstName || link.firstName,
+            email: regData.email || link.email || "",
+            courseName,
+            signature: sig,
+          }).then(result => {
+            if (result.success) console.log(`[Terms] PDF+emails completed for ${link.firstName}`);
+            else console.error(`[Terms] Failed:`, result.error);
           }).catch(err => {
-            console.error(`[Terms] Error sending welcome email:`, err);
+            console.error(`[Terms] Error:`, err);
           });
+        } else {
+          console.log("[Terms] No signature found in registrationData, skipping PDF generation");
         }
       }
     }
