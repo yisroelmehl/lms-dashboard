@@ -305,8 +305,10 @@ export function PaymentRegistrationForm({
     
     if (numPayments > 1) {
       // Use the dedicated installments page that only shows installment options
+      // Kesher expects 'total' as the per-installment amount, not the grand total
       pageId = KESHER_INSTALLMENTS_PAGE_ID;
-      params.set("total", String(effectiveFinalAmount));
+      const perPayment = (effectiveFinalAmount / numPayments).toFixed(2);
+      params.set("total", perPayment);
       params.set("numpayment", String(numPayments));
     } else {
       params.set("total", String(effectiveFinalAmount));
