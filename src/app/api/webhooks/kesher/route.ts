@@ -224,11 +224,32 @@ type LinkWithCourse = {
   courseId: string | null;
   salesAgentId: string | null;
   finalAmount: number;
+  numPayments: number;
   currency: string;
   status: string;
   registrationData: Record<string, unknown> | null;
+  termsAcceptedAt: Date | null;
   course: { fullNameMoodle: string; fullNameOverride: string | null } | null;
 };
+
+// Validate that the payment amount matches expected (with tolerance for rounding)
+function validatePaymentAmount(link: LinkWithCourse, receivedAmount: number): { expected: number } | null {
+  // For installments, Kesher charges per-payment amount
+  const expectedAmount = link.numPayments > 1
+    ? Math.round((link.finalAmount / link.numPayments) * 100) / 100
+    : link.finalAmount;
+
+  // Allow ±0.02 tolerance for rounding differences
+  const diff = Math.abs(receivedAmount - expectedAmount);
+  if (diff > 0.02) {
+    return { expected: expectedAmount };
+  }
+  return null;
+}
+
+const linkSelect = {
+  include: { course: { select: { fullNameMoodle: true, fullNameOverride: true } } },
+} as const;
 
 // Find payment link by token, or fall back to amount matching
 async function findLink(token: string | null, amount: number | null): Promise<LinkWithCourse | null> {
@@ -236,7 +257,7 @@ async function findLink(token: string | null, amount: number | null): Promise<Li
   if (token) {
     const link = await prisma.paymentLink.findUnique({
       where: { token },
-      include: { course: { select: { fullNameMoodle: true, fullNameOverride: true } } },
+      ...linkSelect,
     });
     if (link) return link as LinkWithCourse;
   }
@@ -245,7 +266,7 @@ async function findLink(token: string | null, amount: number | null): Promise<Li
   if (amount && amount > 0) {
     const candidates = await prisma.paymentLink.findMany({
       where: { status: "opened", finalAmount: amount },
-      include: { course: { select: { fullNameMoodle: true, fullNameOverride: true } } },
+      ...linkSelect,
       orderBy: { createdAt: "desc" },
       take: 1,
     });
@@ -313,6 +334,46 @@ export async function POST(request: Request) {
   }
 
   const isSuccess = inferSuccess(isSucces, ref, docNumber);
+
+  // Validate payment amount matches expected
+  if (isSuccess && amount != null) {
+    const amountMismatch = validatePaymentAmount(link, amount);
+    if (amountMismatch) {
+      console.error(`[Payment Validation] Amount mismatch: expected ${amountMismatch.expected}, got ${amount} for link ${link.id}`);
+      await prisma.notification.create({
+        data: {
+          type: "payment_error",
+          title: "שגיאה: סכום תשלום לא תואם",
+          message: `${link.firstName} ${link.lastName} שילם ${amount} ${link.currency} במקום ${amountMismatch.expected} ${link.currency}. העסקה לא אושרה אוטומטית.`,
+          metadata: {
+            paymentLinkId: link.id,
+            expectedAmount: amountMismatch.expected,
+            receivedAmount: amount,
+            transactionNumber,
+          },
+        },
+      });
+      return NextResponse.json({
+        error: "amount_mismatch",
+        expected: amountMismatch.expected,
+        received: amount,
+      }, { status: 400 });
+    }
+  }
+
+  // Validate terms were accepted before processing
+  if (isSuccess && !link.termsAcceptedAt) {
+    console.warn(`[Payment Validation] Terms not accepted for link ${link.id}, proceeding but flagging`);
+    await prisma.notification.create({
+      data: {
+        type: "payment_error",
+        title: "תשלום ללא חתימת תקנון",
+        message: `${link.firstName} ${link.lastName} ביצע תשלום אך לא חתם על תקנון. יש לטפל ידנית.`,
+        metadata: { paymentLinkId: link.id },
+      },
+    });
+  }
+
   const finalAmount = amount ?? link.finalAmount;
 
   await processPayment(link, {
@@ -350,6 +411,31 @@ export async function GET(request: Request) {
   const isSuccessInfer = inferSuccess(isSucces, ref, docNumber);
 
   if (link && link.status !== "paid") {
+    // Validate payment amount on GET too
+    if (isSuccessInfer && amount != null) {
+      const amountMismatch = validatePaymentAmount(link, amount);
+      if (amountMismatch) {
+        console.error(`[Payment Validation] GET Amount mismatch: expected ${amountMismatch.expected}, got ${amount} for link ${link.id}`);
+        await prisma.notification.create({
+          data: {
+            type: "payment_error",
+            title: "שגיאה: סכום תשלום לא תואם",
+            message: `${link.firstName} ${link.lastName} שילם ${amount} ${link.currency} במקום ${amountMismatch.expected} ${link.currency}. העסקה לא אושרה אוטומטית.`,
+            metadata: {
+              paymentLinkId: link.id,
+              expectedAmount: amountMismatch.expected,
+              receivedAmount: amount,
+              transactionNumber,
+            },
+          },
+        });
+        const redirectToken = adddata || "";
+        return NextResponse.redirect(
+          new URL(`/pay/${redirectToken}?status=amount_mismatch`, request.url)
+        );
+      }
+    }
+
     const finalAmount = amount ?? link.finalAmount;
 
     await processPayment(link, {
