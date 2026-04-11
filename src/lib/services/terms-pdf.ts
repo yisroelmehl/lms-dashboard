@@ -143,11 +143,13 @@ export async function generateTermsPDF(signature: string | null, studentName: st
   });
   if (!res.ok) throw new Error('Api2Pdf failed: ' + await res.text());
   const data = await res.json();
+  console.log("[Terms PDF] Api2Pdf response:", JSON.stringify(data));
   if (data.success && data.FileUrl) {
     const pdfRes = await fetch(data.FileUrl);
+    if (!pdfRes.ok) throw new Error(`Failed to download PDF from ${data.FileUrl}: ${pdfRes.status}`);
     return Buffer.from(await pdfRes.arrayBuffer());
   }
-  throw new Error('Api2Pdf invalid response');
+  throw new Error('Api2Pdf invalid response: ' + JSON.stringify(data));
 }
 
 /**
