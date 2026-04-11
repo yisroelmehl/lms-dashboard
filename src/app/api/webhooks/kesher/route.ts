@@ -167,19 +167,25 @@ async function processPayment(
       }
 
       // Generate terms PDF + send welcome email (after payment confirmed)
-      if (link.studentId && link.registrationData) {
-        const regData = link.registrationData as Record<string, string>;
+      // Re-fetch link to get latest registrationData (may have been updated after findLink was called)
+      const freshLink = await prisma.paymentLink.findUnique({
+        where: { id: link.id },
+        select: { registrationData: true, studentId: true, firstName: true, email: true, courseName: true, course: { select: { fullNameOverride: true, fullNameMoodle: true } } },
+      });
+      const regData = (freshLink?.registrationData as Record<string, string>) || null;
+      console.log("[Terms] Fresh link data:", { hasRegData: !!regData, hasSignature: !!regData?.signature, studentId: freshLink?.studentId });
+      if (freshLink?.studentId && regData) {
         const sig = regData.signature;
         if (sig) {
-          const courseName = link.course?.fullNameOverride || link.course?.fullNameMoodle || link.courseName || "";
+          const courseName = freshLink.course?.fullNameOverride || freshLink.course?.fullNameMoodle || freshLink.courseName || "";
           processTermsAcceptance({
-            studentId: link.studentId,
-            firstName: regData.firstName || link.firstName,
-            email: regData.email || link.email || "",
+            studentId: freshLink.studentId,
+            firstName: regData.firstName || freshLink.firstName,
+            email: regData.email || freshLink.email || "",
             courseName,
             signature: sig,
           }).then(result => {
-            if (result.success) console.log(`[Terms] PDF+emails completed for ${link.firstName}`);
+            if (result.success) console.log(`[Terms] PDF+emails completed for ${freshLink.firstName}`);
             else console.error(`[Terms] Failed:`, result.error);
           }).catch(err => {
             console.error(`[Terms] Error:`, err);
@@ -187,6 +193,8 @@ async function processPayment(
         } else {
           console.log("[Terms] No signature found in registrationData, skipping PDF generation");
         }
+      } else {
+        console.log("[Terms] No registrationData or studentId found, skipping PDF generation");
       }
     }
 
