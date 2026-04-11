@@ -6,15 +6,17 @@ interface PageProps {
   searchParams: Promise<{
     token?: string;
     adddata?: string;
+    addData?: string;
     transactionNumber?: string;
   }>;
 }
 
 export default async function PaymentSuccessPage({ searchParams }: PageProps) {
-  const { token, adddata, transactionNumber } = await searchParams;
+  const params = await searchParams;
+  const transactionNumber = params.transactionNumber;
 
-  // The token can come from our custom redirect ?token=... or directly from Kesher ?adddata=...
-  const linkToken = token || adddata;
+  // Kesher sends addData (capital D), our code uses token or adddata
+  const linkToken = params.token || params.adddata || params.addData;
 
   if (!linkToken) {
     return (
