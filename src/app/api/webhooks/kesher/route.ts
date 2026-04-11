@@ -313,18 +313,21 @@ export async function POST(request: Request) {
     total,
     obligationRef,
     adddata,
+    addData,
     ref,
     docNumber,
     receiptLink,
   } = body as Record<string, string>;
 
+  // Kesher sometimes sends addData (capital D) and sometimes adddata (lowercase)
+  const token = adddata || addData || null;
   const amount = total ? parseFloat(total) : null;
-  const link = await findLink(adddata || null, amount);
+  const link = await findLink(token, amount);
 
   if (!link) {
-    console.error("Kesher webhook POST: no matching payment link", { adddata, total });
+    console.error("Kesher webhook POST: no matching payment link", { token, total });
     return NextResponse.json(
-      { error: "link not found", receivedParams: { adddata, total, transactionNumber, ref } },
+      { error: "link not found", receivedParams: { token, total, transactionNumber, ref } },
       { status: 404 }
     );
   }
@@ -396,7 +399,8 @@ export async function GET(request: Request) {
 
   console.log("Kesher webhook GET:", Object.fromEntries(searchParams.entries()));
 
-  const adddata = searchParams.get("adddata");
+  // Kesher sometimes sends addData (capital D) and sometimes adddata (lowercase)
+  const adddata = searchParams.get("adddata") || searchParams.get("addData");
   const isSucces = searchParams.get("isSucces");
   const transactionNumber = searchParams.get("transactionNumber");
   const total = searchParams.get("total");
@@ -453,7 +457,7 @@ export async function GET(request: Request) {
   // Redirect to success page to show result
   if (isSuccessInfer || link?.status === "paid") {
     return NextResponse.redirect(
-      new URL(`/pay/success?token=${adddata}&transactionNumber=${transactionNumber}`, request.url)
+      new URL(`/pay/success?token=${adddata || ""}&transactionNumber=${transactionNumber}`, request.url)
     );
   }
 
