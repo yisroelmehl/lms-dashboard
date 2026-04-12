@@ -418,6 +418,17 @@ export async function GET(request: Request) {
   const amount = total ? parseFloat(total) : null;
   const link = await findLink(adddata, amount);
 
+  console.log("[Webhook GET] findLink result:", { 
+    found: !!link, 
+    linkId: link?.id, 
+    status: link?.status, 
+    token: adddata,
+    amount,
+    finalAmount: link?.finalAmount,
+    studentId: link?.studentId,
+    courseId: link?.courseId,
+  });
+
   const isSuccessInfer = inferSuccess(isSucces, ref, docNumber);
 
   if (link && link.status !== "paid") {
