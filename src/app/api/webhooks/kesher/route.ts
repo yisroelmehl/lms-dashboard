@@ -242,10 +242,8 @@ type LinkWithCourse = {
 
 // Validate that the payment amount matches expected (with tolerance for rounding)
 function validatePaymentAmount(link: LinkWithCourse, receivedAmount: number): { expected: number } | null {
-  // For installments, Kesher charges per-payment amount
-  const expectedAmount = link.numPayments > 1
-    ? Math.round((link.finalAmount / link.numPayments) * 100) / 100
-    : link.finalAmount;
+  // Kesher always sends the TOTAL amount in the webhook, not per-payment
+  const expectedAmount = link.finalAmount;
 
   // Allow ±0.02 tolerance for rounding differences
   const diff = Math.abs(receivedAmount - expectedAmount);
