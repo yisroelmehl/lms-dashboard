@@ -78,6 +78,7 @@ export default async function CourseSettingsPage({
 
         <CourseSyllabusManager
           courseId={course.id}
+          moodleCourseId={course.moodleCourseId}
           semesters={course.semesters}
           initialItems={course.syllabusItems}
         />

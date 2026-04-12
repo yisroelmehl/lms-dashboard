@@ -24,12 +24,14 @@ interface SyllabusItem {
 
 interface CourseSyllabusManagerProps {
   courseId: string;
+  moodleCourseId: number | null;
   semesters: Semester[];
   initialItems: SyllabusItem[];
 }
 
 export function CourseSyllabusManager({
   courseId,
+  moodleCourseId,
   semesters,
   initialItems,
 }: CourseSyllabusManagerProps) {
@@ -213,6 +215,7 @@ export function CourseSyllabusManager({
                 <option value="lesson">שיעור / מפגש</option>
                 <option value="exam">מבחן</option>
                 <option value="assignment">מטלה / תרגיל</option>
+                <option value="quiz">חידון</option>
               </select>
             </div>
             <div>
@@ -307,6 +310,8 @@ export function CourseSyllabusManager({
       {publishItem && (
         <PublishToMoodleModal
           syllabusItem={publishItem}
+          courseId={courseId}
+          moodleCourseId={moodleCourseId}
           onClose={() => setPublishItem(null)}
           onPublished={() => {
             setItems(items.map((i) =>
@@ -322,8 +327,8 @@ export function CourseSyllabusManager({
 }
 
 function SyllabusItemRow({ item, onEdit, onDelete, onPublish, loading }: { item: SyllabusItem, onEdit: (i: SyllabusItem) => void, onDelete: (id: string) => void, onPublish: (i: SyllabusItem) => void, loading: boolean }) {
-  const icon = item.type === "lesson" ? "📹" : item.type === "exam" ? "📝" : "📄";
-  const typeLabel = item.type === "lesson" ? "שיעור" : item.type === "exam" ? "מבחן" : "מטלה";
+  const icon = item.type === "lesson" ? "📹" : item.type === "exam" ? "📝" : item.type === "quiz" ? "❓" : "📄";
+  const typeLabel = item.type === "lesson" ? "שיעור" : item.type === "exam" ? "מבחן" : item.type === "quiz" ? "חידון" : "מטלה";
   const canPublish = (item.type === "exam" || item.type === "assignment" || item.type === "quiz") && !item.publishedToMoodle;
 
   return (
