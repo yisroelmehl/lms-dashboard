@@ -229,6 +229,7 @@ model Student {
   onboardings         StudentOnboarding[]
   shipments           Shipment[]
   selfStudyEnrollments SelfStudyEnrollment[]
+  submissions          StudentSubmission[]
 
   @@map("students")
 }
@@ -318,6 +319,7 @@ model Course {
   paymentLinks      PaymentLink[]
   coupons           Coupon[]
   selfStudyEnrollments SelfStudyEnrollment[]
+  submissions          StudentSubmission[]
 
   @@map("courses")
 }
@@ -447,6 +449,12 @@ model SyllabusItem {
   moodleActivityType String?
   isMapped           Boolean @default(false)
   
+  // Publish to Moodle (embed iframe)
+  publishedToMoodle  Boolean @default(false)
+  moodlePublishedCourseId Int?    // Moodle course ID where activity was planted
+  moodlePublishedAt  DateTime?
+  embedToken         String?  @unique // JWT signing seed for embed URLs
+  
   // Specific to lessons (מפגשים)
   lecturerId         String?
   lecturer           Lecturer? @relation("LessonLecturer", fields: [lecturerId], references: [id])
@@ -460,6 +468,7 @@ model SyllabusItem {
   semester            Semester?            @relation(fields: [semesterId], references: [id])
   grades              Grade[]
   activityCompletions ActivityCompletion[]
+  submissions         StudentSubmission[]
 
   @@map("syllabus_items")
 }
@@ -1185,4 +1194,30 @@ model SelfStudyContactLog {
   
   @@map("self_study_contact_logs")
   @@index([selfStudyEnrollmentId])
+}
+
+// ============================================================
+// STUDENT SUBMISSIONS (מטלות שהוגשו דרך embed iframe)
+// ============================================================
+
+model StudentSubmission {
+  id             String  @id @default(cuid())
+  studentId      String
+  syllabusItemId String
+  courseId        String
+
+  answers     Json      // תשובות התלמיד
+  grade       Float?    // ציון (nullable עד שמציינים)
+  feedback    String?   // משוב מהמרצה/מערכת
+  submittedAt DateTime  @default(now())
+  gradedAt    DateTime?
+
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  syllabusItem SyllabusItem @relation(fields: [syllabusItemId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, syllabusItemId])
+  @@map("student_submissions")
+  @@index([courseId])
+  @@index([syllabusItemId])
 }

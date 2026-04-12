@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CourseSyllabusMappingModal } from "./course-syllabus-mapping-modal";
+import { PublishToMoodleModal } from "./publish-to-moodle-modal";
 
 interface Semester {
   id: string;
@@ -18,6 +19,7 @@ interface SyllabusItem {
   isMapped: boolean;
   moodleCmId: number | null;
   moodleActivityType: string | null;
+  publishedToMoodle: boolean;
 }
 
 interface CourseSyllabusManagerProps {
@@ -48,6 +50,7 @@ export function CourseSyllabusManager({
   });
 
   const [isMappingOpen, setIsMappingOpen] = useState(false);
+  const [publishItem, setPublishItem] = useState<SyllabusItem | null>(null);
   const [moodleActivities, setMoodleActivities] = useState<{ cmid: number; name: string; modname: string; sectionName: string }[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
 
@@ -268,7 +271,7 @@ export function CourseSyllabusManager({
             <div>
               <h4 className="text-sm font-bold text-slate-700 border-b pb-2 mb-2">ללא שיוך לסמסטר</h4>
               <div className="space-y-2">
-                {groupedItems["unassigned"].map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} loading={loading} />)}
+                {groupedItems["unassigned"].map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} onPublish={setPublishItem} loading={loading} />)}
               </div>
             </div>
           )}
@@ -281,7 +284,7 @@ export function CourseSyllabusManager({
               <div key={semester.id}>
                 <h4 className="text-sm font-bold text-blue-800 border-b pb-2 mb-2">{semester.name}</h4>
                 <div className="space-y-2">
-                  {semItems.map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} loading={loading} />)}
+                  {semItems.map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} onPublish={setPublishItem} loading={loading} />)}
                 </div>
               </div>
             );
@@ -299,13 +302,29 @@ export function CourseSyllabusManager({
         courseId={courseId}
         syllabusItems={items}
       />
+
+      {/* Publish to Moodle Modal */}
+      {publishItem && (
+        <PublishToMoodleModal
+          syllabusItem={publishItem}
+          onClose={() => setPublishItem(null)}
+          onPublished={() => {
+            setItems(items.map((i) =>
+              i.id === publishItem.id ? { ...i, publishedToMoodle: true } : i
+            ));
+            setPublishItem(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function SyllabusItemRow({ item, onEdit, onDelete, loading }: { item: SyllabusItem, onEdit: (i: SyllabusItem) => void, onDelete: (id: string) => void, loading: boolean }) {
+function SyllabusItemRow({ item, onEdit, onDelete, onPublish, loading }: { item: SyllabusItem, onEdit: (i: SyllabusItem) => void, onDelete: (id: string) => void, onPublish: (i: SyllabusItem) => void, loading: boolean }) {
   const icon = item.type === "lesson" ? "📹" : item.type === "exam" ? "📝" : "📄";
   const typeLabel = item.type === "lesson" ? "שיעור" : item.type === "exam" ? "מבחן" : "מטלה";
+  const canPublish = (item.type === "exam" || item.type === "assignment" || item.type === "quiz") && !item.publishedToMoodle;
 
   return (
     <div className="flex items-center justify-between p-3 border rounded-md hover:bg-slate-50 transition-colors">
@@ -320,10 +339,16 @@ function SyllabusItemRow({ item, onEdit, onDelete, loading }: { item: SyllabusIt
             ) : (
               <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">טרם מופה</span>
             )}
+            {item.publishedToMoodle && (
+              <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">פורסם למודל 🚀</span>
+            )}
           </div>
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {canPublish && (
+          <button onClick={() => onPublish(item)} disabled={loading} className="text-purple-600 text-sm hover:underline disabled:opacity-50">פרסם למודל</button>
+        )}
         <button onClick={() => onEdit(item)} disabled={loading} className="text-blue-600 text-sm hover:underline disabled:opacity-50">ערוך</button>
         <button onClick={() => onDelete(item.id)} disabled={loading} className="text-red-500 text-sm hover:underline disabled:opacity-50">מחק</button>
       </div>

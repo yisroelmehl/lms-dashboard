@@ -162,3 +162,68 @@ export async function enrolUser(userId: number, courseId: number, roleId = 5): P
     return false;
   }
 }
+
+// === Course Content & Module Creation ===
+
+export interface MoodleCourseSection {
+  id: number;
+  name: string;
+  section: number;
+  summary: string;
+  visible: number;
+  modules: { id: number; name: string; modname: string; url?: string }[];
+}
+
+/**
+ * Get all sections (topics/weeks) of a Moodle course
+ */
+export async function getCourseSections(courseId: number): Promise<MoodleCourseSection[]> {
+  return callMoodleApi<MoodleCourseSection[]>("core_course_get_contents", {
+    courseid: courseId,
+  });
+}
+
+/**
+ * Create a URL resource in a Moodle course section.
+ * This plants an iframe-like link students can click to open our embed page.
+ */
+export async function createUrlModule(params: {
+  courseId: number;
+  sectionNum: number;
+  name: string;
+  url: string;
+  description?: string;
+}): Promise<{ cmid: number } | null> {
+  try {
+    // First create the URL module via core_course_create_modules isn't standard.
+    // Use core_course_edit_module or local_usersmanager if available.
+    // Safest: use core_course_create_modules (Moodle 4.0+) or mod_url approach.
+    // We'll use the content creation API:
+    const result = await callMoodleApi<{ id: number; cmid: number }[]>(
+      "core_course_create_modules",
+      {
+        "modules[0][course]": params.courseId,
+        "modules[0][module]": "url",
+        "modules[0][section]": params.sectionNum,
+        "modules[0][name]": params.name,
+        "modules[0][visible]": 1,
+        "modules[0][options][0][name]": "externalurl",
+        "modules[0][options][0][value]": params.url,
+        ...(params.description
+          ? {
+              "modules[0][options][1][name]": "intro",
+              "modules[0][options][1][value]": params.description,
+            }
+          : {}),
+      }
+    );
+
+    if (result && result.length > 0 && result[0].cmid) {
+      return { cmid: result[0].cmid };
+    }
+    return null;
+  } catch (error) {
+    console.error("Moodle Error (createUrlModule):", error);
+    throw error;
+  }
+}
