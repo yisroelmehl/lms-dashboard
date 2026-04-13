@@ -6,6 +6,7 @@ import { StudentAdminClassification } from "@/components/students/student-admin-
 import { StudentSemesterEnrollments } from "@/components/students/student-semester-enrollments";
 import { StudentTasks } from "@/components/tasks/student-tasks";
 import { StudentMessageActions } from "@/components/students/student-message-actions";
+import { StudentSubmissions } from "@/components/students/student-submissions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
@@ -437,6 +438,9 @@ export default async function StudentDetailPage({
           </table>
         )}
       </div>
+
+      {/* AI Submissions */}
+      <StudentSubmissions studentId={id} />
 
       {/* Tasks */}
       <StudentTasks 

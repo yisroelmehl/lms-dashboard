@@ -77,6 +77,7 @@ export default async function EmbedAssignmentPage({
         maxScore: item.maxScore,
         courseId: item.courseId,
         courseName,
+        quizData: item.quizData as any,
       }}
       student={{
         id: student.id,

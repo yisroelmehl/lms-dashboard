@@ -78,5 +78,45 @@ export async function PATCH(
     },
   });
 
+  // Also upsert the Grade record so it appears in student grade tables
+  if (grade != null) {
+    const sub = await prisma.studentSubmission.findUnique({
+      where: { id: submissionId },
+      select: { studentId: true, courseId: true, syllabusItemId: true, syllabusItem: { select: { maxScore: true } } },
+    });
+    if (sub) {
+      const numericGrade = parseFloat(grade);
+      const maxScore = sub.syllabusItem.maxScore || 100;
+      const percentage = Math.round((numericGrade / maxScore) * 100);
+      await prisma.grade.upsert({
+        where: {
+          studentId_syllabusItemId_gradeType: {
+            studentId: sub.studentId,
+            syllabusItemId: sub.syllabusItemId,
+            gradeType: "regular",
+          },
+        },
+        update: {
+          scoreOverride: numericGrade,
+          scoreSource: "manual",
+          maxScore,
+          percentage,
+          comments: feedback || undefined,
+        },
+        create: {
+          studentId: sub.studentId,
+          courseId: sub.courseId,
+          syllabusItemId: sub.syllabusItemId,
+          scoreOverride: numericGrade,
+          scoreSource: "manual",
+          maxScore,
+          percentage,
+          gradeType: "regular",
+          comments: feedback || undefined,
+        },
+      });
+    }
+  }
+
   return NextResponse.json({ success: true, submission });
 }

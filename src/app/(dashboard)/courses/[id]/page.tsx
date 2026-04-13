@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TaskList } from "@/components/tasks/task-list";
 import { CourseProgressTable } from "@/components/courses/course-progress-table";
 import { CourseTagsPicker } from "@/components/courses/course-tags-picker";
+import { CourseSubmissionsManager } from "@/components/courses/course-submissions-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -250,6 +251,19 @@ export default async function CourseDetailPage({
           initialCompletions={activityCompletions}
         />
       </div>
+
+      {/* Submissions Management */}
+      <CourseSubmissionsManager
+        courseId={course.id}
+        syllabusItems={course.syllabusItems.map((si) => ({
+          id: si.id,
+          title: si.title,
+          type: si.type,
+          quizData: si.quizData as any,
+          maxScore: si.maxScore,
+          publishedToMoodle: si.publishedToMoodle,
+        }))}
+      />
 
       {/* Upcoming Events */}
       <div className="rounded-lg border border-border bg-card p-6">

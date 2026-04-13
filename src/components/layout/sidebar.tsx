@@ -27,6 +27,7 @@ const navItems = [
   { href: "/service-requests", label: "בקשות שירות", icon: "📬" },
   { href: "/shipments", label: "משלוחים", icon: "📦" },
   { href: "/sales", label: "מכירות וסליקה", icon: "💳" },
+  { href: "/leads", label: "מתעניינים", icon: "🎯" },
   { href: "/calendar", label: "יומן", icon: "📅" },
   { href: "/settings", label: "הגדרות", icon: "⚙️" },
 ];

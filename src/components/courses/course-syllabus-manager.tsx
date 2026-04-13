@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { CourseSyllabusMappingModal } from "./course-syllabus-mapping-modal";
 import { PublishToMoodleModal } from "./publish-to-moodle-modal";
+import { GenerateQuizModal } from "./generate-quiz-modal";
 
 interface Semester {
   id: string;
@@ -20,6 +21,7 @@ interface SyllabusItem {
   moodleCmId: number | null;
   moodleActivityType: string | null;
   publishedToMoodle: boolean;
+  quizData: any;
 }
 
 interface CourseSyllabusManagerProps {
@@ -53,6 +55,7 @@ export function CourseSyllabusManager({
 
   const [isMappingOpen, setIsMappingOpen] = useState(false);
   const [publishItem, setPublishItem] = useState<SyllabusItem | null>(null);
+  const [generateQuizItem, setGenerateQuizItem] = useState<SyllabusItem | null>(null);
   const [moodleActivities, setMoodleActivities] = useState<{ cmid: number; name: string; modname: string; sectionName: string }[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
 
@@ -274,7 +277,7 @@ export function CourseSyllabusManager({
             <div>
               <h4 className="text-sm font-bold text-slate-700 border-b pb-2 mb-2">ללא שיוך לסמסטר</h4>
               <div className="space-y-2">
-                {groupedItems["unassigned"].map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} onPublish={setPublishItem} loading={loading} />)}
+                {groupedItems["unassigned"].map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} onPublish={setPublishItem} onGenerateQuiz={setGenerateQuizItem} loading={loading} />)}
               </div>
             </div>
           )}
@@ -287,7 +290,7 @@ export function CourseSyllabusManager({
               <div key={semester.id}>
                 <h4 className="text-sm font-bold text-blue-800 border-b pb-2 mb-2">{semester.name}</h4>
                 <div className="space-y-2">
-                  {semItems.map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} onPublish={setPublishItem} loading={loading} />)}
+                  {semItems.map((item) => <SyllabusItemRow key={item.id} item={item} onEdit={handleOpenEdit} onDelete={handleDelete} onPublish={setPublishItem} onGenerateQuiz={setGenerateQuizItem} loading={loading} />)}
                 </div>
               </div>
             );
@@ -305,6 +308,21 @@ export function CourseSyllabusManager({
         courseId={courseId}
         syllabusItems={items}
       />
+
+      {/* Generate Quiz Modal */}
+      {generateQuizItem && (
+        <GenerateQuizModal
+          syllabusItem={generateQuizItem}
+          onClose={() => setGenerateQuizItem(null)}
+          onGenerated={() => {
+            setItems(items.map((i) =>
+              i.id === generateQuizItem.id ? { ...i, quizData: true } : i
+            ));
+            setGenerateQuizItem(null);
+            router.refresh();
+          }}
+        />
+      )}
 
       {/* Publish to Moodle Modal */}
       {publishItem && (
@@ -326,7 +344,7 @@ export function CourseSyllabusManager({
   );
 }
 
-function SyllabusItemRow({ item, onEdit, onDelete, onPublish, loading }: { item: SyllabusItem, onEdit: (i: SyllabusItem) => void, onDelete: (id: string) => void, onPublish: (i: SyllabusItem) => void, loading: boolean }) {
+function SyllabusItemRow({ item, onEdit, onDelete, onPublish, onGenerateQuiz, loading }: { item: SyllabusItem, onEdit: (i: SyllabusItem) => void, onDelete: (id: string) => void, onPublish: (i: SyllabusItem) => void, onGenerateQuiz: (i: SyllabusItem) => void, loading: boolean }) {
   const icon = item.type === "lesson" ? "📹" : item.type === "exam" ? "📝" : item.type === "quiz" ? "❓" : "📄";
   const typeLabel = item.type === "lesson" ? "שיעור" : item.type === "exam" ? "מבחן" : item.type === "quiz" ? "חידון" : "מטלה";
   const canPublish = (item.type === "exam" || item.type === "assignment" || item.type === "quiz") && !item.publishedToMoodle;
@@ -344,6 +362,9 @@ function SyllabusItemRow({ item, onEdit, onDelete, onPublish, loading }: { item:
             ) : (
               <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">טרם מופה</span>
             )}
+            {item.quizData && (
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">חידון AI 🪄</span>
+            )}
             {item.publishedToMoodle && (
               <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">פורסם למודל 🚀</span>
             )}
@@ -351,6 +372,9 @@ function SyllabusItemRow({ item, onEdit, onDelete, onPublish, loading }: { item:
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {(item.type === "exam" || item.type === "assignment" || item.type === "quiz") && !item.quizData && (
+          <button onClick={() => onGenerateQuiz(item)} disabled={loading} className="text-indigo-600 text-sm hover:underline disabled:opacity-50">🪄 צור חידון AI</button>
+        )}
         {canPublish && (
           <button onClick={() => onPublish(item)} disabled={loading} className="text-purple-600 text-sm hover:underline disabled:opacity-50">פרסם למודל</button>
         )}

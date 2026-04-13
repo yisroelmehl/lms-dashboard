@@ -1,0 +1,43 @@
+// הוסף את זה לתוך schema.prisma הקיים שלך
+
+enum LeadStatus {
+  new           // ליד חדש
+  contacted     // נוצר קשר
+  interested    // מתעניין
+  pending_docs  // ממתין למסמכים
+  registered    // נרשם
+  lost          // אבד
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  
+  // פרטי איש קשר
+  name           String
+  phone          String
+  email          String?
+  
+  // פרטי עניין
+  courseInterest String?    // שם הקורס שהתעניין בו
+  inquiryDate    DateTime   @default(now())
+  
+  // ניהול
+  status         LeadStatus @default(new)
+  notes          String?
+  
+  // המרה לתלמיד
+  convertedAt    DateTime?
+  studentId      String?    // ID של התלמיד אחרי המרה (FK לטבלת users/students)
+  
+  // מטאדטה
+  source         String?    // "make", "manual", "website"
+  rawData        Json?      // כל הנתונים המקוריים מ-Make/אוריגמי
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  
+  @@index([phone])
+  @@index([status])
+  @@index([courseInterest])
+  @@map("leads")
+}

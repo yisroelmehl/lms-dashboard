@@ -448,6 +448,7 @@ model SyllabusItem {
   moodleCmId         Int?
   moodleActivityType String?
   isMapped           Boolean @default(false)
+  quizData           Json?   // Holds the generated quiz questions, options, correct answers
   
   // Publish to Moodle (embed iframe)
   publishedToMoodle  Boolean @default(false)
@@ -1220,4 +1221,28 @@ model StudentSubmission {
   @@map("student_submissions")
   @@index([courseId])
   @@index([syllabusItemId])
+}
+
+// ============================================================
+// LEADS (מתעניינים / לידים)
+// ============================================================
+
+model Lead {
+  id             String    @id @default(cuid())
+  name           String
+  phone          String
+  email          String?
+  courseInterest  String?
+  inquiryDate    DateTime  @default(now())
+  status         String    @default("new") // new, contacted, interested, pending_docs, registered, lost
+  notes          String?
+  convertedAt    DateTime?
+  studentId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leads")
+  @@index([status])
+  @@index([phone])
 }
