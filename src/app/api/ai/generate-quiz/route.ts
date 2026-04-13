@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 // @ts-ignore - pdf-parse has no proper ESM default export
-import pdfParse from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 // @ts-ignore
 import mammoth from "mammoth";
 
