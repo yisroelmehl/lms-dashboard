@@ -1,7 +1,7 @@
 ﻿"use client";
 
 // src/app/(dashboard)/leads/page.tsx
-// ׳׳©׳•׳ ׳™׳× ׳׳™׳“׳™׳ ג€” ׳׳׳©׳§ ׳ ׳™׳”׳•׳ ׳׳×׳¢׳ ׳™׳™׳ ׳™׳ ׳¢׳ LeadWorkspace panel
+// ׳שם•׳ ׳™׳× ׳׳™׳“׳™׳ ג€” ׳׳שם§ ׳ ׳™׳”׳•׳ ׳׳×׳¢׳ ׳™׳™׳ ׳™׳ ׳¢׳ LeadWorkspace panel
 
 import { useEffect, useState, useCallback } from "react";
 import { LeadWorkspace } from "@/components/leads/LeadWorkspace";
@@ -33,12 +33,12 @@ interface SalesAgent { id: string; firstName: string; lastName: string; }
 
 // ג”€ג”€ ׳§׳‘׳•׳¢׳™׳ ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 const STATUS_LABELS: Record<LeadStatus, string> = {
-  new: "׳׳™׳“ ׳—׳“׳©",
-  contacted: "׳ ׳•׳¦׳¨ ׳§׳©׳¨",
-  interested: "׳׳×׳¢׳ ׳™׳™׳",
-  pending_docs: "׳׳׳×׳™׳ ׳׳׳¡׳׳›׳™׳",
-  registered: "׳ ׳¨׳©׳ ג“",
-  lost: "׳׳‘׳“",
+  new: "ליד חדש",
+  contacted: "נוצר קשר",
+  interested: "מתעניין",
+  pending_docs: "ממתין למסמכים",
+  registered: "נרשם ✓",
+  lost: "אבד",
 };
 
 const STATUS_BADGE: Record<LeadStatus, string> = {
@@ -77,7 +77,7 @@ function AddLeadModal({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.phone) { setError("׳©׳ ׳•׳˜׳׳₪׳•׳ ׳”׳ ׳©׳“׳•׳× ׳—׳•׳‘׳”"); return; }
+    if (!form.name || !form.phone) { setError("שם ׳•׳˜׳׳₪׳•׳ ׳”׳ שם“׳•׳× ׳—׳•׳‘׳”"); return; }
     setSaving(true);
     setError(null);
     try {
@@ -96,7 +96,7 @@ function AddLeadModal({
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "׳©׳’׳™׳׳”"); return; }
+      if (!res.ok) { setError(data.error ?? "שם’׳™׳׳”"); return; }
       onCreated(data);
     } finally {
       setSaving(false);
@@ -110,7 +110,7 @@ function AddLeadModal({
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">׳©׳ ׳׳׳ *</label>
+              <label className="mb-1 block text-xs font-medium text-slate-600">שם ׳׳׳ *</label>
               <input required value={form.name} onChange={(e) => set("name", e.target.value)}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
@@ -130,7 +130,7 @@ function AddLeadModal({
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" dir="ltr" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">׳§׳•׳¨׳¡ ׳׳¢׳ ׳™׳™׳</label>
+              <label className="mb-1 block text-xs font-medium text-slate-600">קורס ׳׳¢׳ ׳™׳™׳</label>
               <input value={form.courseInterest} onChange={(e) => set("courseInterest", e.target.value)}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
@@ -172,7 +172,7 @@ function AddLeadModal({
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
               className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
-              {saving ? "׳©׳•׳׳¨..." : "׳”׳•׳¡׳£ ׳׳™׳“"}
+              {saving ? "שם•׳׳¨..." : "׳”׳•׳¡׳£ ׳׳™׳“"}
             </button>
             <button type="button" onClick={onClose}
               className="rounded-lg border border-slate-200 px-5 py-2 text-sm text-slate-600 hover:bg-slate-50">
@@ -224,7 +224,7 @@ export default function LeadsPage() {
       setPages(data.pages ?? 1);
       setSalesAgents(data.salesAgents ?? []);
     } catch {
-      showToast("׳©׳’׳™׳׳” ׳‘׳˜׳¢׳™׳ ׳× ׳׳™׳“׳™׳", false);
+      showToast("שם’׳™׳׳” ׳‘׳˜׳¢׳™׳ ׳× ׳׳™׳“׳™׳", false);
     } finally {
       setLoading(false);
     }
@@ -255,7 +255,7 @@ export default function LeadsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">׳׳×׳¢׳ ׳™׳™׳ ׳™׳</h1>
+          <h1 className="text-2xl font-bold text-slate-800">מתעניינים</h1>
           <p className="text-sm text-slate-500">{total.toLocaleString()} ׳׳™׳“׳™׳ ׳¡׳”׳´׳›</p>
         </div>
         <div className="flex gap-2">
@@ -294,12 +294,12 @@ export default function LeadsPage() {
         <input
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="נ” ׳©׳, ׳˜׳׳₪׳•׳, ׳׳™׳™׳..."
+          placeholder="נ” שם, ׳˜׳׳₪׳•׳, ׳׳™׳™׳..."
           className="w-64 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm"
         />
         <select value={agentFilter} onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-          <option value="all">׳›׳ ׳׳ ׳©׳™ ׳”׳׳›׳™׳¨׳•׳×</option>
+          <option value="all">׳›׳ ׳׳ שם™ ׳”׳׳›׳™׳¨׳•׳×</option>
           {salesAgents.map((a) => (
             <option key={a.id} value={a.id}>{a.firstName} {a.lastName}</option>
           ))}
@@ -309,7 +309,7 @@ export default function LeadsPage() {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
-          <div className="py-20 text-center text-slate-400">׳˜׳•׳¢׳...</div>
+          <div className="py-20 text-center text-slate-400">טוען...</div>
         ) : leads.length === 0 ? (
           <div className="py-20 text-center text-slate-400">
             {search || statusFilter !== "all" ? "׳׳ ׳ ׳׳¦׳׳• ׳׳™׳“׳™׳ ׳×׳•׳׳׳™׳" : "׳׳™׳ ׳׳™׳“׳™׳ ׳¢׳“׳™׳™׳"}
@@ -318,14 +318,14 @@ export default function LeadsPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
               <tr>
-                <th className="px-4 py-3 text-right font-medium">׳©׳</th>
+                <th className="px-4 py-3 text-right font-medium">שם</th>
                 <th className="px-4 py-3 text-right font-medium">׳˜׳׳₪׳•׳</th>
-                <th className="px-4 py-3 text-right font-medium">׳§׳•׳¨׳¡</th>
+                <th className="px-4 py-3 text-right font-medium">קורס</th>
                 <th className="px-4 py-3 text-right font-medium">׳׳™׳© ׳׳›׳™׳¨׳•׳×</th>
                 <th className="px-4 py-3 text-right font-medium">׳×׳׳¨׳™׳</th>
-                <th className="px-4 py-3 text-right font-medium">׳§׳©׳¨ ׳׳—׳¨׳•׳</th>
+                <th className="px-4 py-3 text-right font-medium">׳§שם¨ ׳׳—׳¨׳•׳</th>
                 <th className="px-4 py-3 text-right font-medium">׳₪׳ ׳™׳•׳×</th>
-                <th className="px-4 py-3 text-right font-medium">׳¡׳˜׳˜׳•׳¡</th>
+                <th className="px-4 py-3 text-right font-medium">סטטוס</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
