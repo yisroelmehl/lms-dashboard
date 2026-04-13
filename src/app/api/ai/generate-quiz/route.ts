@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
-// @ts-ignore - pdf-parse has no proper ESM default export
-import * as pdfParse from "pdf-parse";
 // @ts-ignore
 import mammoth from "mammoth";
 
@@ -21,6 +19,8 @@ async function extractTextFromBlob(file: Blob, filename: string): Promise<string
 
   // If PDF
   if (lowerName.endsWith(".pdf") || file.type === "application/pdf") {
+    // Dynamic import for pdf-parse to handle CommonJS module
+    const pdfParse = (await import("pdf-parse" as any)).default;
     const data = await pdfParse(buffer);
     return data.text;
   }

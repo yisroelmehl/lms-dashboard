@@ -16,10 +16,11 @@ const HANDLERS: Record<string, Parameters<typeof retryQueueItem>[1]> = {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const item = await prisma.webhookQueue.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { webhookLog: true },
   });
   if (!item) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
@@ -29,13 +30,14 @@ export async function GET(
 // PATCH ?action=retry|archive
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const body = await req.json().catch(() => ({})) as { action?: string };
   const action = body.action ?? req.nextUrl.searchParams.get("action");
 
   if (action === "retry") {
-    const item = await prisma.webhookQueue.findUnique({ where: { id: params.id } });
+    const item = await prisma.webhookQueue.findUnique({ where: { id } });
     if (!item) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
     const handler = HANDLERS[item.webhookType] ?? HANDLERS["lead"];
@@ -43,13 +45,13 @@ export async function PATCH(
       return NextResponse.json({ error: `אין handler לסוג ${item.webhookType}` }, { status: 400 });
     }
 
-    const result = await retryQueueItem(params.id, handler);
+    const result = await retryQueueItem(id, handler);
     return NextResponse.json(result, { status: result.success ? 200 : 422 });
   }
 
   if (action === "archive") {
     const updated = await prisma.webhookQueue.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: "archived" },
     });
     return NextResponse.json(updated);
@@ -60,8 +62,9 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  await prisma.webhookQueue.delete({ where: { id: params.id } });
+  const { id } = await params;
+  await prisma.webhookQueue.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
