@@ -28,6 +28,8 @@ const navItems = [
   { href: "/shipments", label: "משלוחים", icon: "📦" },
   { href: "/sales", label: "מכירות וסליקה", icon: "💳" },
   { href: "/leads", label: "מתעניינים", icon: "🎯" },
+  { href: "/sales-agents", label: "אנשי מכירות", icon: "👔" },
+  { href: "/webhook-logs", label: "לוגי ובהוק", icon: "🔔" },
   { href: "/calendar", label: "יומן", icon: "📅" },
   { href: "/settings", label: "הגדרות", icon: "⚙️" },
 ];

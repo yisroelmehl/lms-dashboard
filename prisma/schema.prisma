@@ -320,6 +320,7 @@ model Course {
   coupons           Coupon[]
   selfStudyEnrollments SelfStudyEnrollment[]
   submissions          StudentSubmission[]
+  leads                Lead[]               @relation("LeadCourse")
 
   @@map("courses")
 }
@@ -792,11 +793,18 @@ model SalesAgent {
   phone     String?
   isActive  Boolean @default(true)
 
+  // Additional CRM fields
+  refCode                String?  @unique // קוד הפניה ייחודי לאיש המכירות
+  notes                  String?
+  notificationWebhookUrl String?  // URL לשליחת התראות על ליד חדש
+  notifyOnNewLead        Boolean  @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   paymentLinks PaymentLink[]
   payments     Payment[]
+  leads        Lead[]
 
   @@map("sales_agents")
 }
@@ -1229,20 +1237,167 @@ model StudentSubmission {
 
 model Lead {
   id             String    @id @default(cuid())
-  name           String
-  phone          String
+
+  // ── פרטי קשר ─────────────────────────────────────────────
+  name           String                    // שם מלא
+  familyName     String?                   // שם משפחה
+  phone          String                    // טלפון ראשי
+  phone2         String?                   // טלפון שני
   email          String?
-  courseInterest  String?
+  address        String?
+  city           String?
+  idNumber       String?                   // תעודת זהות
+
+  // ── עניין בקורס ──────────────────────────────────────────
+  courseInterest  String?                  // שם קורס חופשי (legacy/webhook)
+  courseId        String?                  // FK לקורס ספציפי
+
+  // ── מקור ─────────────────────────────────────────────────
+  sourceType     String?                   // אינטרנט / ימות_משיח / פייסבוק / אחר
+  sourceName     String?
+  campaignName   String?
+  sourceMessage  String?                   // הודעה גולמית מהמקור
+
+  // ── שיוך איש מכירות ──────────────────────────────────────
+  salesAgentId   String?
+
+  // ── מעקב מכירות ──────────────────────────────────────────
+  leadResponse      String?               // מעוניין / צריך_לחשוב / לא_זמין / לא_מעוניין
+  followUpCount     Int       @default(0)
+  lastContactDate   DateTime?
+  discountNotes     String?
+
+  // ── סטטוס ────────────────────────────────────────────────
   inquiryDate    DateTime  @default(now())
-  status         String    @default("new") // new, contacted, interested, pending_docs, registered, lost
+  status         String    @default("new") // new / contacted / interested / pending_docs / registered / lost
   notes          String?
+
+  // ── רשימת תיוג הסבה — שלב 1: תשלום ─────────────────────
+  paymentCompleted   Boolean   @default(false)
+  paymentCompletedAt DateTime?
+  paymentAmount      Decimal?  @db.Decimal(10, 2)
+  paymentMethod      String?   // אשראי / העברה / מזומן
+  paymentReference   String?
+
+  // ── רשימת תיוג הסבה — שלב 2: קניין/תקנון ────────────────
+  kinyanSigned   Boolean   @default(false)
+  kinyanSignedAt DateTime?
+  kinyanMethod   String?   // טלפון / מייל / חתימה_דיגיטלית
+  kinyanNotes    String?
+
+  // ── רשימת תיוג הסבה — שלב 3: פרטי משלוח ────────────────
+  shippingDetailsComplete Boolean  @default(false)
+  shippingAddress         String?
+  shippingCity            String?
+  shippingPhone           String?
+  shippingNotes           String?
+
+  // ── רשימת תיוג הסבה — שלב 4: צ'אט תלמידים ──────────────
+  studentChatAdded    Boolean   @default(false)
+  studentChatAddedAt  DateTime?
+  studentChatPlatform String?   // WhatsApp / Telegram
+
+  // ── רשימת תיוג הסבה — שלב 5: מסירה למנהל ───────────────
+  handoffToManager Boolean   @default(false)
+  handoffAt        DateTime?
+  handoffNotes     String?
+
+  // ── סיום הסבה ─────────────────────────────────────────────
+  conversionChecklistComplete Boolean   @default(false)
+  conversionCompletedAt       DateTime?
+
+  // ── המרה לתלמיד ───────────────────────────────────────────
   convertedAt    DateTime?
   studentId      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ── יחסים ────────────────────────────────────────────────
+  course       Course?      @relation("LeadCourse", fields: [courseId], references: [id])
+  salesAgent   SalesAgent?  @relation(fields: [salesAgentId], references: [id])
+  interactions LeadInteraction[]
+
   @@map("leads")
   @@index([status])
   @@index([phone])
+  @@index([salesAgentId])
+  @@index([courseId])
+}
+
+// ── אינטראקציות ──────────────────────────────────────────────
+model LeadInteraction {
+  id              String   @id @default(cuid())
+  leadId          String
+
+  interactionType String   // outbound_call / whatsapp / email / website_form / note
+  description     String?
+  callStatus      String?  // answered / no_answer / busy / callback
+  durationSec     Int?
+  createdByName   String?  // שם המשתמש שיצר
+  nextContactDate DateTime?
+
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("lead_interactions")
+  @@index([leadId])
+}
+
+// ============================================================
+// WEBHOOK LOGS (לוגי ובהוק)
+// ============================================================
+
+model WebhookLog {
+  id               String   @id @default(cuid())
+  webhookType      String   // lead / elementor / nedarim / generic / etc.
+  sourceIp         String?
+  success          Boolean  @default(false)
+  action           String?  // created / updated / duplicate / error
+  errorMessage     String?
+  entityType       String?  // lead / student / payment / etc.
+  entityId         String?  // ID of the created/updated entity
+  processingTimeMs Int?     // ms spent processing
+  rawPayload       String?  // JSON string of incoming body
+  resultData       String?  // JSON string of result
+
+  createdAt        DateTime @default(now())
+
+  queueItem        WebhookQueue? // may have a queue entry if failed
+
+  @@map("webhook_logs")
+  @@index([webhookType])
+  @@index([success])
+  @@index([createdAt])
+}
+
+// ============================================================
+// WEBHOOK QUEUE (תור ובהוקים לניסיון חוזר)
+// ============================================================
+
+model WebhookQueue {
+  id            String   @id @default(cuid())
+  webhookLogId  String?  @unique
+  webhookType   String
+  status        String   @default("pending") // pending / processing / success / failed / archived
+  rawPayload    String?  // JSON string
+  sourceIp      String?
+  errorMessage  String?  // original error
+  lastError     String?  // most recent retry error
+  retryCount    Int      @default(0)
+  maxRetries    Int      @default(3)
+  lastRetryAt   DateTime?
+  nextRetryAt   DateTime?
+  expiresAt     DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  webhookLog    WebhookLog? @relation(fields: [webhookLogId], references: [id])
+
+  @@map("webhook_queue")
+  @@index([status])
+  @@index([webhookType])
+  @@index([nextRetryAt])
 }
