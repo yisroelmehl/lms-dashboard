@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     if (dup) return NextResponse.json({ error: "כתובת מייל כבר קיימת" }, { status: 409 });
   }
   if (refCode) {
-    const dup = await prisma.salesAgent.findUnique({ where: { refCode: refCode as string } });
+    const dup = await prisma.salesAgent.findFirst({ where: { refCode: refCode as string } });
     if (dup) return NextResponse.json({ error: "קוד הפניה כבר קיים" }, { status: 409 });
   }
 
