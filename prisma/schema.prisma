@@ -794,7 +794,7 @@ model SalesAgent {
   isActive  Boolean @default(true)
 
   // Additional CRM fields
-  refCode                String?  @unique // קוד הפניה ייחודי לאיש המכירות
+  refCode                String?  // @unique // קוד הפניה ייחודי לאיש המכירות - הוסר זמנית בגלל כפילויות
   notes                  String?
   notificationWebhookUrl String?  // URL לשליחת התראות על ליד חדש
   notifyOnNewLead        Boolean  @default(true)
