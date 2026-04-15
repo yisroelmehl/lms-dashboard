@@ -22,6 +22,15 @@ const navItems = [
   { href: "/courses", label: "קורסים", icon: "📚" },
   { href: "/lecturers", label: "מרצים", icon: "👨‍🏫" },
   { href: "/grades", label: "ציונים", icon: "📝" },
+  {
+    href: "/exams",
+    label: "מבחנים ומטלות",
+    icon: "📄",
+    children: [
+      { href: "/exams", label: "כל המבחנים", icon: "📋" },
+      { href: "/exams/create", label: "יצירת מבחן", icon: "✏️" },
+    ],
+  },
   { href: "/attendance", label: "נוכחות", icon: "✅" },
   { href: "/tasks", label: "משימות", icon: "📋" },
   { href: "/service-requests", label: "בקשות שירות", icon: "📬" },

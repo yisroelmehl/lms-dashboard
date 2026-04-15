@@ -5,7 +5,17 @@
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(data[0][''text'']\\)\")",
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --turbopack)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(railway login:*)"
+      "Bash(railway login:*)",
+      "Bash(find src:*)",
+      "Bash(ls -la .env*)",
+      "Bash(mkdir -p \"/Users/ysroelmehl/Documents/ניהול לימודים קלד/src/app/api/exams/[id]/generate\")",
+      "Bash(mkdir -p \"/Users/ysroelmehl/Documents/ניהול לימודים קלד/src/app/api/exams/[id]/submissions/[subId]\")",
+      "Bash(mkdir -p \"/Users/ysroelmehl/Documents/ניהול לימודים קלד/src/app/api/exams/[id]/grade\")",
+      "Bash(mkdir -p \"/Users/ysroelmehl/Documents/ניהול לימודים קלד/src/app/api/exams/[id]/report\")",
+      "Bash(mkdir -p \"/Users/ysroelmehl/Documents/ניהול לימודים קלד/src/app/\\(dashboard\\)/exams/[id]/grade\")",
+      "Bash(mkdir -p \"/Users/ysroelmehl/Documents/ניהול לימודים קלד/src/app/\\(dashboard\\)/exams/[id]/report\")",
+      "Bash(npx prisma:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

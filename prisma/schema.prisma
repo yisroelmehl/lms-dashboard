@@ -104,6 +104,25 @@ enum PaymentMethod {
   check
 }
 
+enum ExamStatus {
+  draft       // טיוטה
+  ready       // מוכן לשימוש
+  grading     // בתהליך בדיקה
+  completed   // הסתיים
+}
+
+enum ExamType {
+  exam        // מבחן
+  assignment  // מטלה
+}
+
+enum SubmissionGradingStatus {
+  pending     // ממתין לבדיקה
+  processing  // בתהליך בדיקה (AI)
+  graded      // נבדק
+  error       // שגיאה בבדיקה
+}
+
 // ============================================================
 // ADMIN USERS
 // ============================================================
@@ -124,6 +143,7 @@ model Admin {
   serviceRequestActions ServiceRequest[] @relation("HandledBy")
   lecturerProfile       Lecturer?
   selfStudyContactLogs  SelfStudyContactLog[]
+  examsCreated          ExamTemplate[]       @relation("ExamsCreated")
 
   @@map("admins")
 }
@@ -230,6 +250,7 @@ model Student {
   shipments           Shipment[]
   selfStudyEnrollments SelfStudyEnrollment[]
   submissions          StudentSubmission[]
+  examSubmissions      ExamSubmission[]
 
   @@map("students")
 }
@@ -320,6 +341,11 @@ model Course {
   coupons           Coupon[]
   selfStudyEnrollments SelfStudyEnrollment[]
   submissions          StudentSubmission[]
+  examTemplates        ExamTemplate[]
+
+  // Google Drive integration
+  driveFolderId    String?   // Google Drive folder ID for course materials
+  driveFolderUrl   String?   // Full URL for display
 
   @@map("courses")
 }
@@ -1245,4 +1271,79 @@ model Lead {
   @@map("leads")
   @@index([status])
   @@index([phone])
+}
+
+// ============================================================
+// EXAM TEMPLATES (מבחנים ומטלות - תבניות)
+// ============================================================
+
+model ExamTemplate {
+  id          String     @id @default(cuid())
+  courseId    String
+  title       String
+  description String?
+  type        ExamType   @default(exam)
+  status      ExamStatus @default(draft)
+
+  // AI generation context
+  aiPrompt         String?   // The prompt used to generate the exam
+  sourceFileIds    String[]  // Google Drive file IDs used as source material
+  sourceFileNames  String[]  // Drive file names for display
+  sourceTexts      Json?     // Extracted text from source files (cached)
+
+  // Generated exam content
+  examData    Json?    // { title, questions: [{ id, type, question, options, correctAnswer, rubric, points }] }
+  totalPoints Float?   // Total possible points
+
+  // Scheduling
+  examDate    DateTime?
+  dueDate     DateTime?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdBy    Admin            @relation("ExamsCreated", fields: [createdById], references: [id])
+  submissions  ExamSubmission[]
+
+  @@map("exam_templates")
+  @@index([courseId])
+}
+
+// ============================================================
+// EXAM SUBMISSIONS (הגשות מבחנים לבדיקה)
+// ============================================================
+
+model ExamSubmission {
+  id              String  @id @default(cuid())
+  examTemplateId  String
+  studentId       String?  // nullable until student is identified
+
+  // Uploaded file info
+  fileName        String
+  fileType        String   // pdf, docx, image
+  fileData        Bytes?   // raw file content for processing
+  extractedText   String?  // Text extracted from the uploaded file
+
+  // Student identification
+  studentName     String?  // Name as appears on the exam paper
+
+  // Grading
+  gradingStatus   SubmissionGradingStatus @default(pending)
+  grade           Float?
+  maxGrade        Float?
+  feedback        Json?    // { overall: string, perQuestion: [{ questionId, score, maxScore, feedback }] }
+  aiRawResponse   Json?    // Full AI response for debugging
+
+  gradedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  examTemplate ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  student      Student?     @relation(fields: [studentId], references: [id])
+
+  @@map("exam_submissions")
+  @@index([examTemplateId])
+  @@index([studentId])
 }
