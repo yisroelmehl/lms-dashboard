@@ -4,10 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DriveFilePicker } from "./drive-file-picker";
 
+interface LearningUnitFile {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+}
+
+interface LearningUnit {
+  id: string;
+  name: string;
+  description: string | null;
+  files: LearningUnitFile[];
+}
+
 interface Course {
   id: string;
   name: string;
   driveFolderId: string | null;
+  learningUnits: LearningUnit[];
 }
 
 interface DriveFile {
@@ -25,13 +40,33 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
   const [questionCount, setQuestionCount] = useState(10);
   const [questionType, setQuestionType] = useState("mixed");
   const [pointsPerQuestion, setPointsPerQuestion] = useState(10);
-  const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
+  const [selectedDriveFiles, setSelectedDriveFiles] = useState<DriveFile[]>([]);
+  const [selectedUnitIds, setSelectedUnitIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [examDate, setExamDate] = useState("");
   const [dueDate, setDueDate] = useState("");
 
   const selectedCourse = courses.find((c) => c.id === courseId);
+  const hasLearningUnits = (selectedCourse?.learningUnits.length ?? 0) > 0;
+
+  const toggleUnit = (unitId: string) => {
+    setSelectedUnitIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(unitId)) next.delete(unitId);
+      else next.add(unitId);
+      return next;
+    });
+  };
+
+  const selectedUnitsWithFiles = selectedCourse?.learningUnits.filter((u) =>
+    selectedUnitIds.has(u.id)
+  ) ?? [];
+
+  const totalSelectedFiles = selectedUnitsWithFiles.reduce(
+    (acc, u) => acc + u.files.length,
+    0
+  );
 
   const handleCreate = async () => {
     if (!courseId || !title) {
@@ -39,8 +74,13 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
       return;
     }
 
-    if (!prompt && selectedFiles.length === 0) {
-      setError("יש לכתוב פרומפט או לבחור קבצים מהדרייב");
+    const hasSource =
+      prompt ||
+      selectedDriveFiles.length > 0 ||
+      selectedUnitIds.size > 0;
+
+    if (!hasSource) {
+      setError("יש לכתוב פרומפט, לבחור יחידות לימוד, או לבחור קבצים מהדרייב");
       return;
     }
 
@@ -74,9 +114,10 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          fileIds: selectedFiles.map((f) => f.id),
-          fileNames: selectedFiles.map((f) => f.name),
-          fileMimeTypes: selectedFiles.map((f) => f.mimeType),
+          fileIds: selectedDriveFiles.map((f) => f.id),
+          fileNames: selectedDriveFiles.map((f) => f.name),
+          fileMimeTypes: selectedDriveFiles.map((f) => f.mimeType),
+          learningUnitIds: Array.from(selectedUnitIds),
           questionCount,
           questionType,
           pointsPerQuestion,
@@ -98,7 +139,7 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
 
   return (
     <div className="space-y-6">
-      {/* Course Selection */}
+      {/* Course + Details */}
       <div className="rounded-lg border border-border bg-card p-6 space-y-4">
         <h2 className="text-lg font-semibold">פרטי המבחן</h2>
 
@@ -107,7 +148,11 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
             <label className="block text-sm font-medium mb-1">קורס *</label>
             <select
               value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
+              onChange={(e) => {
+                setCourseId(e.target.value);
+                setSelectedUnitIds(new Set());
+                setSelectedDriveFiles([]);
+              }}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
               <option value="">בחר קורס...</option>
@@ -154,23 +199,74 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
         </div>
       </div>
 
+      {/* Learning Unit Selector */}
+      {courseId && (
+        <div className="rounded-lg border border-border bg-card p-6 space-y-3">
+          <h2 className="text-lg font-semibold">בחר יחידות לימוד כמקור</h2>
+
+          {!hasLearningUnits ? (
+            <p className="text-sm text-muted-foreground">
+              לקורס זה אין יחידות לימוד עם קבצים עדיין.{" "}
+              <a
+                href={`/courses/${courseId}`}
+                className="text-primary underline"
+                target="_blank"
+              >
+                לניהול יחידות הלימוד של הקורס
+              </a>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {selectedCourse!.learningUnits.map((unit) => {
+                const checked = selectedUnitIds.has(unit.id);
+                return (
+                  <label
+                    key={unit.id}
+                    className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                      checked
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleUnit(unit.id)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{unit.name}</p>
+                      {unit.description && (
+                        <p className="text-xs text-muted-foreground">{unit.description}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {unit.files.length === 0
+                          ? "אין קבצים"
+                          : `${unit.files.length} קבצים: ${unit.files.map((f) => f.fileName).join(", ")}`}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+
+              {selectedUnitIds.size > 0 && (
+                <p className="text-xs text-primary mt-1">
+                  נבחרו {selectedUnitIds.size} יחידות · {totalSelectedFiles} קבצים ייכללו ביצירה
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Drive File Picker */}
-      {selectedCourse?.driveFolderId ? (
+      {selectedCourse?.driveFolderId && (
         <DriveFilePicker
           folderId={selectedCourse.driveFolderId}
-          selectedFiles={selectedFiles}
-          onSelectionChange={setSelectedFiles}
+          selectedFiles={selectedDriveFiles}
+          onSelectionChange={setSelectedDriveFiles}
         />
-      ) : courseId ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center">
-          <p className="text-muted-foreground">
-            לקורס זה לא מוגדרת תיקיית Google Drive.
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            ניתן להגדיר תיקיית Drive בהגדרות הקורס, או לכתוב פרומפט ישיר.
-          </p>
-        </div>
-      ) : null}
+      )}
 
       {/* AI Configuration */}
       <div className="rounded-lg border border-border bg-card p-6 space-y-4">
@@ -183,7 +279,7 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="תאר מה סוג המבחן שאתה רוצה: נושאים, רמת קושי, דגשים מיוחדים..."
+            placeholder="תאר את סוג המבחן: נושאים, רמת קושי, דגשים מיוחדים..."
             rows={4}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
@@ -235,14 +331,12 @@ export function ExamBuilder({ courses }: { courses: Course[] }) {
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Submit */}
       <div className="flex justify-end">
         <button
           onClick={handleCreate}

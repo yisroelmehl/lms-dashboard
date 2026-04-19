@@ -6,6 +6,7 @@ import { TaskList } from "@/components/tasks/task-list";
 import { CourseProgressTable } from "@/components/courses/course-progress-table";
 import { CourseTagsPicker } from "@/components/courses/course-tags-picker";
 import { CourseSubmissionsManager } from "@/components/courses/course-submissions-manager";
+import { LearningUnitsManager } from "@/components/courses/learning-units-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,16 @@ export default async function CourseDetailPage({
     if (!course) notFound();
 
     // Fetch all tags and course's current tags
+    const learningUnits = await prisma.learningUnit.findMany({
+      where: { courseId: id },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        files: {
+          select: { id: true, fileName: true, fileType: true, fileSize: true, createdAt: true },
+        },
+      },
+    });
+
     const [allTags, courseTags] = await Promise.all([
       prisma.tag.findMany({
         where: { category: "subject" },
@@ -263,6 +274,12 @@ export default async function CourseDetailPage({
           maxScore: si.maxScore,
           publishedToMoodle: si.publishedToMoodle,
         }))}
+      />
+
+      {/* Learning Units */}
+      <LearningUnitsManager
+        courseId={course.id}
+        initialUnits={learningUnits as any}
       />
 
       {/* Upcoming Events */}

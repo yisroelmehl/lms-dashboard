@@ -13,6 +13,17 @@ export default async function CreateExamPage() {
       fullNameOverride: true,
       fullNameSource: true,
       driveFolderId: true,
+      learningUnits: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          files: {
+            select: { id: true, fileName: true, fileType: true, fileSize: true },
+          },
+        },
+      },
     },
     orderBy: { fullNameMoodle: "asc" },
   });
@@ -21,6 +32,7 @@ export default async function CreateExamPage() {
     id: c.id,
     name: resolveField(c.fullNameMoodle, c.fullNameOverride) || "ללא שם",
     driveFolderId: c.driveFolderId,
+    learningUnits: c.learningUnits,
   }));
 
   return (

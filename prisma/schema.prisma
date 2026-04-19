@@ -342,6 +342,7 @@ model Course {
   selfStudyEnrollments SelfStudyEnrollment[]
   submissions          StudentSubmission[]
   examTemplates        ExamTemplate[]
+  learningUnits        LearningUnit[]
 
   // Google Drive integration
   driveFolderId    String?   // Google Drive folder ID for course materials
@@ -1286,10 +1287,11 @@ model ExamTemplate {
   status      ExamStatus @default(draft)
 
   // AI generation context
-  aiPrompt         String?   // The prompt used to generate the exam
-  sourceFileIds    String[]  // Google Drive file IDs used as source material
-  sourceFileNames  String[]  // Drive file names for display
-  sourceTexts      Json?     // Extracted text from source files (cached)
+  aiPrompt          String?   // The prompt used to generate the exam
+  sourceFileIds     String[]  // Google Drive file IDs used as source material
+  sourceFileNames   String[]  // Drive file names for display
+  sourceTexts       Json?     // Extracted text from source files (cached)
+  learningUnitIds   String[]  // IDs of LearningUnits used as source
 
   // Generated exam content
   examData    Json?    // { title, questions: [{ id, type, question, options, correctAnswer, rubric, points }] }
@@ -1346,4 +1348,40 @@ model ExamSubmission {
   @@map("exam_submissions")
   @@index([examTemplateId])
   @@index([studentId])
+}
+
+// ============================================================
+// LEARNING UNITS (יחידות לימוד לקורס)
+// ============================================================
+
+model LearningUnit {
+  id          String   @id @default(cuid())
+  courseId    String
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course  Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  files   LearningUnitFile[]
+
+  @@map("learning_units")
+  @@index([courseId])
+}
+
+model LearningUnitFile {
+  id             String   @id @default(cuid())
+  learningUnitId String
+  fileName       String
+  fileType       String
+  fileSize       Int
+  fileData       Bytes
+  extractedText  String?
+  createdAt      DateTime @default(now())
+
+  learningUnit LearningUnit @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+
+  @@map("learning_unit_files")
+  @@index([learningUnitId])
 }

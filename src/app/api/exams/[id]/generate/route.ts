@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDriveFileContent } from "@/lib/services/google-drive";
-import { extractTextFromBuffer } from "@/lib/services/text-extraction";
+import { extractTextFromBuffer, extractTextFromImage } from "@/lib/services/text-extraction";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
@@ -28,14 +28,16 @@ export async function POST(
       fileIds = [],
       fileNames = [],
       fileMimeTypes = [],
+      learningUnitIds = [],
       questionCount = 10,
       questionType = "mixed",
       pointsPerQuestion = 10,
     } = body;
 
-    if (!prompt && fileIds.length === 0) {
+    const hasSource = prompt || fileIds.length > 0 || learningUnitIds.length > 0;
+    if (!hasSource) {
       return NextResponse.json(
-        { error: "יש לספק פרומפט או לבחור קבצים מהדרייב" },
+        { error: "יש לספק פרומפט, יחידות לימוד, או קבצים מהדרייב" },
         { status: 400 }
       );
     }
@@ -47,8 +49,44 @@ export async function POST(
       );
     }
 
-    // Download and extract text from Drive files
     const sourceTexts: string[] = [];
+
+    // Extract text from learning unit files
+    if (learningUnitIds.length > 0) {
+      const unitFiles = await prisma.learningUnitFile.findMany({
+        where: { learningUnitId: { in: learningUnitIds } },
+        include: { learningUnit: { select: { name: true } } },
+      });
+
+      for (const file of unitFiles) {
+        // Use cached extractedText when available
+        if (file.extractedText) {
+          sourceTexts.push(`[${file.learningUnit.name} / ${file.fileName}]\n${file.extractedText}`);
+          continue;
+        }
+
+        try {
+          let text: string;
+          if (file.fileType.startsWith("image/")) {
+            text = await extractTextFromImage(file.fileData as Buffer, file.fileType);
+          } else {
+            text = await extractTextFromBuffer(file.fileData as Buffer, file.fileName);
+          }
+
+          // Cache the extracted text
+          await prisma.learningUnitFile.update({
+            where: { id: file.id },
+            data: { extractedText: text },
+          });
+
+          sourceTexts.push(`[${file.learningUnit.name} / ${file.fileName}]\n${text}`);
+        } catch {
+          // Skip files that fail extraction
+        }
+      }
+    }
+
+    // Extract text from Drive files
     for (let i = 0; i < fileIds.length; i++) {
       const buffer = await getDriveFileContent(fileIds[i], fileMimeTypes[i]);
       const effectiveName =
@@ -61,7 +99,6 @@ export async function POST(
 
     const combinedText = sourceTexts.join("\n\n---\n\n");
 
-    // Build the AI prompt
     const typeInstruction =
       questionType === "multiple_choice"
         ? "שאלות אמריקאיות בלבד (multiple_choice)"
@@ -120,7 +157,6 @@ ${combinedText ? `חומר הלימוד:\n<text>\n${combinedText}\n</text>` : ""
 
     let rawJson = (message.content[0] as any).text.trim();
 
-    // Clean up potential markdown wrappers
     if (rawJson.startsWith("```json")) rawJson = rawJson.substring(7);
     if (rawJson.startsWith("```")) rawJson = rawJson.substring(3);
     if (rawJson.endsWith("```")) rawJson = rawJson.substring(0, rawJson.length - 3);
@@ -128,7 +164,6 @@ ${combinedText ? `חומר הלימוד:\n<text>\n${combinedText}\n</text>` : ""
     const examData = JSON.parse(rawJson.trim());
     const totalPoints = questionCount * pointsPerQuestion;
 
-    // Save to database
     const exam = await prisma.examTemplate.update({
       where: { id },
       data: {
@@ -138,6 +173,7 @@ ${combinedText ? `חומר הלימוד:\n<text>\n${combinedText}\n</text>` : ""
         sourceFileIds: fileIds,
         sourceFileNames: fileNames,
         sourceTexts: sourceTexts.length > 0 ? sourceTexts : undefined,
+        learningUnitIds,
         status: "ready",
       },
     });
