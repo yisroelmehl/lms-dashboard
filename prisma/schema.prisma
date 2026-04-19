@@ -251,7 +251,8 @@ model Tag {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  courses CourseTag[]
+  courses    CourseTag[]
+  studyUnits StudyUnit[]
 
   @@unique([name, category])
   @@map("tags")
@@ -318,6 +319,8 @@ model Course {
   paymentLinks      PaymentLink[]
   coupons           Coupon[]
   selfStudyEnrollments SelfStudyEnrollment[]
+  studyUnits        StudyUnit[]
+  examTemplates     ExamTemplate[]
 
   @@map("courses")
 }
@@ -1185,4 +1188,115 @@ model SelfStudyContactLog {
   
   @@map("self_study_contact_logs")
   @@index([selfStudyEnrollmentId])
+}
+
+// ============================================================
+// STUDY UNITS (יחידות לימוד)
+// ============================================================
+
+model StudyUnit {
+  id          String   @id @default(cuid())
+  courseId    String?
+  tagId       String?
+  title       String
+  description String?
+  content     String   @db.Text
+  unitNumber  Int      @default(1)
+  sortOrder   Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  tag         Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  
+  examTemplateUnits ExamTemplateUnit[]
+  examQuestions     ExamQuestion[]
+  
+  @@map("study_units")
+  @@index([courseId])
+  @@index([tagId])
+}
+
+// ============================================================
+// EXAM TEMPLATES (תבניות מבחנים ומטלות)
+// ============================================================
+
+enum ExamType {
+  exam
+  assignment
+}
+
+enum ExamStatus {
+  draft
+  published
+}
+
+model ExamTemplate {
+  id             String     @id @default(cuid())
+  courseId       String?    
+  title          String
+  type           ExamType   @default(exam)
+  description    String?
+  instructions   String?    @db.Text
+  timeLimit      Int?       
+  passingScore   Float      @default(60)
+  status         ExamStatus @default(draft)
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  
+  course         Course?    @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  
+  questions         ExamQuestion[]
+  examTemplateUnits ExamTemplateUnit[]
+  
+  @@map("exam_templates")
+  @@index([courseId])
+}
+
+model ExamTemplateUnit {
+  examTemplateId String
+  studyUnitId    String
+  
+  examTemplate ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  studyUnit    StudyUnit    @relation(fields: [studyUnitId], references: [id], onDelete: Cascade)
+  
+  @@id([examTemplateId, studyUnitId])
+  @@map("exam_template_units")
+}
+
+// ============================================================
+// EXAM QUESTIONS (שאלות מבחן/מטלה)
+// ============================================================
+
+enum QuestionType {
+  open
+  multiple_choice
+  true_false
+  fill_in_the_blank
+}
+
+model ExamQuestion {
+  id             String       @id @default(cuid())
+  examTemplateId String
+  studyUnitId    String?      
+  
+  questionText   String       @db.Text
+  questionType   QuestionType @default(open)
+  points         Float        @default(10)
+  sortOrder      Int          @default(0)
+  
+  options        Json?        
+  correctAnswer  String?      @db.Text 
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  examTemplate   ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  studyUnit      StudyUnit?   @relation(fields: [studyUnitId], references: [id], onDelete: SetNull)
+  
+  @@map("exam_questions")
+  @@index([examTemplateId])
+  @@index([studyUnitId])
 }

@@ -20,6 +20,8 @@ const navItems = [
     ],
   },
   { href: "/courses", label: "קורסים", icon: "📚" },
+  { href: "/study-units", label: "יחידות לימוד", icon: "📖" },
+  { href: "/exams", label: "מבחנים ומטלות", icon: "📝" },
   { href: "/lecturers", label: "מרצים", icon: "👨‍🏫" },
   { href: "/grades", label: "ציונים", icon: "📝" },
   { href: "/attendance", label: "נוכחות", icon: "✅" },
