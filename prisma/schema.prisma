@@ -1309,11 +1309,14 @@ model StudyUnit {
 
 model ExamTemplate {
   id          String     @id @default(cuid())
-  courseId    String
+  courseId    String?
   title       String
   description String?
+  instructions String?   @db.Text
   type        ExamType   @default(exam)
   status      ExamStatus @default(draft)
+  timeLimit   Int?
+  passingScore Float     @default(60)
 
   // AI generation context
   aiPrompt         String?
@@ -1329,12 +1332,12 @@ model ExamTemplate {
   examDate    DateTime?
   dueDate     DateTime?
 
-  createdById String
+  createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  createdBy         Admin              @relation("ExamsCreated", fields: [createdById], references: [id])
+  course            Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  createdBy         Admin?             @relation("ExamsCreated", fields: [createdById], references: [id])
   submissions       ExamSubmission[]
   questions         ExamQuestion[]
   examTemplateUnits ExamTemplateUnit[]
