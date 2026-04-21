@@ -94,7 +94,7 @@ export async function POST(
 
       // Try to auto-match student
       let studentId: string | null = null;
-      if (studentName) {
+      if (studentName && exam.courseId) {
         const matched = await tryMatchStudent(studentName, exam.courseId);
         if (matched) studentId = matched;
       }
