@@ -1,151 +1,160 @@
+"use client";
+
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { resolveField, formatDateHe } from "@/lib/utils";
-import { ExamPreview } from "@/components/exams/exam-preview";
+import { ExamQuestionEditor } from "@/components/exam-templates/exam-question-editor";
 
-export const dynamic = "force-dynamic";
+export default function ExamDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const [template, setTemplate] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isAddingQuestion, setIsAddingQuestion] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  draft: { label: "טיוטה", color: "bg-gray-100 text-gray-700" },
-  ready: { label: "מוכן", color: "bg-blue-100 text-blue-700" },
-  grading: { label: "בבדיקה", color: "bg-yellow-100 text-yellow-700" },
-  completed: { label: "הסתיים", color: "bg-green-100 text-green-700" },
-};
+  const fetchTemplate = async () => {
+    try {
+      const res = await fetch(`/api/exam-templates/${resolvedParams.id}`);
+      const data = await res.json();
+      if (res.ok) setTemplate(data.template);
+      else setError(data.error);
+    } catch {
+      setError("שגיאת תקשורת");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-export default async function ExamDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+  useEffect(() => {
+    fetchTemplate();
+  }, [resolvedParams.id]);
 
-  const exam = await prisma.examTemplate.findUnique({
-    where: { id },
-    include: {
-      course: {
-        select: {
-          id: true,
-          fullNameMoodle: true,
-          fullNameOverride: true,
-          fullNameSource: true,
-        },
-      },
-      createdBy: { select: { id: true, name: true } },
-      _count: { select: { submissions: true } },
-    },
-  });
+  const handleDeleteQuestion = async (qId: string) => {
+    if (!confirm("להסיר שאלה זו מהמבחן?")) return;
+    try {
+      await fetch(`/api/exam-templates/${resolvedParams.id}/questions/${qId}`, { method: "DELETE" });
+      fetchTemplate();
+    } catch {
+      alert("שגיאה במחיקה");
+    }
+  };
 
-  if (!exam) return notFound();
-
-  const courseName = resolveField(
-    exam.course.fullNameMoodle,
-    exam.course.fullNameOverride
-  );
-  const status = statusLabels[exam.status] || statusLabels.draft;
+  if (loading) return <div className="p-8 text-center">טוען מבחן...</div>;
+  if (error || !template) return <div className="p-8 text-red-500 text-center">{error || "מבחן לא נמצא"}</div>;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{exam.title}</h1>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${status.color}`}
-            >
-              {status.label}
-            </span>
+          <div className="flex items-center gap-3 text-sm text-gray-500 mb-2">
+            <Link href="/exams" className="hover:text-blue-600">מבחנים</Link>
+            <span>/</span>
+            <span>{template.title}</span>
           </div>
-          <p className="text-muted-foreground mt-1">
-            {exam.type === "exam" ? "מבחן" : "מטלה"} | {courseName} | נוצר{" "}
-            {formatDateHe(exam.createdAt)} ע&quot;י {exam.createdBy.name}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            {template.title}
+            <span className={`text-xs px-2 py-1 rounded font-medium ${template.status === "published" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
+              {template.status === "published" ? "פורסם" : "טיוטה"}
+            </span>
+          </h1>
         </div>
         <div className="flex gap-2">
-          <Link
-            href={`/exams/${exam.id}/grade`}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            העלאה ובדיקה
-          </Link>
-          {exam._count.submissions > 0 && (
-            <Link
-              href={`/exams/${exam.id}/report`}
-              className="rounded-md border border-input bg-background px-4 py-2 text-sm hover:bg-muted"
-            >
-              דוח ציונים
-            </Link>
-          )}
+          <a href={`/api/exam-templates/${template.id}/export`} target="_blank" className="px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 flex items-center gap-2">
+            📄 ייצוא המבחן
+          </a>
         </div>
       </div>
 
-      {/* Info Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <InfoCard label="סה&quot;כ ניקוד" value={exam.totalPoints ? String(exam.totalPoints) : "-"} />
-        <InfoCard label="הגשות" value={String(exam._count.submissions)} />
-        <InfoCard
-          label="תאריך מבחן"
-          value={exam.examDate ? formatDateHe(exam.examDate) : "-"}
-        />
-        <InfoCard
-          label="תאריך הגשה"
-          value={exam.dueDate ? formatDateHe(exam.dueDate) : "-"}
-        />
-      </div>
-
-      {/* Description */}
-      {exam.description && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="font-medium mb-2">תיאור</h2>
-          <p className="text-sm text-muted-foreground">{exam.description}</p>
-        </div>
-      )}
-
-      {/* Source Files */}
-      {exam.sourceFileNames.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="font-medium mb-2">קבצי מקור</h2>
-          <div className="flex flex-wrap gap-2">
-            {exam.sourceFileNames.map((name, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
-              >
-                📄 {name}
-              </span>
-            ))}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-5 rounded-lg border shadow-sm">
+          <h3 className="font-semibold mb-3 border-b pb-2">פרטי המבחן</h3>
+          <div className="space-y-2 text-sm text-gray-600">
+            <p><span className="font-medium text-gray-900">סוג:</span> {template.type === "exam" ? "מבחן" : "מטלה"}</p>
+            <p><span className="font-medium text-gray-900">קורס:</span> {template.course?.fullNameOverride || template.course?.fullNameMoodle || "כללי"}</p>
+            <p><span className="font-medium text-gray-900">ציון עובר:</span> {template.passingScore}</p>
+            {template.timeLimit && <p><span className="font-medium text-gray-900">הגבלת זמן:</span> {template.timeLimit} דקות</p>}
+            {template.description && <p className="pt-2 italic text-gray-500">{template.description}</p>}
           </div>
         </div>
-      )}
 
-      {/* AI Prompt */}
-      {exam.aiPrompt && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="font-medium mb-2">פרומפט שנעשה בו שימוש</h2>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {exam.aiPrompt}
-          </p>
+        <div className="bg-white p-5 rounded-lg border shadow-sm md:col-span-2">
+          <div className="flex justify-between items-center mb-3 border-b pb-2">
+            <h3 className="font-semibold text-lg">שאלות ({template.questions?.length ?? 0})</h3>
+            {!isAddingQuestion && !editingQuestionId && (
+              <button
+                onClick={() => setIsAddingQuestion(true)}
+                className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded hover:bg-blue-100"
+              >
+                + הוסף שאלה
+              </button>
+            )}
+          </div>
+
+          {(isAddingQuestion || editingQuestionId) && (
+            <div className="mb-6 p-4 bg-slate-50 border rounded-lg">
+              <ExamQuestionEditor
+                templateId={template.id}
+                studyUnits={(template.examTemplateUnits ?? []).map((eu: any) => eu.studyUnit)}
+                existingQuestion={template.questions?.find((q: any) => q.id === editingQuestionId)}
+                onClose={() => { setIsAddingQuestion(false); setEditingQuestionId(null); }}
+                onSave={() => { setIsAddingQuestion(false); setEditingQuestionId(null); fetchTemplate(); }}
+              />
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {(template.questions ?? []).map((question: any, index: number) => (
+              <div key={question.id} className="p-4 border rounded-lg bg-gray-50/50 hover:border-blue-300 transition">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex gap-3 items-start">
+                    <span className="font-bold text-gray-400 mt-0.5">{index + 1}.</span>
+                    <div>
+                      <p className="font-medium text-gray-900 whitespace-pre-wrap">{question.questionText}</p>
+                      <div className="flex gap-2 mt-2">
+                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
+                          {question.questionType === "open" ? "פתוחה" :
+                           question.questionType === "multiple_choice" ? "אמריקאית" : "נכון/לא נכון"}
+                        </span>
+                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">{question.points} נק&apos;</span>
+                        {question.studyUnit && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{question.studyUnit.title}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 opacity-50 hover:opacity-100 transition">
+                    <button onClick={() => setEditingQuestionId(question.id)} className="text-blue-600 text-sm">ערוך</button>
+                    <button onClick={() => handleDeleteQuestion(question.id)} className="text-red-500 text-sm">מחק</button>
+                  </div>
+                </div>
+
+                {question.questionType === "multiple_choice" && question.options && Array.isArray(question.options) && (
+                  <div className="mt-3 pl-8 space-y-1">
+                    {question.options.map((opt: any, i: number) => (
+                      <div key={opt.id || i} className={`text-sm flex gap-2 ${opt.isCorrect ? "text-green-700 font-medium" : "text-gray-600"}`}>
+                        <span>{opt.isCorrect ? "✓" : "○"}</span>
+                        {opt.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(question.questionType === "open" || question.questionType === "true_false") && question.correctAnswer && (
+                  <div className="mt-3 pl-8 text-sm text-green-700">
+                    <span className="font-medium">תשובה נכונה: </span> {question.correctAnswer}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {(!template.questions || template.questions.length === 0) && !isAddingQuestion && (
+              <div className="text-center py-6 text-gray-500">
+                אין שאלות במבחן. לחץ על &quot;הוסף שאלה&quot; כדי להתחיל.
+              </div>
+            )}
+          </div>
         </div>
-      )}
-
-      {/* Questions Preview */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="text-lg font-semibold mb-4">שאלות המבחן</h2>
-        <ExamPreview
-          examData={exam.examData as any}
-          totalPoints={exam.totalPoints}
-        />
       </div>
-    </div>
-  );
-}
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 text-center">
-      <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: label }} />
-      <p className="text-xl font-bold mt-1">{value}</p>
     </div>
   );
 }

@@ -273,7 +273,8 @@ model Tag {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  courses CourseTag[]
+  courses    CourseTag[]
+  studyUnits StudyUnit[]
 
   @@unique([name, category])
   @@map("tags")
@@ -342,10 +343,11 @@ model Course {
   selfStudyEnrollments SelfStudyEnrollment[]
   submissions          StudentSubmission[]
   examTemplates        ExamTemplate[]
+  studyUnits           StudyUnit[]
 
   // Google Drive integration
-  driveFolderId    String?   // Google Drive folder ID for course materials
-  driveFolderUrl   String?   // Full URL for display
+  driveFolderId    String?
+  driveFolderUrl   String?
 
   @@map("courses")
 }
@@ -1233,9 +1235,9 @@ model StudentSubmission {
   syllabusItemId String
   courseId        String
 
-  answers     Json      // תשובות התלמיד
-  grade       Float?    // ציון (nullable עד שמציינים)
-  feedback    String?   // משוב מהמרצה/מערכת
+  answers     Json
+  grade       Float?
+  feedback    String?
   submittedAt DateTime  @default(now())
   gradedAt    DateTime?
 
@@ -1260,7 +1262,7 @@ model Lead {
   email          String?
   courseInterest  String?
   inquiryDate    DateTime  @default(now())
-  status         String    @default("new") // new, contacted, interested, pending_docs, registered, lost
+  status         String    @default("new")
   notes          String?
   convertedAt    DateTime?
   studentId      String?
@@ -1271,6 +1273,34 @@ model Lead {
   @@map("leads")
   @@index([status])
   @@index([phone])
+}
+
+// ============================================================
+// STUDY UNITS (יחידות לימוד)
+// ============================================================
+
+model StudyUnit {
+  id          String   @id @default(cuid())
+  courseId    String?
+  tagId       String?
+  title       String
+  description String?
+  content     String   @db.Text
+  unitNumber  Int      @default(1)
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  tag         Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+
+  examTemplateUnits ExamTemplateUnit[]
+  examQuestions     ExamQuestion[]
+
+  @@map("study_units")
+  @@index([courseId])
+  @@index([tagId])
 }
 
 // ============================================================
@@ -1286,14 +1316,14 @@ model ExamTemplate {
   status      ExamStatus @default(draft)
 
   // AI generation context
-  aiPrompt         String?   // The prompt used to generate the exam
-  sourceFileIds    String[]  // Google Drive file IDs used as source material
-  sourceFileNames  String[]  // Drive file names for display
-  sourceTexts      Json?     // Extracted text from source files (cached)
+  aiPrompt         String?
+  sourceFileIds    String[]
+  sourceFileNames  String[]
+  sourceTexts      Json?
 
   // Generated exam content
-  examData    Json?    // { title, questions: [{ id, type, question, options, correctAnswer, rubric, points }] }
-  totalPoints Float?   // Total possible points
+  examData    Json?
+  totalPoints Float?
 
   // Scheduling
   examDate    DateTime?
@@ -1303,9 +1333,11 @@ model ExamTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  createdBy    Admin            @relation("ExamsCreated", fields: [createdById], references: [id])
-  submissions  ExamSubmission[]
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdBy         Admin              @relation("ExamsCreated", fields: [createdById], references: [id])
+  submissions       ExamSubmission[]
+  questions         ExamQuestion[]
+  examTemplateUnits ExamTemplateUnit[]
 
   @@map("exam_templates")
   @@index([courseId])
@@ -1318,23 +1350,19 @@ model ExamTemplate {
 model ExamSubmission {
   id              String  @id @default(cuid())
   examTemplateId  String
-  studentId       String?  // nullable until student is identified
+  studentId       String?
 
-  // Uploaded file info
   fileName        String
-  fileType        String   // pdf, docx, image
-  fileData        Bytes?   // raw file content for processing
-  extractedText   String?  // Text extracted from the uploaded file
+  fileType        String
+  fileData        Bytes?
+  extractedText   String?
+  studentName     String?
 
-  // Student identification
-  studentName     String?  // Name as appears on the exam paper
-
-  // Grading
   gradingStatus   SubmissionGradingStatus @default(pending)
   grade           Float?
   maxGrade        Float?
-  feedback        Json?    // { overall: string, perQuestion: [{ questionId, score, maxScore, feedback }] }
-  aiRawResponse   Json?    // Full AI response for debugging
+  feedback        Json?
+  aiRawResponse   Json?
 
   gradedAt        DateTime?
   createdAt       DateTime @default(now())
@@ -1346,4 +1374,50 @@ model ExamSubmission {
   @@map("exam_submissions")
   @@index([examTemplateId])
   @@index([studentId])
+}
+
+model ExamTemplateUnit {
+  examTemplateId String
+  studyUnitId    String
+
+  examTemplate ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  studyUnit    StudyUnit    @relation(fields: [studyUnitId], references: [id], onDelete: Cascade)
+
+  @@id([examTemplateId, studyUnitId])
+  @@map("exam_template_units")
+}
+
+// ============================================================
+// EXAM QUESTIONS (שאלות מבחן/מטלה)
+// ============================================================
+
+enum QuestionType {
+  open
+  multiple_choice
+  true_false
+  fill_in_the_blank
+}
+
+model ExamQuestion {
+  id             String       @id @default(cuid())
+  examTemplateId String
+  studyUnitId    String?
+
+  questionText   String       @db.Text
+  questionType   QuestionType @default(open)
+  points         Float        @default(10)
+  sortOrder      Int          @default(0)
+
+  options        Json?
+  correctAnswer  String?      @db.Text
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  examTemplate   ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  studyUnit      StudyUnit?   @relation(fields: [studyUnitId], references: [id], onDelete: SetNull)
+
+  @@map("exam_questions")
+  @@index([examTemplateId])
+  @@index([studyUnitId])
 }

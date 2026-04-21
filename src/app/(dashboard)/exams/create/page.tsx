@@ -1,32 +1,18 @@
-import { prisma } from "@/lib/prisma";
-import { resolveField } from "@/lib/utils";
-import { ExamBuilder } from "@/components/exams/exam-builder";
+import { ExamWizard } from "@/components/exam-templates/exam-wizard";
 
-export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "יצירת מבחן - אשף חכם | מערכת ניהול",
+};
 
-export default async function CreateExamPage() {
-  const courses = await prisma.course.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      fullNameMoodle: true,
-      fullNameOverride: true,
-      fullNameSource: true,
-      driveFolderId: true,
-    },
-    orderBy: { fullNameMoodle: "asc" },
-  });
-
-  const formattedCourses = courses.map((c) => ({
-    id: c.id,
-    name: resolveField(c.fullNameMoodle, c.fullNameOverride) || "ללא שם",
-    driveFolderId: c.driveFolderId,
-  }));
-
+export default function CreateExamPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">יצירת מבחן חדש</h1>
-      <ExamBuilder courses={formattedCourses} />
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-gray-900">יצירת מבחן חדש</h1>
+        <p className="text-gray-600 mt-2">אשף שלבים ליצירת מבחן ומחולל שאלות אוטומטי</p>
+      </div>
+
+      <ExamWizard />
     </div>
   );
 }
