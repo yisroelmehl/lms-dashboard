@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(
   request: Request,
@@ -11,14 +13,10 @@ export async function POST(
     const body = await request.json();
     const { unitIds, questionTypes, countPerType } = body;
 
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ 
-        error: "לא הוגדר מפתח API (חסר GOOGLE_API_KEY) בסביבת הפיתוח" 
-      }, { status: 400 });
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: "חסר ANTHROPIC_API_KEY בהגדרות השרת" }, { status: 400 });
     }
 
-    // Fetch units content
     const units = await prisma.studyUnit.findMany({
       where: { id: { in: unitIds } }
     });
@@ -28,64 +26,66 @@ export async function POST(
     }
 
     const aggregatedContent = units.map(u => `### יחידה: ${u.title}\n${u.content}`).join("\n\n");
-    
-    // Configure Gemini API
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Build the prompt instruction
     let requestedTypesText = "";
     if (questionTypes.includes("multiple_choice")) requestedTypesText += `- אמריקאיות (multiple_choice): ${countPerType} שאלות\n`;
     if (questionTypes.includes("open")) requestedTypesText += `- פתוחות (open): ${countPerType} שאלות\n`;
     if (questionTypes.includes("true_false")) requestedTypesText += `- נכון/לא נכון (true_false): ${countPerType} שאלות\n`;
 
-    const prompt = `
-אתה מורה מקצועי שתפקידו לחבר מבחן על בסיס חומר לימוד מסוים.
+    const prompt = `אתה מורה מקצועי שתפקידו לחבר מבחן על בסיס חומר לימוד מסוים.
 חומר הלימוד מצורף למטה (מחולק ליחידות).
 
 נא לחבר את השאלות הבאות:
 ${requestedTypesText}
-
-ענה בפורמט JSON בלבד, בלי שום הסברים נוספים מסביב, במבנה הבא:
+ענה בפורמט JSON בלבד, ללא הסברים נוספים, במבנה הבא:
 [
   {
     "questionText": "טקסט השאלה",
-    "questionType": "open" | "multiple_choice" | "true_false",
-    "correctAnswer": "התשובה הנכונה (לשאלות פתוחות או נכון/לא נכון)",
+    "questionType": "open",
+    "correctAnswer": "התשובה הנכונה",
+    "options": null
+  },
+  {
+    "questionText": "שאלה אמריקאית",
+    "questionType": "multiple_choice",
+    "correctAnswer": null,
     "options": [
       {"id": "1", "text": "אפשרות א", "isCorrect": true},
-      {"id": "2", "text": "אפשרות ב", "isCorrect": false}
-      // במקרה של שאלות אמריקאיות בלבד
+      {"id": "2", "text": "אפשרות ב", "isCorrect": false},
+      {"id": "3", "text": "אפשרות ג", "isCorrect": false},
+      {"id": "4", "text": "אפשרות ד", "isCorrect": false}
     ]
   }
 ]
 
-יש לוודא שהתשובות נכונות במדויק על פי חומר הלימוד שסופק!
+יש לוודא שהתשובות נכונות על פי חומר הלימוד בלבד!
 
 חומר הלימוד:
 ==========
-${aggregatedContent}
-`;
+${aggregatedContent}`;
 
-    // Try generating the content
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      messages: [{ role: "user", content: prompt }],
     });
 
-    const text = result.response.text();
-    let generatedQuestions;
-    try {
-      generatedQuestions = JSON.parse(text);
-    } catch {
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+
+    // Extract JSON array from response (Claude may wrap it in markdown)
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
       return NextResponse.json({ error: "המודל החזיר תשובה בפורמט לא תקין" }, { status: 500 });
     }
 
-    // Attempt to connect generated questions to one of the units (randomly or generically)
-    // Actually we'll just insert them without studyUnitId since we grouped the text
-    const defaultPoints = 100 / generatedQuestions.length;
+    let generatedQuestions: any[];
+    try {
+      generatedQuestions = JSON.parse(jsonMatch[0]);
+    } catch {
+      return NextResponse.json({ error: "שגיאה בפירוש תשובת ה-AI" }, { status: 500 });
+    }
+
+    const defaultPoints = Math.round(100 / generatedQuestions.length);
 
     for (let i = 0; i < generatedQuestions.length; i++) {
       const q = generatedQuestions[i];
@@ -97,18 +97,15 @@ ${aggregatedContent}
           correctAnswer: q.correctAnswer || null,
           options: q.options || null,
           points: defaultPoints,
-          sortOrder: i * 10
-        }
+          sortOrder: i * 10,
+        },
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      count: generatedQuestions.length 
-    });
+    return NextResponse.json({ success: true, count: generatedQuestions.length });
 
   } catch (error: any) {
-    console.error("Gemini Generation Error:", error);
+    console.error("Claude Generation Error:", error);
     return NextResponse.json({ error: "שגיאה בתהליך יצירת השאלות האוטומטי" }, { status: 500 });
   }
 }
