@@ -36,7 +36,7 @@ export function StudyUnitsManager() {
   const [newSemesterNumber, setNewSemesterNumber] = useState(1);
 
   const [uploadingSemesterId, setUploadingSemesterId] = useState<string | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadSeparator, setUploadSeparator] = useState("---");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -120,20 +120,20 @@ export function StudyUnitsManager() {
   };
 
   const handleUpload = async (semesterId: string) => {
-    if (!uploadFile) { setUploadError("אנא בחר קובץ"); return; }
+    if (!uploadFiles.length) { setUploadError("אנא בחר קבצים"); return; }
     setUploading(true);
     setUploadError("");
     const formData = new FormData();
-    formData.append("file", uploadFile);
+    uploadFiles.forEach(f => formData.append("file", f));
     formData.append("studySemesterId", semesterId);
     formData.append("separator", uploadSeparator);
     try {
       const res = await fetch("/api/study-units/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) { setUploadError(data.error || "שגיאה בהעלאה"); return; }
+      if (data.errors?.length) setUploadError(data.errors.join(" | "));
+      else { setUploadingSemesterId(null); setUploadFiles([]); }
       alert(data.message);
-      setUploadingSemesterId(null);
-      setUploadFile(null);
       fetchSubjects();
     } catch {
       setUploadError("שגיאת תקשורת");
@@ -225,7 +225,7 @@ export function StudyUnitsManager() {
                         <button
                           onClick={() => {
                             setUploadingSemesterId(uploadingSemesterId === semester.id ? null : semester.id);
-                            setUploadFile(null);
+                            setUploadFiles([]);
                             setUploadError("");
                           }}
                           className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
@@ -239,9 +239,13 @@ export function StudyUnitsManager() {
                           <input
                             type="file"
                             accept=".docx,.pdf,.txt"
-                            onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                            multiple
+                            onChange={e => setUploadFiles(Array.from(e.target.files || []))}
                             className="w-full border rounded p-1.5 text-sm bg-white"
                           />
+                          {uploadFiles.length > 0 && (
+                            <p className="text-xs text-green-700">{uploadFiles.length} קבצים נבחרו</p>
+                          )}
                           <div className="flex gap-2 items-center">
                             <label className="text-xs text-gray-600 whitespace-nowrap">מפריד:</label>
                             <input
@@ -256,7 +260,7 @@ export function StudyUnitsManager() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleUpload(semester.id)}
-                              disabled={uploading || !uploadFile}
+                              disabled={uploading || !uploadFiles.length}
                               className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                             >
                               {uploading ? "מעבד..." : "העלה ופרק ליחידות"}
