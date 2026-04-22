@@ -14,7 +14,12 @@ export async function GET() {
       lastNameMoodle: true, lastNameOverride: true,
       emailMoodle: true, emailOverride: true,
       enrollments: {
-        where: { status: "active" },
+        where: {
+          OR: [
+            { statusOverride: "active" },
+            { statusMoodle: "active", statusOverride: null },
+          ],
+        },
         include: {
           course: {
             select: {
