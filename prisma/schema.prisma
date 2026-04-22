@@ -252,8 +252,24 @@ model Student {
   selfStudyEnrollments SelfStudyEnrollment[]
   submissions          StudentSubmission[]
   examSubmissions      ExamSubmission[]
+  magicLinks           StudentMagicLink[]
 
   @@map("students")
+}
+
+model StudentMagicLink {
+  id        String    @id @default(cuid())
+  token     String    @unique @default(cuid())
+  studentId String
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_magic_links")
+  @@index([studentId])
 }
 
 // ============================================================

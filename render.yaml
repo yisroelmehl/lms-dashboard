@@ -47,3 +47,9 @@ services:
         value: "https://express.api.dhl.com/mydhlapi/test"
       - key: DHL_SHIPPER_EMAIL
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: NEXT_PUBLIC_MOODLE_URL
+        sync: false
