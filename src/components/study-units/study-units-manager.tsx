@@ -29,6 +29,7 @@ export function StudyUnitsManager() {
 
   const [newSubjectName, setNewSubjectName] = useState("");
   const [creatingSubject, setCreatingSubject] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [addingSemesterTo, setAddingSemesterTo] = useState<string | null>(null);
   const [newSemesterName, setNewSemesterName] = useState("");
@@ -57,6 +58,22 @@ export function StudyUnitsManager() {
   };
 
   useEffect(() => { fetchSubjects(); }, []);
+
+  const handleSyncFromTags = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/study-subjects/sync-from-tags", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`יובאו ${data.created} נושאים חדשים (${data.skipped} כבר קיימים)`);
+        fetchSubjects();
+      } else {
+        alert(data.error || "שגיאה בייבוא");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleCreateSubject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,6 +178,16 @@ export function StudyUnitsManager() {
           + צור נושא
         </button>
       </form>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSyncFromTags}
+          disabled={syncing}
+          className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-gray-600"
+        >
+          {syncing ? "מייבא..." : "↓ ייבא נושאים מדף הקורסים"}
+        </button>
+      </div>
 
       {subjects.length === 0 && (
         <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-lg">
