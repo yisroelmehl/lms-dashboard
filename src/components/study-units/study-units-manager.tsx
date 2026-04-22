@@ -1,172 +1,319 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { StudyUnitUploadModal } from "./study-unit-upload-modal";
-
-interface Course {
-  id: string;
-  fullNameOverride: string | null;
-  fullNameMoodle: string | null;
-}
-
-interface Tag {
-  id: string;
-  name: string;
-}
 
 interface StudyUnit {
   id: string;
   title: string;
-  description: string | null;
-  content: string;
   unitNumber: number;
-  course: Course | null;
-  tag: Tag | null;
+}
+
+interface StudySemester {
+  id: string;
+  name: string;
+  number: number;
+  studyUnits: StudyUnit[];
+  _count?: { studyUnits: number };
+}
+
+interface StudySubject {
+  id: string;
+  name: string;
+  studySemesters: StudySemester[];
 }
 
 export function StudyUnitsManager() {
-  const [units, setUnits] = useState<StudyUnit[]>([]);
+  const [subjects, setSubjects] = useState<StudySubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  // Filters
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedTag, setSelectedTag] = useState("");
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [creatingSubject, setCreatingSubject] = useState(false);
 
-  const fetchUnits = async () => {
+  const [addingSemesterTo, setAddingSemesterTo] = useState<string | null>(null);
+  const [newSemesterName, setNewSemesterName] = useState("");
+  const [newSemesterNumber, setNewSemesterNumber] = useState(1);
+
+  const [uploadingSemesterId, setUploadingSemesterId] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadSeparator, setUploadSeparator] = useState("---");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
+
+  const fetchSubjects = async () => {
     setLoading(true);
     try {
-      let url = "/api/study-units?";
-      if (selectedCourse) url += `courseId=${selectedCourse}&`;
-      if (selectedTag) url += `tagId=${selectedTag}&`;
-      
-      const res = await fetch(url);
+      const res = await fetch("/api/study-subjects");
+      if (!res.ok) throw new Error();
       const data = await res.json();
-      if (res.ok) setUnits(data.units);
-      else setError(data.error);
+      setSubjects(data);
     } catch {
-      setError("שגיאה בשליפת היחידות");
+      setError("שגיאה בטעינת נושאי הלימוד");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Fetch courses and tags for filters
-    Promise.all([
-      fetch("/api/courses").then(r => r.json()),
-      fetch("/api/tags?category=subject").then(r => r.json())
-    ]).then(([cData, tData]) => {
-      setCourses(cData.courses || cData || []);
-      setTags(tData.tags || tData || []);
-    });
-  }, []);
+  useEffect(() => { fetchSubjects(); }, []);
 
-  useEffect(() => {
-    fetchUnits();
-  }, [selectedCourse, selectedTag]);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("האם למחוק יחידת לימוד זו באופן מוחלט?")) return;
-    
+  const handleCreateSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubjectName.trim()) return;
+    setCreatingSubject(true);
     try {
-      const res = await fetch(`/api/study-units/${id}`, { method: "DELETE" });
-      if (res.ok) fetchUnits();
-      else alert("שגיאה במחיקה");
+      const res = await fetch("/api/study-subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newSubjectName.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        alert(d.error || "שגיאה ביצירת נושא");
+        return;
+      }
+      setNewSubjectName("");
+      fetchSubjects();
+    } finally {
+      setCreatingSubject(false);
+    }
+  };
+
+  const handleCreateSemester = async (subjectId: string) => {
+    if (!newSemesterName.trim()) return;
+    try {
+      const res = await fetch(`/api/study-subjects/${subjectId}/study-semesters`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newSemesterName.trim(), number: newSemesterNumber }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        alert(d.error || "שגיאה ביצירת סמסטר");
+        return;
+      }
+      setAddingSemesterTo(null);
+      setNewSemesterName("");
+      setNewSemesterNumber(1);
+      fetchSubjects();
     } catch {
       alert("שגיאת תקשורת");
     }
   };
 
+  const handleUpload = async (semesterId: string) => {
+    if (!uploadFile) { setUploadError("אנא בחר קובץ"); return; }
+    setUploading(true);
+    setUploadError("");
+    const formData = new FormData();
+    formData.append("file", uploadFile);
+    formData.append("studySemesterId", semesterId);
+    formData.append("separator", uploadSeparator);
+    try {
+      const res = await fetch("/api/study-units/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) { setUploadError(data.error || "שגיאה בהעלאה"); return; }
+      alert(data.message);
+      setUploadingSemesterId(null);
+      setUploadFile(null);
+      fetchSubjects();
+    } catch {
+      setUploadError("שגיאת תקשורת");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: string) => {
+    if (!confirm("למחוק יחידת לימוד זו?")) return;
+    await fetch(`/api/study-units/${unitId}`, { method: "DELETE" });
+    fetchSubjects();
+  };
+
+  const toggleSubject = (id: string) => {
+    setExpandedSubjects(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-500">טוען...</div>;
+  if (error) return <div className="text-red-600 p-4">{error}</div>;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">יחידות לימוד וחומרי עזר</h2>
-        <button
-          onClick={() => setIsUploadModalOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700"
-        >
-          + ייבוא קובץ טקסט/Word/PDF
-        </button>
-      </div>
-
-      <div className="flex gap-4 p-4 bg-white rounded-lg border border-gray-200">
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">סנן לפי קורס</label>
-          <select 
-            value={selectedCourse} 
-            onChange={e => setSelectedCourse(e.target.value)}
-            className="border rounded px-3 py-1.5 text-sm"
-          >
-            <option value="">הכל</option>
-            {courses.map(c => (
-              <option key={c.id} value={c.id}>{c.fullNameOverride || c.fullNameMoodle}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">סנן לפי נושא (תגית)</label>
-          <select 
-            value={selectedTag} 
-            onChange={e => setSelectedTag(e.target.value)}
-            className="border rounded px-3 py-1.5 text-sm"
-          >
-            <option value="">הכל</option>
-            {tags.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-10">טוען...</div>
-      ) : error ? (
-        <div className="text-red-500">{error}</div>
-      ) : units.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 border border-dashed rounded-lg text-gray-500">
-          לא נמצאו יחידות לימוד. התחל בייבוא קובץ חדש.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {units.map(unit => (
-            <div key={unit.id} className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-semibold text-lg line-clamp-1">{unit.title}</h3>
-                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs">
-                  יחידה {unit.unitNumber}
-                </span>
-              </div>
-              <div className="text-xs text-gray-500 mb-4 h-10 line-clamp-2">
-                {unit.content.substring(0, 150)}...
-              </div>
-              <div className="flex gap-2 mb-4">
-                {unit.course && <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">{unit.course.fullNameOverride || unit.course.fullNameMoodle}</span>}
-                {unit.tag && <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-xs">{unit.tag.name}</span>}
-              </div>
-              <div className="border-t pt-3 flex justify-between">
-                <button className="text-blue-600 text-sm hover:underline">פרטים ועריכה</button>
-                <button onClick={() => handleDelete(unit.id)} className="text-red-500 text-sm hover:underline">מחיקה</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {isUploadModalOpen && (
-        <StudyUnitUploadModal
-          courses={courses}
-          tags={tags}
-          onClose={() => setIsUploadModalOpen(false)}
-          onSuccess={() => {
-            setIsUploadModalOpen(false);
-            fetchUnits();
-          }}
+    <div className="space-y-6" dir="rtl">
+      {/* Create subject */}
+      <form onSubmit={handleCreateSubject} className="flex gap-2 items-center">
+        <input
+          type="text"
+          value={newSubjectName}
+          onChange={e => setNewSubjectName(e.target.value)}
+          placeholder="שם נושא חדש (תנ״ך, הלכה...)"
+          className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <button
+          type="submit"
+          disabled={creatingSubject || !newSubjectName.trim()}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+        >
+          + צור נושא
+        </button>
+      </form>
+
+      {subjects.length === 0 && (
+        <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-lg">
+          אין נושאים עדיין. צור נושא ראשון למעלה.
+        </div>
       )}
+
+      <div className="space-y-4">
+        {subjects.map(subject => {
+          const isExpanded = expandedSubjects.has(subject.id);
+          const totalUnits = subject.studySemesters.reduce(
+            (sum, s) => sum + (s.studyUnits?.length ?? s._count?.studyUnits ?? 0), 0
+          );
+          return (
+            <div key={subject.id} className="border rounded-lg overflow-hidden shadow-sm">
+              <button
+                onClick={() => toggleSubject(subject.id)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-right"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold">{subject.name}</span>
+                  <span className="text-xs text-gray-500 bg-white border rounded-full px-2 py-0.5">
+                    {subject.studySemesters.length} סמסטרים · {totalUnits} יחידות
+                  </span>
+                </div>
+                <span className="text-gray-400">{isExpanded ? "▲" : "▼"}</span>
+              </button>
+
+              {isExpanded && (
+                <div className="p-4 space-y-4">
+                  {subject.studySemesters.map(semester => (
+                    <div key={semester.id} className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-sm">{semester.name}</span>
+                        <button
+                          onClick={() => {
+                            setUploadingSemesterId(uploadingSemesterId === semester.id ? null : semester.id);
+                            setUploadFile(null);
+                            setUploadError("");
+                          }}
+                          className="text-xs px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                          + העלה קובץ
+                        </button>
+                      </div>
+
+                      {uploadingSemesterId === semester.id && (
+                        <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm space-y-2">
+                          <input
+                            type="file"
+                            accept=".docx,.pdf,.txt"
+                            onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                            className="w-full border rounded p-1.5 text-sm bg-white"
+                          />
+                          <div className="flex gap-2 items-center">
+                            <label className="text-xs text-gray-600 whitespace-nowrap">מפריד:</label>
+                            <input
+                              type="text"
+                              value={uploadSeparator}
+                              onChange={e => setUploadSeparator(e.target.value)}
+                              className="w-20 border rounded px-2 py-1 text-xs"
+                            />
+                            <span className="text-xs text-gray-400">(מחלק קובץ ליחידות)</span>
+                          </div>
+                          {uploadError && <p className="text-red-600 text-xs">{uploadError}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleUpload(semester.id)}
+                              disabled={uploading || !uploadFile}
+                              className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {uploading ? "מעבד..." : "העלה ופרק ליחידות"}
+                            </button>
+                            <button
+                              onClick={() => setUploadingSemesterId(null)}
+                              className="px-3 py-1.5 border text-xs rounded hover:bg-gray-50"
+                            >
+                              ביטול
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {semester.studyUnits && semester.studyUnits.length > 0 ? (
+                        <ul className="space-y-1">
+                          {semester.studyUnits.map(unit => (
+                            <li key={unit.id} className="flex items-center justify-between text-xs bg-gray-50 px-2 py-1.5 rounded">
+                              <span className="text-gray-700 truncate flex-1">{unit.title}</span>
+                              <button
+                                onClick={() => handleDeleteUnit(unit.id)}
+                                className="text-red-400 hover:text-red-600 mr-2 flex-shrink-0"
+                                title="מחק"
+                              >
+                                ✕
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-gray-400 text-center py-2">אין יחידות עדיין</p>
+                      )}
+                    </div>
+                  ))}
+
+                  {addingSemesterTo === subject.id ? (
+                    <div className="border border-dashed rounded-lg p-3 space-y-2 text-sm">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newSemesterName}
+                          onChange={e => setNewSemesterName(e.target.value)}
+                          placeholder="שם סמסטר (סמסטר א, מחצית א...)"
+                          className="flex-1 border rounded px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          type="number"
+                          value={newSemesterNumber}
+                          onChange={e => setNewSemesterNumber(Number(e.target.value))}
+                          min={1}
+                          className="w-16 border rounded px-2 py-1.5 text-sm"
+                          title="מספר סמסטר"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCreateSemester(subject.id)}
+                          disabled={!newSemesterName.trim()}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          צור
+                        </button>
+                        <button
+                          onClick={() => { setAddingSemesterTo(null); setNewSemesterName(""); }}
+                          className="px-3 py-1.5 border text-xs rounded hover:bg-gray-50"
+                        >
+                          ביטול
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddingSemesterTo(subject.id)}
+                      className="w-full text-xs text-blue-600 border border-dashed border-blue-300 rounded-lg py-2 hover:bg-blue-50"
+                    >
+                      + הוסף סמסטר
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

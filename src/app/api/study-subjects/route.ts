@@ -9,7 +9,12 @@ export async function GET() {
   const subjects = await prisma.studySubject.findMany({
     include: {
       studySemesters: {
-        include: { _count: { select: { studyUnits: true } } },
+        include: {
+          studyUnits: {
+            select: { id: true, title: true, unitNumber: true },
+            orderBy: { unitNumber: "asc" },
+          },
+        },
         orderBy: { number: "asc" },
       },
     },
