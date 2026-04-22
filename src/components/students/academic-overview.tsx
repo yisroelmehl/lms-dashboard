@@ -247,13 +247,13 @@ function CourseCard({ course, studentId, onUpdate }: { course: CourseAcademicDat
             <div className="mt-2 space-y-1.5">
               {course.lessonCount > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-20">שיעורים</span>
+                  <span className="text-xs text-muted-foreground w-14 md:w-20 shrink-0">שיעורים</span>
                   <ProgressBar value={course.lessonCompleted} max={course.lessonCount} color="blue" />
                 </div>
               )}
               {course.examCount > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-20">מבחנים</span>
+                  <span className="text-xs text-muted-foreground w-14 md:w-20 shrink-0">מבחנים</span>
                   <ProgressBar value={course.examCompleted} max={course.examCount} color="amber" />
                 </div>
               )}
@@ -296,7 +296,7 @@ function CourseCard({ course, studentId, onUpdate }: { course: CourseAcademicDat
           <div className="flex border-b border-border">
             {lessons.length > 0 && (
               <button
-                className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === "lessons" ? "border-blue-500 text-blue-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                className={`px-2 md:px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === "lessons" ? "border-blue-500 text-blue-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                 onClick={() => setActiveTab("lessons")}
               >
                 📹 שיעורים ({course.lessonCompleted}/{course.lessonCount})
@@ -304,7 +304,7 @@ function CourseCard({ course, studentId, onUpdate }: { course: CourseAcademicDat
             )}
             {realExams.length > 0 && (
               <button
-                className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === "exams" ? "border-amber-500 text-amber-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                className={`px-2 md:px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === "exams" ? "border-amber-500 text-amber-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                 onClick={() => setActiveTab("exams")}
               >
                 📝 מבחנים ({course.examCompleted}/{course.examCount})
@@ -312,7 +312,7 @@ function CourseCard({ course, studentId, onUpdate }: { course: CourseAcademicDat
             )}
             {otherExams.length > 0 && (
               <button
-                className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === "all" ? "border-slate-500 text-slate-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                className={`px-2 md:px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === "all" ? "border-slate-500 text-slate-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                 onClick={() => setActiveTab("all")}
               >
                 כל הפעילויות

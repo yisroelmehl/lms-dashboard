@@ -76,7 +76,7 @@ export function CoursesGrid({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="חיפוש קורס..."
-          className="w-60 rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full sm:w-60 rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           dir="rtl"
         />
 

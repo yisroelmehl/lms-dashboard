@@ -137,7 +137,7 @@ export default async function StudentDetailPage({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 text-sm">
           <InfoField
             label="אימייל"
             value={email}
@@ -375,12 +375,13 @@ export default async function StudentDetailPage({
       <AcademicOverview studentId={id} />
 
       {/* Grades */}
-      <div className="rounded-lg border border-border bg-card p-6">
+      <div className="rounded-lg border border-border bg-card p-4 md:p-6">
         <h2 className="mb-4 text-lg font-semibold">ציונים</h2>
         {student.grades.length === 0 ? (
           <p className="text-sm text-muted-foreground">אין ציונים</p>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto -mx-4 md:mx-0">
+          <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
@@ -436,6 +437,7 @@ export default async function StudentDetailPage({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
