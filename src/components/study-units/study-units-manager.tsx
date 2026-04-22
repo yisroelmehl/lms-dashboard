@@ -6,6 +6,7 @@ interface StudyUnit {
   id: string;
   title: string;
   unitNumber: number;
+  content?: string;
 }
 
 interface StudySemester {
@@ -42,6 +43,12 @@ export function StudyUnitsManager() {
   const [uploadError, setUploadError] = useState("");
 
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set());
+
+  // Edit modal
+  const [editingUnit, setEditingUnit] = useState<StudyUnit | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const fetchSubjects = async () => {
     setLoading(true);
@@ -146,6 +153,35 @@ export function StudyUnitsManager() {
     if (!confirm("למחוק יחידת לימוד זו?")) return;
     await fetch(`/api/study-units/${unitId}`, { method: "DELETE" });
     fetchSubjects();
+  };
+
+  const openEdit = async (unit: StudyUnit) => {
+    const res = await fetch(`/api/study-units/${unit.id}`);
+    const data = await res.json();
+    const full = data.unit || unit;
+    setEditingUnit(full);
+    setEditTitle(full.title);
+    setEditContent(full.content || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUnit) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/study-units/${editingUnit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle, content: editContent, unitNumber: editingUnit.unitNumber }),
+      });
+      if (res.ok) {
+        setEditingUnit(null);
+        fetchSubjects();
+      } else {
+        alert("שגיאה בשמירה");
+      }
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const toggleSubject = (id: string) => {
@@ -278,15 +314,24 @@ export function StudyUnitsManager() {
                       {semester.studyUnits && semester.studyUnits.length > 0 ? (
                         <ul className="space-y-1">
                           {semester.studyUnits.map(unit => (
-                            <li key={unit.id} className="flex items-center justify-between text-xs bg-gray-50 px-2 py-1.5 rounded">
+                            <li key={unit.id} className="flex items-center justify-between text-xs bg-gray-50 px-2 py-1.5 rounded hover:bg-gray-100">
                               <span className="text-gray-700 truncate flex-1">{unit.title}</span>
-                              <button
-                                onClick={() => handleDeleteUnit(unit.id)}
-                                className="text-red-400 hover:text-red-600 mr-2 flex-shrink-0"
-                                title="מחק"
-                              >
-                                ✕
-                              </button>
+                              <div className="flex gap-1 flex-shrink-0 mr-2">
+                                <button
+                                  onClick={() => openEdit(unit)}
+                                  className="text-blue-400 hover:text-blue-600 px-1"
+                                  title="צפה/ערוך"
+                                >
+                                  ✎
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUnit(unit.id)}
+                                  className="text-red-400 hover:text-red-600 px-1"
+                                  title="מחק"
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -345,6 +390,53 @@ export function StudyUnitsManager() {
           );
         })}
       </div>
+
+      {/* Edit modal */}
+      {editingUnit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" dir="rtl">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h2 className="font-bold text-lg">עריכת יחידה</h2>
+              <button onClick={() => setEditingUnit(null)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">כותרת</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">תוכן</label>
+                <textarea
+                  value={editContent}
+                  onChange={e => setEditContent(e.target.value)}
+                  rows={18}
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t">
+              <button
+                onClick={() => setEditingUnit(null)}
+                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {editSaving ? "שומר..." : "שמור"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

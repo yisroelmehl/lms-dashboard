@@ -44,12 +44,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "לא נשלחו קבצים" }, { status: 400 });
     }
 
-    // Start unit numbering after existing units in this semester
-    const existingCount = studySemesterId
-      ? await prisma.studyUnit.count({ where: { studySemesterId } })
-      : 0;
-
-    let globalUnitNumber = existingCount + 1;
+    // Start unit numbering after the highest existing unitNumber in this semester
+    const maxResult = studySemesterId
+      ? await prisma.studyUnit.aggregate({ where: { studySemesterId }, _max: { unitNumber: true } })
+      : null;
+    let globalUnitNumber = (maxResult?._max?.unitNumber ?? 0) + 1;
     let totalCreated = 0;
     const errors: string[] = [];
 

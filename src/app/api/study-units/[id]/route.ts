@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const unit = await prisma.studyUnit.findUnique({ where: { id } });
+  if (!unit) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ unit });
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
