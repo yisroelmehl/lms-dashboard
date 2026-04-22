@@ -43,12 +43,19 @@ export function ExamWizard() {
         .then(r => r.json())
         .then(data => {
           setAvailableUnits(data.units || []);
-          // Group by tags
+          // Group by StudySubject → StudySemester, falling back to tag or "ללא נושא"
           const grouped: any = {};
           (data.units || []).forEach((u: any) => {
-            const t = u.tag?.name || "ללא נושא";
-            if (!grouped[t]) grouped[t] = [];
-            grouped[t].push(u);
+            let groupKey: string;
+            if (u.studySemester?.studySubject?.name) {
+              groupKey = `${u.studySemester.studySubject.name} — ${u.studySemester.name}`;
+            } else if (u.tag?.name) {
+              groupKey = u.tag.name;
+            } else {
+              groupKey = "ללא נושא";
+            }
+            if (!grouped[groupKey]) grouped[groupKey] = [];
+            grouped[groupKey].push(u);
           });
           setTagGroups(grouped);
         });

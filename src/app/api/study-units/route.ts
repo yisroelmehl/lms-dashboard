@@ -22,6 +22,12 @@ export async function GET(request: Request) {
       include: {
         course: { select: { id: true, fullNameMoodle: true, fullNameOverride: true } },
         tag: { select: { id: true, name: true } },
+        studySemester: {
+          select: {
+            id: true, name: true, number: true,
+            studySubject: { select: { id: true, name: true } },
+          },
+        },
       }
     });
 
