@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File;
     const courseId = formData.get("courseId") as string;
     const tagId = formData.get("tagId") as string;
+    const studySemesterId = formData.get("studySemesterId") as string;
     const separator = (formData.get("separator") as string) || "---";
 
     if (!file) {
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
           content: content.trim(),
           courseId: courseId || null,
           tagId: tagId || null,
+          studySemesterId: studySemesterId || null,
           unitNumber: i + 1,
           sortOrder: i * 10,
         }

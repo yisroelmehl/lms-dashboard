@@ -4,8 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  superAdminOnly?: boolean;
+  children?: { href: string; label: string; icon: string }[];
+};
+
+const navItems: NavItem[] = [
   { href: "/dashboard", label: "לוח בקרה", icon: "🏠" },
   { href: "/students/new", label: "תלמידים חדשים", icon: "🆕" },
   { href: "/students/onboarding", label: "חיבור תלמידים חדשים", icon: "🔗" },
@@ -20,7 +29,7 @@ const navItems = [
     ],
   },
   { href: "/courses", label: "קורסים", icon: "📚" },
-  { href: "/study-units", label: "יחידות לימוד", icon: "📖" },
+  { href: "/study-units", label: "יחידות לימוד", icon: "📖", superAdminOnly: true },
   { href: "/exams", label: "מבחנים ומטלות", icon: "📝" },
   { href: "/lecturers", label: "מרצים", icon: "👨‍🏫" },
   { href: "/grades", label: "ציונים", icon: "📝" },
@@ -46,6 +55,9 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string })?.role;
+  const isSuperAdmin = role === "super_admin";
 
   const toggleExpand = (href: string) => {
     const newExpanded = new Set(expandedItems);
@@ -57,6 +69,8 @@ export function Sidebar() {
     setExpandedItems(newExpanded);
   };
 
+  const visibleItems = navItems.filter((item) => !item.superAdminOnly || isSuperAdmin);
+
   return (
     <aside className="flex h-screen w-64 flex-col border-l border-sidebar-border bg-sidebar">
       <div className="flex h-16 items-center border-b border-sidebar-border px-6">
@@ -67,7 +81,7 @@ export function Sidebar() {
 
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             // More specific paths should match first
             const isActive =
               pathname === item.href ||
@@ -113,7 +127,7 @@ export function Sidebar() {
                 {/* Nested items */}
                 {hasChildren && isExpanded && (
                   <ul className="mr-4 mt-1 space-y-1 border-r-2 border-sidebar-accent pr-2">
-                    {item.children.map((child) => {
+                    {item.children!.map((child) => {
                       const isChildActive = pathname === child.href;
                       return (
                         <li key={child.href}>

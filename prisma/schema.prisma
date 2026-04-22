@@ -82,8 +82,9 @@ enum AttendanceStatus {
 }
 
 enum AdminRole {
-  admin // מנהל - גישה מלאה
-  rabbi // רב/מרצה - גישה מוגבלת לקורסים שלו
+  super_admin // מנהל עליון - גישה מלאה כולל חומרי לימוד
+  admin       // מנהל - גישה למחולל מבחנים
+  rabbi       // רב/מרצה - גישה מוגבלת לקורסים שלו
 }
 
 enum PaymentLinkStatus {
@@ -1280,20 +1281,22 @@ model Lead {
 // ============================================================
 
 model StudyUnit {
-  id          String   @id @default(cuid())
-  courseId    String?
-  tagId       String?
-  title       String
-  description String?
-  content     String   @db.Text
-  unitNumber  Int      @default(1)
-  sortOrder   Int      @default(0)
+  id               String        @id @default(cuid())
+  courseId         String?
+  tagId            String?
+  studySemesterId  String?
+  title            String
+  description      String?
+  content          String        @db.Text
+  unitNumber       Int           @default(1)
+  sortOrder        Int           @default(0)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course      Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  tag         Tag?     @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  course       Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  tag          Tag?          @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  studySemester StudySemester? @relation(fields: [studySemesterId], references: [id], onDelete: SetNull)
 
   examTemplateUnits ExamTemplateUnit[]
   examQuestions     ExamQuestion[]
@@ -1301,6 +1304,34 @@ model StudyUnit {
   @@map("study_units")
   @@index([courseId])
   @@index([tagId])
+  @@index([studySemesterId])
+}
+
+// ============================================================
+// STUDY SUBJECTS & SEMESTERS (ארגון חומרי לימוד)
+// ============================================================
+
+model StudySubject {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+
+  studySemesters StudySemester[]
+
+  @@map("study_subjects")
+}
+
+model StudySemester {
+  id             String       @id @default(cuid())
+  name           String
+  number         Int          @default(1)
+  studySubjectId String
+
+  studySubject   StudySubject @relation(fields: [studySubjectId], references: [id], onDelete: Cascade)
+  studyUnits     StudyUnit[]
+
+  @@map("study_semesters")
+  @@index([studySubjectId])
 }
 
 // ============================================================
