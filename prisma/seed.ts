@@ -35,11 +35,23 @@ async function main() {
     },
   });
 
-  console.log("Created admin users:", admin1.email, admin2.email);
+  const superAdmin = await prisma.admin.upsert({
+    where: { email: "superadmin@lemaanyilmedo.org" },
+    update: { role: "super_admin" },
+    create: {
+      email: "superadmin@lemaanyilmedo.org",
+      name: "מנהל עליון",
+      hashedPassword: hashSync("admin5770", 12),
+      role: "super_admin",
+    },
+  });
+
+  console.log("Created admin users:", admin1.email, admin2.email, superAdmin.email);
   console.log("");
   console.log("Login credentials:");
-  console.log("  Admin 1: admin@lemaanyilmedo.org / admin123");
-  console.log("  Admin 2: manager@lemaanyilmedo.org / manager123");
+  console.log("  Admin 1:     admin@lemaanyilmedo.org / admin123");
+  console.log("  Admin 2:     manager@lemaanyilmedo.org / manager123");
+  console.log("  Super Admin: superadmin@lemaanyilmedo.org / admin5770");
   console.log("");
   console.log("IMPORTANT: Change these passwords after first login!");
 }
