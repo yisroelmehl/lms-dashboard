@@ -25,6 +25,7 @@ export function ExamWizard() {
   const [availableUnits, setAvailableUnits] = useState<any[]>([]);
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [tagGroups, setTagGroups] = useState<any>({});
+  const [subjectFilter, setSubjectFilter] = useState<string>("");
 
   // Step 3: AI Generate
   const [questionTypes, setQuestionTypes] = useState<string[]>(["multiple_choice", "open"]);
@@ -37,13 +38,10 @@ export function ExamWizard() {
 
   useEffect(() => {
     if (step === 2) {
-      let url = "/api/study-units";
-      if (formData.courseId) url += `?courseId=${formData.courseId}`;
-      fetch(url)
+      fetch("/api/study-units")
         .then(r => r.json())
         .then(data => {
           setAvailableUnits(data.units || []);
-          // Group by StudySubject → StudySemester, falling back to tag or "ללא נושא"
           const grouped: any = {};
           (data.units || []).forEach((u: any) => {
             let groupKey: string;
@@ -60,7 +58,7 @@ export function ExamWizard() {
           setTagGroups(grouped);
         });
     }
-  }, [step, formData.courseId]);
+  }, [step]);
 
   const toggleUnit = (id: string) => {
     if (selectedUnits.includes(id)) {
@@ -193,38 +191,74 @@ export function ExamWizard() {
 
         {step === 2 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            <h3 className="text-lg font-medium">בחירת חומר לימוד למבחן</h3>
-            <p className="text-sm text-gray-500">
-              השאלות (גם לחוללן) יתבססו על יחידות הלימוד שתסמן כאן. מוצגות רק יחידות רלוונטיות לקורס הנבחר.
-            </p>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">בחירת חומר לימוד למבחן</h3>
+              <span className="text-sm text-blue-600 font-medium">{selectedUnits.length} יחידות נבחרו</span>
+            </div>
+
+            {/* Subject filter */}
+            {Object.keys(tagGroups).length > 1 && (
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setSubjectFilter("")}
+                  className={`px-3 py-1 text-xs rounded-full border transition ${subjectFilter === "" ? "bg-blue-600 text-white border-blue-600" : "hover:bg-slate-50"}`}
+                >
+                  הכל
+                </button>
+                {Object.keys(tagGroups).map(key => (
+                  <button
+                    key={key}
+                    onClick={() => setSubjectFilter(key)}
+                    className={`px-3 py-1 text-xs rounded-full border transition ${subjectFilter === key ? "bg-blue-600 text-white border-blue-600" : "hover:bg-slate-50"}`}
+                  >
+                    {key}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {Object.keys(tagGroups).length === 0 ? (
               <div className="bg-yellow-50 text-yellow-800 p-4 rounded-md text-sm text-center">
-                לא נמצאו יחידות לימוד עבור קורס זה. תוכל להמשיך, אבל לא תוכל להשתמש בחוללן האוטומטי.
+                לא נמצאו יחידות לימוד. כנס ל"יחידות לימוד" והעלה קבצים תחת נושא וסמסטר.
               </div>
             ) : (
-              <div className="space-y-6 max-h-80 overflow-y-auto pr-2">
-                {Object.keys(tagGroups).map(tag => (
-                  <div key={tag} className="border rounded-lg overflow-hidden">
-                    <div className="bg-slate-50 px-4 py-2 font-semibold text-sm border-b">{tag}</div>
-                    <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {tagGroups[tag].map((unit: any) => (
-                        <label key={unit.id} className={`flex items-start gap-3 p-3 border rounded-md cursor-pointer transition ${selectedUnits.includes(unit.id) ? 'bg-blue-50 border-blue-300' : 'hover:bg-slate-50'}`}>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedUnits.includes(unit.id)} 
-                            onChange={() => toggleUnit(unit.id)} 
-                            className="mt-1" 
-                          />
-                          <div>
-                            <div className="font-medium text-sm line-clamp-1">{unit.title}</div>
-                            <div className="text-xs text-gray-500">יחידה {unit.unitNumber}</div>
-                          </div>
-                        </label>
-                      ))}
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
+                {Object.keys(tagGroups)
+                  .filter(tag => !subjectFilter || tag === subjectFilter)
+                  .map(tag => (
+                    <div key={tag} className="border rounded-lg overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-2 font-semibold text-sm border-b flex items-center justify-between">
+                        <span>{tag}</span>
+                        <button
+                          onClick={() => {
+                            const ids = tagGroups[tag].map((u: any) => u.id);
+                            const allSelected = ids.every((id: string) => selectedUnits.includes(id));
+                            if (allSelected) setSelectedUnits(selectedUnits.filter(id => !ids.includes(id)));
+                            else setSelectedUnits([...new Set([...selectedUnits, ...ids])]);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          {tagGroups[tag].every((u: any) => selectedUnits.includes(u.id)) ? "בטל הכל" : "בחר הכל"}
+                        </button>
+                      </div>
+                      <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {tagGroups[tag].map((unit: any) => (
+                          <label key={unit.id} className={`flex items-start gap-3 p-3 border rounded-md cursor-pointer transition ${selectedUnits.includes(unit.id) ? 'bg-blue-50 border-blue-300' : 'hover:bg-slate-50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedUnits.includes(unit.id)}
+                              onChange={() => toggleUnit(unit.id)}
+                              className="mt-1"
+                            />
+                            <div>
+                              <div className="font-medium text-sm line-clamp-1">{unit.title}</div>
+                              <div className="text-xs text-gray-500">יחידה {unit.unitNumber}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
