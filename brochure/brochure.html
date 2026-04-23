@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>מהדורת השולחן ערוך - למען ילמדו</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500;700;900&family=David+Libre:wght@400;500;700&family=Noto+Serif+Hebrew:wght@400;500;600;700;800;900&display=swap');
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: 'Frank Ruhl Libre', 'David Libre', 'Noto Serif Hebrew', serif;
+    direction: rtl;
+    color: #2b1810;
+    background: #f5ecd7;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+    background: #f5ecd7;
+  }
+
+  .page:last-child {
+    page-break-after: auto;
+  }
+
+  /* ========= Parchment Background ========= */
+  .parchment {
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(180,130,60,0.10) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 80%, rgba(120,60,30,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, #f5ecd7 0%, #eedcba 100%);
+  }
+
+  /* ========= Ornate Outer Frame ========= */
+  .frame-outer {
+    position: absolute;
+    top: 10mm; right: 10mm; bottom: 10mm; left: 10mm;
+    border: 2px solid #8a1d1d;
+  }
+
+  .frame-inner {
+    position: absolute;
+    top: 13mm; right: 13mm; bottom: 13mm; left: 13mm;
+    border: 1px solid #b8860b;
+  }
+
+  .frame-innermost {
+    position: absolute;
+    top: 16mm; right: 16mm; bottom: 16mm; left: 16mm;
+    border: 0.5px solid #b8860b;
+    pointer-events: none;
+  }
+
+  .corner {
+    position: absolute;
+    width: 18mm;
+    height: 18mm;
+    color: #8a1d1d;
+    font-size: 32pt;
+    line-height: 1;
+    text-align: center;
+    z-index: 2;
+  }
+
+  .corner-tl { top: 4mm; right: 4mm; }
+  .corner-tr { top: 4mm; left: 4mm; }
+  .corner-bl { bottom: 4mm; right: 4mm; }
+  .corner-br { bottom: 4mm; left: 4mm; }
+
+  .bh {
+    position: absolute;
+    top: 3mm;
+    left: 50%;
+    margin-left: -8mm;
+    width: 16mm;
+    text-align: center;
+    font-size: 10pt;
+    color: #5a3a1a;
+    background: #f5ecd7;
+    letter-spacing: 2px;
+    z-index: 5;
+  }
+
+  /* ========= Content Wrapper ========= */
+  .content {
+    position: absolute;
+    top: 22mm;
+    right: 22mm;
+    bottom: 22mm;
+    left: 22mm;
+    z-index: 1;
+  }
+
+  /* ========= COVER PAGE ========= */
+  .cover {
+    text-align: center;
+  }
+
+  .cover-top-ornament {
+    margin-top: 4mm;
+    font-size: 18pt;
+    color: #b8860b;
+    letter-spacing: 8px;
+  }
+
+  .cover-sub-title {
+    margin-top: 5mm;
+    font-size: 13pt;
+    color: #5a3a1a;
+    letter-spacing: 3px;
+    font-weight: 500;
+  }
+
+  .cover-title {
+    margin-top: 6mm;
+    font-family: 'Noto Serif Hebrew', 'Frank Ruhl Libre', serif;
+    font-weight: 900;
+    font-size: 38pt;
+    line-height: 1.15;
+    color: #7b0a0a;
+    letter-spacing: 1px;
+  }
+
+  .cover-title .accent {
+    color: #b8860b;
+    display: block;
+    font-size: 24pt;
+    margin-top: 4mm;
+    font-weight: 700;
+  }
+
+  .cover-divider {
+    margin: 8mm auto 4mm;
+    width: 70%;
+    height: 1px;
+    background: #b8860b;
+    position: relative;
+  }
+  .cover-divider-ornament {
+    position: absolute;
+    top: -10pt;
+    left: 50%;
+    margin-left: -10px;
+    color: #b8860b;
+    background: #f5ecd7;
+    font-size: 14pt;
+    padding: 0 6px;
+    width: 20px;
+    text-align: center;
+  }
+
+  .cover-tagline {
+    font-size: 14pt;
+    line-height: 1.65;
+    color: #3a1e0a;
+    font-weight: 500;
+    padding: 0 10mm;
+  }
+
+  .cover-book-area {
+    margin: 8mm auto 4mm;
+    text-align: center;
+  }
+
+  .cover-book {
+    height: 95mm;
+    width: auto;
+  }
+
+  .cover-footer {
+    margin-top: 2mm;
+    text-align: center;
+  }
+
+  .cover-footer-text {
+    font-size: 11pt;
+    color: #5a3a1a;
+    letter-spacing: 2px;
+    margin-bottom: 2mm;
+  }
+
+  .cover-logo {
+    height: 22mm;
+    width: auto;
+  }
+
+  /* ========= SECTIONS ========= */
+  .section-title {
+    text-align: center;
+    margin-bottom: 6mm;
+  }
+
+  .section-title h2 {
+    font-family: 'Noto Serif Hebrew', serif;
+    font-size: 24pt;
+    color: #7b0a0a;
+    font-weight: 800;
+    display: inline-block;
+    padding: 0 12mm;
+    position: relative;
+  }
+
+  .section-title h2 .flower-r,
+  .section-title h2 .flower-l {
+    color: #b8860b;
+    font-size: 13pt;
+    font-weight: normal;
+    position: absolute;
+    top: 10pt;
+  }
+  .section-title h2 .flower-r { right: 0; }
+  .section-title h2 .flower-l { left: 0; }
+
+  .section-subtitle {
+    font-size: 12pt;
+    color: #5a3a1a;
+    margin-top: 1mm;
+    font-style: italic;
+    text-align: center;
+  }
+
+  .lead-paragraph {
+    text-align: center;
+    font-size: 13pt;
+    line-height: 1.65;
+    color: #2b1810;
+    margin: 0 auto 6mm;
+    font-weight: 500;
+    padding: 0 6mm;
+  }
+
+  .lead-paragraph strong {
+    color: #7b0a0a;
+    font-weight: 700;
+  }
+
+  /* ========= Innovations - Two-column table layout ========= */
+  .innovations {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4mm;
+    margin-top: 4mm;
+  }
+
+  .innovations td {
+    width: 50%;
+    vertical-align: top;
+    background: #fff8e8;
+    border: 1px solid #b8860b;
+    border-right: 3px solid #7b0a0a;
+    padding: 6mm 5mm 4mm;
+    position: relative;
+    border-radius: 1mm;
+  }
+
+  .innovations td.wide {
+    width: 100%;
+  }
+
+  .innovation-number {
+    position: absolute;
+    top: -5mm;
+    right: 4mm;
+    width: 9mm;
+    height: 9mm;
+    line-height: 9mm;
+    background: #7b0a0a;
+    color: #f5ecd7;
+    border: 1.5px solid #b8860b;
+    border-radius: 50%;
+    font-family: 'Noto Serif Hebrew', serif;
+    font-size: 13pt;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .innovation h3 {
+    font-size: 14pt;
+    color: #7b0a0a;
+    margin-bottom: 2mm;
+    margin-top: 0;
+    font-weight: 700;
+    padding-right: 8mm;
+  }
+
+  .innovation p {
+    font-size: 11pt;
+    line-height: 1.55;
+    color: #2b1810;
+  }
+
+  /* ========= Series Table ========= */
+  .series-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4mm 0;
+    font-size: 11.5pt;
+    background: #fff8e8;
+    border: 2px solid #7b0a0a;
+  }
+
+  .series-wrap {
+    padding: 2mm;
+    background: #f5ecd7;
+    border: 1px solid #b8860b;
+    margin-bottom: 4mm;
+  }
+
+  .series-table thead {
+    background: #7b0a0a;
+    color: #f5ecd7;
+  }
+
+  .series-table thead th {
+    padding: 3mm 4mm;
+    font-weight: 700;
+    font-size: 12pt;
+    text-align: center;
+    letter-spacing: 2px;
+    border-left: 1px solid #b8860b;
+  }
+
+  .series-table thead th:last-child {
+    border-left: none;
+  }
+
+  .series-table tbody td {
+    padding: 2.5mm 4mm;
+    border-bottom: 1px solid #d4b878;
+    border-left: 1px solid #d4b878;
+    text-align: center;
+  }
+
+  .series-table tbody td:last-child {
+    border-left: none;
+  }
+
+  .series-table tbody tr:nth-child(even) {
+    background: #faf0d8;
+  }
+
+  .series-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .series-table .vol {
+    font-weight: 700;
+    color: #7b0a0a;
+    width: 18%;
+  }
+
+  .series-table .topic {
+    font-weight: 600;
+    width: 50%;
+  }
+
+  .series-table .category {
+    color: #5a3a1a;
+    font-style: italic;
+    width: 32%;
+  }
+
+  /* ========= Success Section ========= */
+  .success-box {
+    background: #fff8e8;
+    border: 1.5px solid #b8860b;
+    padding: 5mm 14mm;
+    margin-top: 4mm;
+    position: relative;
+    text-align: center;
+  }
+
+  .success-box .ornament-r,
+  .success-box .ornament-l {
+    position: absolute;
+    color: #b8860b;
+    font-size: 16pt;
+    top: 50%;
+    margin-top: -10pt;
+  }
+  .success-box .ornament-r { right: 4mm; }
+  .success-box .ornament-l { left: 4mm; }
+
+  .success-box p {
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #2b1810;
+    font-weight: 500;
+  }
+
+  /* ========= Dedication Tiers ========= */
+  .tiers {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4mm;
+    margin-top: 4mm;
+  }
+
+  .tiers td {
+    width: 50%;
+    vertical-align: top;
+    background: #fff8e8;
+    border: 1.5px solid #b8860b;
+    padding: 0;
+    border-radius: 2mm;
+  }
+
+  .tiers td.wide {
+    width: 100%;
+  }
+
+  .tier-body {
+    padding: 5mm 5mm 0;
+  }
+
+  .tier-header {
+    text-align: center;
+    border-bottom: 1px solid #b8860b;
+    padding-bottom: 3mm;
+    margin-bottom: 3mm;
+  }
+
+  .tier-icon {
+    font-size: 14pt;
+    color: #b8860b;
+    margin-bottom: 1mm;
+    letter-spacing: 4px;
+  }
+
+  .tier-name {
+    font-family: 'Noto Serif Hebrew', serif;
+    font-size: 15pt;
+    font-weight: 800;
+    color: #7b0a0a;
+    letter-spacing: 1px;
+  }
+
+  .tier-perks {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .tier-perks li {
+    font-size: 10.5pt;
+    line-height: 1.5;
+    padding: 1.5mm 6mm 1.5mm 0;
+    position: relative;
+    color: #2b1810;
+    border-bottom: 1px dotted #d4b878;
+  }
+
+  .tier-perks li:last-child {
+    border-bottom: none;
+  }
+
+  .tier-perks li .perk-bullet {
+    position: absolute;
+    right: 0;
+    top: 1.8mm;
+    color: #b8860b;
+    font-size: 9pt;
+  }
+
+  .tier-price {
+    text-align: center;
+    background: #7b0a0a;
+    color: #f5ecd7;
+    padding: 3mm;
+    font-size: 12pt;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-top: 1.5px solid #b8860b;
+    margin-top: 4mm;
+  }
+
+  .tiers td.premium {
+    background: #7b0a0a;
+    border: 2px solid #b8860b;
+  }
+
+  .tiers td.premium .tier-header {
+    border-bottom-color: #b8860b;
+  }
+
+  .tiers td.premium .tier-name {
+    color: #f5d77a;
+  }
+
+  .tiers td.premium .tier-icon {
+    color: #f5d77a;
+  }
+
+  .tiers td.premium .tier-perks li {
+    color: #f5ecd7;
+    border-bottom-color: #8a3030;
+  }
+
+  .tiers td.premium .tier-perks li .perk-bullet {
+    color: #f5d77a;
+  }
+
+  .premium-pricing {
+    background: #f5ecd7;
+    color: #7b0a0a;
+    padding: 4mm;
+    border-top: 2px solid #b8860b;
+    margin-top: 4mm;
+  }
+
+  .premium-pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .premium-pricing-table td {
+    text-align: center;
+    padding: 1mm;
+    border: none;
+    background: transparent;
+  }
+
+  .p-label {
+    font-size: 10pt;
+    color: #5a3a1a;
+    display: block;
+    margin-bottom: 1mm;
+  }
+
+  .p-price {
+    font-size: 14pt;
+    font-weight: 800;
+    color: #7b0a0a;
+  }
+
+  .premium-bonus {
+    background: #f5d77a;
+    color: #5a0606;
+    padding: 2mm 3mm;
+    text-align: center;
+    font-weight: 700;
+    font-size: 11pt;
+    letter-spacing: 1px;
+    border-top: 1px solid #b8860b;
+  }
+
+  /* ========= Back Page ========= */
+  .back-page {
+    text-align: center;
+  }
+
+  .back-quote {
+    font-family: 'Noto Serif Hebrew', serif;
+    font-size: 20pt;
+    line-height: 1.6;
+    color: #7b0a0a;
+    margin-top: 20mm;
+    font-weight: 700;
+  }
+
+  .back-attribution {
+    font-size: 12pt;
+    color: #5a3a1a;
+    margin-top: 5mm;
+    font-style: italic;
+  }
+
+  .contact-block {
+    margin-top: 30mm;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 8mm;
+    border: 1.5px solid #b8860b;
+    background: #fff8e8;
+    width: 120mm;
+  }
+
+  .contact-title {
+    font-size: 16pt;
+    color: #7b0a0a;
+    font-weight: 800;
+    margin-bottom: 4mm;
+  }
+
+  .contact-body {
+    font-size: 12pt;
+    line-height: 1.8;
+    color: #2b1810;
+  }
+
+  .back-logo-wrap {
+    margin-top: 20mm;
+    text-align: center;
+  }
+
+  .back-logo-wrap img {
+    height: 28mm;
+    width: auto;
+  }
+
+  /* ========= Page-specific footer ========= */
+  .page-foot {
+    position: absolute;
+    bottom: 14mm;
+    left: 50%;
+    margin-left: -15mm;
+    width: 30mm;
+    text-align: center;
+    font-size: 9pt;
+    color: #8a6a2a;
+    letter-spacing: 3px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- PAGE 1: COVER                                -->
+<!-- ============================================ -->
+<div class="page">
+  <div class="parchment"></div>
+  <div class="frame-outer"></div>
+  <div class="frame-inner"></div>
+  <div class="corner corner-tl">❦</div>
+  <div class="corner corner-tr">❦</div>
+  <div class="corner corner-bl">❦</div>
+  <div class="corner corner-br">❦</div>
+  <div class="bh">ב"ה</div>
+
+  <div class="content cover">
+    <div class="cover-top-ornament">✦ ❖ ✦</div>
+    <div class="cover-sub-title">הזכות שלך במהפכת</div>
+
+    <h1 class="cover-title">
+      לימוד השולחן ערוך
+      <span class="accent">מהדורה חדשה ומותאמת ללומד</span>
+    </h1>
+
+    <div class="cover-divider">
+      <span class="cover-divider-ornament">❖</span>
+    </div>
+
+    <p class="cover-tagline">
+      השולחן ערוך הראשון המותאם לצרכי הלומד,<br>
+      המנגיש את הלימוד לכל אחד,<br>
+      ומאיר את עיני הלומד בקריאה ובהבנת ההלכה.
+    </p>
+
+    <div class="cover-book-area">
+      <img class="cover-book" src="book.svg" alt="שולחן ערוך">
+    </div>
+
+    <div class="cover-footer">
+      <div class="cover-footer-text">בהוצאת</div>
+      <img class="cover-logo" src="logo.svg" alt="למען ילמדו">
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PAGE 2: INNOVATIONS                          -->
+<!-- ============================================ -->
+<div class="page">
+  <div class="parchment"></div>
+  <div class="frame-outer"></div>
+  <div class="frame-inner"></div>
+  <div class="corner corner-tl">❦</div>
+  <div class="corner corner-tr">❦</div>
+  <div class="corner corner-bl">❦</div>
+  <div class="corner corner-br">❦</div>
+
+  <div class="content">
+    <div class="section-title">
+      <h2><span class="flower-r">✦</span>חידושי המהדורה<span class="flower-l">✦</span></h2>
+      <div class="section-subtitle">חמש בשורות ללומד הלכה בדורנו</div>
+    </div>
+
+    <p class="lead-paragraph">
+      <strong>מהפכה של ממש בלימוד השולחן ערוך</strong> — מהדורה המכילה את מיטב המפרשים בעימוד נגיש, לצד ביאור תמציתי ומפות סימנים מותאמות לכל נושא הלכתי.
+    </p>
+
+    <table class="innovations">
+      <tr>
+        <td class="innovation">
+          <div class="innovation-number">א</div>
+          <h3>מבוארת</h3>
+          <p>סיכום ותמצית כל הסימנים — לימוד בהיר, מהיר ומקיף, המאפשר שליטה בחומר הלכה למעשה.</p>
+        </td>
+        <td class="innovation">
+          <div class="innovation-number">ב</div>
+          <h3>מותאמת</h3>
+          <p>ריכוז הסימנים הנלמדים בכל נושא בהלכה, בעימוד מסודר המקל על הלומד להתמצא בסוגיות.</p>
+        </td>
+      </tr>
+      <tr>
+        <td class="innovation">
+          <div class="innovation-number">ג</div>
+          <h3>מאירת עינים</h3>
+          <p>כלל המפרשים בכתב מרובע מפוסק ומפוענח — לימוד נהיר ונוח, בלי להתעכב על פענוח הכתב.</p>
+        </td>
+        <td class="innovation">
+          <div class="innovation-number">ד</div>
+          <h3>שו"ע הרב ומשנה ברורה</h3>
+          <p>לראשונה, דברי אדמו"ר הזקן בשולחן ערוך הרב שלו יודפסו בספר השו"ע על הדף, לצד המחבר והמשנה ברורה.</p>
+        </td>
+      </tr>
+      <tr>
+        <td class="innovation wide" colspan="2">
+          <div class="innovation-number">ה</div>
+          <h3>היקף הסדרה</h3>
+          <p>הסדרה תכלול <strong style="color:#7b0a0a;">שבעה כרכים</strong> ממוקדים לנושאים הנלמדים בכוללים ובבחינות הרבנות הראשית לישראל לקבלת כושר לרבנות.</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div class="page-foot">✦ ✦ ✦</div>
+</div>
+
+<!-- ============================================ -->
+<!-- PAGE 3: SERIES + SUCCESS                     -->
+<!-- ============================================ -->
+<div class="page">
+  <div class="parchment"></div>
+  <div class="frame-outer"></div>
+  <div class="frame-inner"></div>
+  <div class="corner corner-tl">❦</div>
+  <div class="corner corner-tr">❦</div>
+  <div class="corner corner-bl">❦</div>
+  <div class="corner corner-br">❦</div>
+
+  <div class="content">
+    <div class="section-title">
+      <h2><span class="flower-r">✦</span>סקירת הסדרה<span class="flower-l">✦</span></h2>
+      <div class="section-subtitle">שבעה כרכים • סדר לימוד מותאם לכוללים ולבחינות הרבנות</div>
+    </div>
+
+    <div class="series-wrap">
+      <table class="series-table">
+        <thead>
+          <tr>
+            <th>חלק</th>
+            <th>נושא</th>
+            <th>חלק השו"ע</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="vol">חלק א</td>
+            <td class="topic">איסור והיתר</td>
+            <td class="category">יורה דעה</td>
+          </tr>
+          <tr>
+            <td class="vol">חלק ב</td>
+            <td class="topic">חופה וקידושין</td>
+            <td class="category">אבן העזר וחושן משפט</td>
+          </tr>
+          <tr>
+            <td class="vol">חלק ג</td>
+            <td class="topic">נידה ומקוואות</td>
+            <td class="category">יורה דעה</td>
+          </tr>
+          <tr>
+            <td class="vol">חלק ד</td>
+            <td class="topic">שבת א &nbsp;•&nbsp; סימנים רמב–ש</td>
+            <td class="category">אורח חיים</td>
+          </tr>
+          <tr>
+            <td class="vol">חלק ה</td>
+            <td class="topic">שבת ב &nbsp;•&nbsp; סימנים שא–שכא</td>
+            <td class="category">אורח חיים</td>
+          </tr>
+          <tr>
+            <td class="vol">חלק ו</td>
+            <td class="topic">שבת ג &nbsp;•&nbsp; סימנים שכב–שדמ</td>
+            <td class="category">אורח חיים</td>
+          </tr>
+          <tr>
+            <td class="vol">חלק ז</td>
+            <td class="topic">אבלות</td>
+            <td class="category">יורה דעה</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top: 10mm;">
+      <h2><span class="flower-r">✦</span>ההצלחה בשטח<span class="flower-l">✦</span></h2>
+    </div>
+
+    <div class="success-box">
+      <span class="ornament-r">❦</span>
+      <span class="ornament-l">❦</span>
+      <p>
+        <strong style="color:#7b0a0a;">ב"ה</strong> — הספרים הראשונים התקבלו בחיבה יתירה בכל המגזר התורני,<br>
+        ו<strong>מאות אברכים ובחורים</strong> נעזרים בספרים אלו ומשפרים את איכות הלמידה וההסמכה שלהם.
+      </p>
+    </div>
+  </div>
+  <div class="page-foot">✦ ✦ ✦</div>
+</div>
+
+<!-- ============================================ -->
+<!-- PAGE 4: DEDICATIONS                          -->
+<!-- ============================================ -->
+<div class="page">
+  <div class="parchment"></div>
+  <div class="frame-outer"></div>
+  <div class="frame-inner"></div>
+  <div class="corner corner-tl">❦</div>
+  <div class="corner corner-tr">❦</div>
+  <div class="corner corner-bl">❦</div>
+  <div class="corner corner-br">❦</div>
+
+  <div class="content">
+    <div class="section-title">
+      <h2><span class="flower-r">✦</span>אפשרויות הקדשה<span class="flower-l">✦</span></h2>
+      <div class="section-subtitle">זכו להנציח שם יקירכם בספרי ההלכה של דורנו</div>
+    </div>
+
+    <table class="tiers">
+      <tr>
+        <td>
+          <div class="tier-body">
+            <div class="tier-header">
+              <div class="tier-icon">✦</div>
+              <div class="tier-name">הקדשת סימן</div>
+            </div>
+            <ul class="tier-perks">
+              <li><span class="perk-bullet">✦</span>הקדשה על פני חצי עמוד</li>
+              <li><span class="perk-bullet">✦</span>ספר מתנה בכריכת עור עם הטבעת השם</li>
+            </ul>
+          </div>
+          <div class="tier-price">500 ₪ × 9</div>
+        </td>
+        <td>
+          <div class="tier-body">
+            <div class="tier-header">
+              <div class="tier-icon">✦ ✦</div>
+              <div class="tier-name">עמוד ההוראה</div>
+            </div>
+            <ul class="tier-perks">
+              <li><span class="perk-bullet">✦</span>הקדשה על פני עמוד שלם</li>
+              <li><span class="perk-bullet">✦</span>ספר מתנה בכריכת עור עם הטבעת השם</li>
+              <li><span class="perk-bullet">✦</span>הקדשת 10 ספרים למוסד לבחירתך</li>
+            </ul>
+          </div>
+          <div class="tier-price">700 ₪ × 11</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="wide">
+          <div class="tier-body">
+            <div class="tier-header">
+              <div class="tier-icon">✦ ✦ ✦</div>
+              <div class="tier-name">שער ההוראה</div>
+            </div>
+            <ul class="tier-perks">
+              <li><span class="perk-bullet">✦</span>הקדשה בתוך השו"ע בפתח הנושא</li>
+              <li><span class="perk-bullet">✦</span>ספר בכריכת עור עם הטבעת השם</li>
+              <li><span class="perk-bullet">✦</span>הענקה ע"י גדולי הרבנים במעמד "יומא לרבנן"</li>
+              <li><span class="perk-bullet">✦</span>הקדשת 15 ספרים למוסד לבחירתך</li>
+            </ul>
+          </div>
+          <div class="tier-price">1,000 ₪ × 15</div>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" class="wide premium">
+          <div class="tier-body">
+            <div class="tier-header">
+              <div class="tier-icon">❖ ✦ ❖ ✦ ❖</div>
+              <div class="tier-name">הקדשת המהדורה — "מהדורת פלוני"</div>
+            </div>
+            <ul class="tier-perks">
+              <li><span class="perk-bullet">✦</span>שמך או שם יקירך יופיע על כריכת הספר כשם המהדורה</li>
+              <li><span class="perk-bullet">✦</span>3 ספרים בכריכת עור עם הטבעת השם</li>
+              <li><span class="perk-bullet">✦</span>הקדשת 20 ספרים למוסד לבחירתך</li>
+            </ul>
+          </div>
+          <div class="premium-pricing">
+            <table class="premium-pricing-table">
+              <tr>
+                <td>
+                  <span class="p-label">מהדורת אלף עותקים</span>
+                  <span class="p-price">40,000 ₪</span>
+                </td>
+                <td>
+                  <span class="p-label">מהדורת אלפיים עותקים</span>
+                  <span class="p-price">65,000 ₪</span>
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div class="premium-bonus">✦ בונוס מיוחד: דולר של הרבי מתנה! ✦</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div class="page-foot">✦ ✦ ✦</div>
+</div>
+
+<!-- ============================================ -->
+<!-- PAGE 5: BACK                                 -->
+<!-- ============================================ -->
+<div class="page">
+  <div class="parchment"></div>
+  <div class="frame-outer"></div>
+  <div class="frame-inner"></div>
+  <div class="corner corner-tl">❦</div>
+  <div class="corner corner-tr">❦</div>
+  <div class="corner corner-bl">❦</div>
+  <div class="corner corner-br">❦</div>
+
+  <div class="content back-page">
+    <div class="cover-top-ornament" style="margin-top:10mm;">✦ ❖ ✦</div>
+
+    <div class="back-quote">
+      "וְהִגִּידָהּ לִבְנֵי יִשְׂרָאֵל<br>
+      שִׂימָהּ בְּפִיהֶם"
+    </div>
+    <div class="back-attribution">— דברים ל"א, י"ט</div>
+
+    <div class="contact-block">
+      <div class="contact-title">להצטרפות ולפרטים נוספים</div>
+      <div class="contact-body">
+        מערכת "למען ילמדו"<br>
+        ____________________<br>
+        טל: ___-_______<br>
+        דוא"ל: ________________
+      </div>
+    </div>
+
+    <div class="back-logo-wrap">
+      <img src="logo.svg" alt="למען ילמדו">
+    </div>
+  </div>
+  <div class="page-foot">✦ ✦ ✦</div>
+</div>
+
+</body>
+</html>
