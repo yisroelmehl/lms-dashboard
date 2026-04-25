@@ -10,6 +10,17 @@ export async function PUT(
     const body = await request.json();
     const { questionText, questionType, points, options, correctAnswer, studyUnitId, sortOrder } = body;
 
+    // Validate studyUnitId exists before using it (prevents FK constraint errors)
+    let resolvedUnitId: string | null | undefined = undefined;
+    if (studyUnitId !== undefined) {
+      if (studyUnitId) {
+        const unit = await prisma.studyUnit.findUnique({ where: { id: studyUnitId }, select: { id: true } });
+        resolvedUnitId = unit ? studyUnitId : null;
+      } else {
+        resolvedUnitId = null;
+      }
+    }
+
     const question = await prisma.examQuestion.update({
       where: { id: questionId },
       data: {
@@ -18,7 +29,7 @@ export async function PUT(
         points: points ? parseFloat(points) : undefined,
         options,
         correctAnswer,
-        studyUnitId,
+        ...(resolvedUnitId !== undefined && { studyUnitId: resolvedUnitId }),
         sortOrder,
       },
     });
