@@ -14,7 +14,7 @@ interface Course {
   hebrewStartDate: string | null;
   startDate: string | null;
   recordingsFolderUrl: string | null;
-  mainLecturer: { id: string; name: string } | null;
+  mainLecturer: { id: string; firstName: string; lastName: string } | null;
   moodleCourseId: number | null;
   moodleUrl: string | null;
   nextSession: { iso: string; label: string } | null;
@@ -31,7 +31,7 @@ interface Lesson {
   moodleCmId: number | null;
   moodleActivityType: string | null;
   moodleActivityUrl: string | null;
-  lecturer: { name: string } | null;
+  lecturer: { firstName: string; lastName: string } | null;
 }
 
 interface StudyUnit {
@@ -125,7 +125,9 @@ export default function PortalCoursePage({ params }: { params: Promise<{ courseI
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-lg text-gray-900">{courseName}</h2>
               {course.mainLecturer && (
-                <p className="text-sm text-gray-600 mt-0.5">מרצה: {course.mainLecturer.name}</p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  מרצה: {course.mainLecturer.firstName} {course.mainLecturer.lastName}
+                </p>
               )}
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 {dayLabel && course.hours && (
@@ -191,10 +193,10 @@ export default function PortalCoursePage({ params }: { params: Promise<{ courseI
                           )}
                           <p className="font-medium text-gray-900 line-clamp-1">{lesson.title}</p>
                         </div>
-                        {(dateLabel || lesson.lecturer?.name) && (
+                        {(dateLabel || lesson.lecturer) && (
                           <p className="text-xs text-gray-500 mt-0.5">
                             {dateLabel} {timeLabel && `· ${timeLabel}`}
-                            {lesson.lecturer?.name && ` · ${lesson.lecturer.name}`}
+                            {lesson.lecturer && ` · ${lesson.lecturer.firstName} ${lesson.lecturer.lastName}`}
                           </p>
                         )}
                       </div>

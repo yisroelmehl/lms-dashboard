@@ -54,12 +54,12 @@ export async function GET(
     prisma.course.findUnique({
       where: { id: courseId },
       include: {
-        mainLecturer: { select: { id: true, name: true } },
+        mainLecturer: { select: { id: true, firstName: true, lastName: true } },
       },
     }),
     prisma.syllabusItem.findMany({
       where: { courseId, type: "lesson" },
-      include: { lecturer: { select: { name: true } } },
+      include: { lecturer: { select: { firstName: true, lastName: true } } },
       orderBy: [{ scheduledAt: "asc" }, { sortOrder: "asc" }],
     }),
     prisma.studyUnit.findMany({
