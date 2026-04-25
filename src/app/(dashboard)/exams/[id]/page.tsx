@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { ExamQuestionEditor } from "@/components/exam-templates/exam-question-editor";
+import { PublishExamModal } from "@/components/exam-templates/publish-exam-modal";
 
 export default function ExamDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -11,6 +12,7 @@ export default function ExamDetailPage({ params }: { params: Promise<{ id: strin
   const [error, setError] = useState("");
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [showPublishModal, setShowPublishModal] = useState(false);
 
   const fetchTemplate = async () => {
     try {
@@ -59,11 +61,31 @@ export default function ExamDetailPage({ params }: { params: Promise<{ id: strin
           </h1>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowPublishModal(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center gap-2"
+          >
+            🚀 פרסם לכיתה
+          </button>
           <a href={`/api/exam-templates/${template.id}/export`} target="_blank" className="px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 flex items-center gap-2">
             📄 ייצוא המבחן
           </a>
         </div>
       </div>
+
+      {showPublishModal && (
+        <PublishExamModal
+          templateId={template.id}
+          defaultCourseId={template.courseId}
+          defaultDeadline={template.dueDate}
+          onClose={() => setShowPublishModal(false)}
+          onPublished={({ created, total }) => {
+            setShowPublishModal(false);
+            alert(`המבחן הוקצה ל-${created} מתוך ${total} תלמידים פעילים בקורס.`);
+            fetchTemplate();
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-5 rounded-lg border shadow-sm">

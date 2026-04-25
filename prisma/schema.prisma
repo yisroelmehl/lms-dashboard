@@ -253,6 +253,7 @@ model Student {
   submissions          StudentSubmission[]
   examSubmissions      ExamSubmission[]
   magicLinks           StudentMagicLink[]
+  examAssignments      ExamAssignment[]
 
   @@map("students")
 }
@@ -1388,6 +1389,7 @@ model ExamTemplate {
   submissions       ExamSubmission[]
   questions         ExamQuestion[]
   examTemplateUnits ExamTemplateUnit[]
+  assignments       ExamAssignment[]
 
   @@map("exam_templates")
   @@index([courseId])
@@ -1401,29 +1403,71 @@ model ExamSubmission {
   id              String  @id @default(cuid())
   examTemplateId  String
   studentId       String?
+  assignmentId    String? @unique
 
-  fileName        String
-  fileType        String
+  // File-based flow (paper grading) — kept for backward compat
+  fileName        String?
+  fileType        String?
   fileData        Bytes?
   extractedText   String?
   studentName     String?
 
+  // Online flow
+  answers         Json?     // [{questionId, answer}, ...]
+  startedAt       DateTime?
+  submittedAt     DateTime?
+
+  // Grading
   gradingStatus   SubmissionGradingStatus @default(pending)
   grade           Float?
   maxGrade        Float?
   feedback        Json?
   aiRawResponse   Json?
+  aiPerQuestion   Json?     // [{questionId, score, feedback}]
+  aiOverallEval   String?   @db.Text
+  teacherFeedback String?   @db.Text
 
   gradedAt        DateTime?
+  reviewedAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  examTemplate ExamTemplate @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
-  student      Student?     @relation(fields: [studentId], references: [id])
+  examTemplate ExamTemplate    @relation(fields: [examTemplateId], references: [id], onDelete: Cascade)
+  student      Student?        @relation(fields: [studentId], references: [id])
+  assignment   ExamAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
   @@map("exam_submissions")
   @@index([examTemplateId])
   @@index([studentId])
+}
+
+// ============================================================
+// EXAM ASSIGNMENTS (הקצאת מבחן לתלמידים)
+// ============================================================
+
+model ExamAssignment {
+  id          String   @id @default(cuid())
+  templateId  String
+  studentId   String
+
+  // slotKey groups attempts of the same logical exam (מועד א' + מועד ב')
+  slotKey     String
+  attempt     Int      @default(1)
+
+  deadline    DateTime?  // overrides ExamTemplate.dueDate per student
+  publishedAt DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template   ExamTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  student    Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  submission ExamSubmission?
+
+  @@unique([templateId, studentId])
+  @@index([studentId, slotKey])
+  @@index([templateId])
+  @@map("exam_assignments")
 }
 
 model ExamTemplateUnit {
