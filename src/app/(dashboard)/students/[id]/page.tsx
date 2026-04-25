@@ -6,6 +6,7 @@ import { StudentAdminClassification } from "@/components/students/student-admin-
 import { StudentSemesterEnrollments } from "@/components/students/student-semester-enrollments";
 import { StudentTasks } from "@/components/tasks/student-tasks";
 import { StudentMessageActions } from "@/components/students/student-message-actions";
+import { StudentLoginLinkButton } from "@/components/students/student-login-link-button";
 import { StudentSubmissions } from "@/components/students/student-submissions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -193,6 +194,9 @@ export default async function StudentDetailPage({
 
       {/* Admin Classification Details */}
       <StudentAdminClassification student={adminStudentInfo} />
+
+      {/* Portal login link generator */}
+      <StudentLoginLinkButton studentId={student.id} />
 
       {/* Internal Sales Notes */}
       {student.paymentLinks && student.paymentLinks.some(link => link.financeNotes || link.studiesNotes) && (

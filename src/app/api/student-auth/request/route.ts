@@ -44,23 +44,30 @@ export async function POST(req: NextRequest) {
   const name = student.firstNameOverride || student.firstNameMoodle || "תלמיד";
 
   if (resend) {
-    await resend.emails.send({
-      from: FROM,
-      to: normalized,
-      subject: "קישור כניסה לפורטל הסטודנטים",
-      html: `
-        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-          <h2 style="color: #1e40af;">שלום ${name} 👋</h2>
-          <p>לחץ על הכפתור להתחברות לפורטל:</p>
-          <a href="${url}" style="display:inline-block;background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:16px;margin:16px 0;">
-            כניסה לפורטל
-          </a>
-          <p style="color:#6b7280;font-size:13px;">הקישור תקף ל-24 שעות ולשימוש חד-פעמי.<br/>אם לא ביקשת כניסה, התעלם ממייל זה.</p>
-        </div>
-      `,
-    });
+    try {
+      const result = await resend.emails.send({
+        from: FROM,
+        to: normalized,
+        subject: "קישור כניסה לפורטל הסטודנטים",
+        html: `
+          <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+            <h2 style="color: #1e40af;">שלום ${name} 👋</h2>
+            <p>לחץ על הכפתור להתחברות לפורטל:</p>
+            <a href="${url}" style="display:inline-block;background:#1e40af;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:16px;margin:16px 0;">
+              כניסה לפורטל
+            </a>
+            <p style="color:#6b7280;font-size:13px;">הקישור תקף ל-24 שעות ולשימוש חד-פעמי.<br/>אם לא ביקשת כניסה, התעלם ממייל זה.</p>
+          </div>
+        `,
+      });
+      if ("error" in result && result.error) {
+        console.error("[student-auth] Resend error:", result.error);
+      }
+    } catch (err) {
+      console.error("[student-auth] Resend send threw:", err);
+    }
   } else {
-    console.log(`[student-auth] Magic link for ${normalized}: ${url}`);
+    console.log(`[student-auth] No RESEND_API_KEY. Magic link for ${normalized}: ${url}`);
   }
 
   return NextResponse.json({ ok: true });
