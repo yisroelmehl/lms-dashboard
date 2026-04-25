@@ -86,6 +86,20 @@ export default function StudentDashboard() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Quick links */}
+        <section className="grid grid-cols-2 gap-3">
+          <a
+            href="/portal/exams"
+            className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow"
+          >
+            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-xl">📝</div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">המבחנים שלי</p>
+              <p className="text-xs text-gray-500">מבחנים פתוחים והגשות</p>
+            </div>
+          </a>
+        </section>
+
         {/* Courses */}
         <section>
           <h2 className="text-xl font-bold text-gray-900 mb-4">הקורסים שלי</h2>
