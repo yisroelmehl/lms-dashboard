@@ -9,6 +9,8 @@ interface Course {
   fullNameOverride: string | null;
   moodleCourseId: number | null;
   shortNameMoodle: string | null;
+  moodleUrl: string | null;
+  nextSession: { iso: string; label: string } | null;
 }
 
 interface Student {
@@ -30,8 +32,6 @@ export default function StudentDashboard() {
   const router = useRouter();
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const moodleBase = process.env.NEXT_PUBLIC_MOODLE_URL || "";
 
   useEffect(() => {
     fetch("/api/student-auth/me")
@@ -86,6 +86,38 @@ export default function StudentDashboard() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Next upcoming session across all courses */}
+        {(() => {
+          const upcoming = student.enrollments
+            .map(e => ({ course: e.course, ns: e.course.nextSession }))
+            .filter(x => !!x.ns)
+            .sort((a, b) => new Date(a.ns!.iso).getTime() - new Date(b.ns!.iso).getTime())[0];
+          if (!upcoming) return null;
+          return (
+            <section className="bg-gradient-to-l from-blue-600 to-blue-800 text-white rounded-xl shadow-lg p-5">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wider text-blue-200 font-semibold">המפגש הבא</p>
+                  <h3 className="font-bold text-lg mt-1 line-clamp-1">
+                    {upcoming.course.fullNameOverride || upcoming.course.fullNameMoodle}
+                  </h3>
+                  <p className="text-sm text-blue-100 mt-0.5">{upcoming.ns!.label}</p>
+                </div>
+                {upcoming.course.moodleUrl && (
+                  <a
+                    href={upcoming.course.moodleUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white text-blue-700 hover:bg-blue-50 font-medium px-5 py-2.5 rounded-lg whitespace-nowrap text-sm shadow-sm"
+                  >
+                    📺 כניסה למפגש
+                  </a>
+                )}
+              </div>
+            </section>
+          );
+        })()}
+
         {/* Quick links */}
         <section className="grid grid-cols-2 gap-3">
           <a
@@ -124,9 +156,7 @@ export default function StudentDashboard() {
               {student.enrollments.map(({ course }) => {
                 const name = course.fullNameOverride || course.fullNameMoodle || "קורס";
                 const short = course.shortNameMoodle || "";
-                const moodleUrl = course.moodleCourseId
-                  ? `${moodleBase}/course/view.php?id=${course.moodleCourseId}`
-                  : null;
+                const moodleUrl = course.moodleUrl;
 
                 return (
                   <div
@@ -146,6 +176,13 @@ export default function StudentDashboard() {
                         )}
                       </div>
                     </div>
+
+                    {course.nextSession && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-800">
+                        <span className="font-medium">📅 המפגש הבא:</span> {course.nextSession.label}
+                      </div>
+                    )}
+
                     {moodleUrl ? (
                       <a
                         href={moodleUrl}
