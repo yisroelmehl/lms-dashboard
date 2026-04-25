@@ -8,7 +8,10 @@ export async function POST(
   try {
     const { id: courseId } = await params;
     const body = await req.json();
-    const { semesterId, title, description, type, weight, maxScore, sortOrder } = body;
+    const {
+      semesterId, title, description, type, weight, maxScore, sortOrder,
+      scheduledAt, recordingUrl, zoomJoinUrl,
+    } = body;
 
     if (!title || !type) {
       return NextResponse.json({ error: "כותרת וסוג הם שדות חובה" }, { status: 400 });
@@ -24,6 +27,9 @@ export async function POST(
         weight: weight ? parseFloat(weight) : null,
         maxScore: maxScore ? parseFloat(maxScore) : null,
         sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        recordingUrl: recordingUrl || null,
+        zoomJoinUrl: zoomJoinUrl || null,
       },
     });
 
@@ -41,7 +47,10 @@ export async function PUT(
   try {
     const { id: courseId } = await params;
     const body = await req.json();
-    const { id: itemId, semesterId, title, description, type, weight, maxScore, sortOrder, moodleCmId } = body;
+    const {
+      id: itemId, semesterId, title, description, type, weight, maxScore, sortOrder, moodleCmId,
+      scheduledAt, recordingUrl, zoomJoinUrl,
+    } = body;
 
     if (!itemId || !title || !type) {
       return NextResponse.json({ error: "מזהה, כותרת וסוג הם שדות חובה" }, { status: 400 });
@@ -57,6 +66,10 @@ export async function PUT(
       maxScore: maxScore ? parseFloat(maxScore) : null,
       sortOrder: sortOrder ? parseInt(sortOrder) : 0,
     };
+
+    if (scheduledAt !== undefined) updateData.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    if (recordingUrl !== undefined) updateData.recordingUrl = recordingUrl || null;
+    if (zoomJoinUrl !== undefined) updateData.zoomJoinUrl = zoomJoinUrl || null;
 
     // If moodleCmId was explicitly provided (including null to unmap), update mapping
     if (moodleCmId !== undefined) {

@@ -337,6 +337,9 @@ model Course {
   mainLecturerId   String?
   mainLecturer     Lecturer?  @relation("CourseMainLecturer", fields: [mainLecturerId], references: [id])
 
+  // Course resources
+  recordingsFolderUrl String?  // תיקיית הקלטות (Drive / YouTube / stream)
+
   // Graduation Requirements
   reqExamsCount       Int   @default(0)
   reqGradeAverage     Float @default(0)
@@ -495,7 +498,12 @@ model SyllabusItem {
   moodleActivityType String?
   isMapped           Boolean @default(false)
   quizData           Json?   // Holds the generated quiz questions, options, correct answers
-  
+
+  // Schedule + recording
+  scheduledAt        DateTime?  // מתי המפגש מתקיים
+  recordingUrl       String?    // קישור להקלטת השיעור
+  zoomJoinUrl        String?    // קישור Zoom ישיר (אם נשמר ידנית)
+
   // Publish to Moodle (embed iframe)
   publishedToMoodle  Boolean @default(false)
   moodlePublishedCourseId Int?    // Moodle course ID where activity was planted

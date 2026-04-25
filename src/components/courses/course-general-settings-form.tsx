@@ -20,6 +20,7 @@ export function CourseGeneralSettingsForm({
   const [hebrewStartDate, setHebrewStartDate] = useState(initialData.hebrewStartDate || "");
   const [hours, setHours] = useState(initialData.hours || "");
   const [mainLecturerId, setMainLecturerId] = useState(initialData.mainLecturerId || "");
+  const [recordingsFolderUrl, setRecordingsFolderUrl] = useState(initialData.recordingsFolderUrl || "");
   
   const [lecturers, setLecturers] = useState<any[]>([]);
   const [showAddLecturer, setShowAddLecturer] = useState(false);
@@ -46,6 +47,7 @@ export function CourseGeneralSettingsForm({
           hebrewStartDate,
           hours,
           mainLecturerId,
+          recordingsFolderUrl,
         }),
       });
       router.refresh();
@@ -148,6 +150,21 @@ export function CourseGeneralSettingsForm({
               onChange={(e) => setHebrewStartDate(e.target.value)}
               className="w-full rounded-md border p-2"
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-1">תיקיית הקלטות (URL)</label>
+            <input
+              type="url"
+              dir="ltr"
+              placeholder="https://stream.lemaanyilmedo.org/folder/... או Google Drive folder"
+              value={recordingsFolderUrl}
+              onChange={(e) => setRecordingsFolderUrl(e.target.value)}
+              className="w-full rounded-md border p-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              קישור כללי לתיקיית כל ההקלטות של הקורס. יוצג לתלמידים בעמוד הקורס בפורטל.
+            </p>
           </div>
 
           <div className="md:col-span-2">

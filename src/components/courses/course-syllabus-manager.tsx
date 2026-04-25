@@ -22,6 +22,9 @@ interface SyllabusItem {
   moodleActivityType: string | null;
   publishedToMoodle: boolean;
   quizData: any;
+  scheduledAt: string | Date | null;
+  recordingUrl: string | null;
+  zoomJoinUrl: string | null;
 }
 
 interface CourseSyllabusManagerProps {
@@ -51,6 +54,9 @@ export function CourseSyllabusManager({
     semesterId: semesters.length > 0 ? semesters[0].id : "",
     sortOrder: "10",
     moodleCmId: "" as string,
+    scheduledAt: "",
+    recordingUrl: "",
+    zoomJoinUrl: "",
   });
 
   const [isMappingOpen, setIsMappingOpen] = useState(false);
@@ -80,6 +86,9 @@ export function CourseSyllabusManager({
       semesterId: semesters.length > 0 ? semesters[0].id : "",
       sortOrder: (items.length * 10 + 10).toString(),
       moodleCmId: "",
+      scheduledAt: "",
+      recordingUrl: "",
+      zoomJoinUrl: "",
     });
     setIsAdding(true);
     setEditingId(null);
@@ -93,6 +102,9 @@ export function CourseSyllabusManager({
       semesterId: item.semesterId || "",
       sortOrder: item.sortOrder.toString(),
       moodleCmId: item.moodleCmId ? item.moodleCmId.toString() : "",
+      scheduledAt: item.scheduledAt ? new Date(item.scheduledAt).toISOString().slice(0, 16) : "",
+      recordingUrl: item.recordingUrl || "",
+      zoomJoinUrl: item.zoomJoinUrl || "",
     });
     setEditingId(item.id);
     setIsAdding(false);
@@ -117,8 +129,15 @@ export function CourseSyllabusManager({
     try {
       const url = `/api/courses/${courseId}/syllabus`;
       const method = editingId ? "PUT" : "POST";
-      const { moodleCmId, ...rest } = formData;
-      const body = editingId ? { ...rest, id: editingId, moodleCmId: moodleCmId ? parseInt(moodleCmId) : null } : rest;
+      const { moodleCmId, scheduledAt, recordingUrl, zoomJoinUrl, ...rest } = formData;
+      const extras = {
+        scheduledAt: scheduledAt || null,
+        recordingUrl: recordingUrl || null,
+        zoomJoinUrl: zoomJoinUrl || null,
+      };
+      const body = editingId
+        ? { ...rest, ...extras, id: editingId, moodleCmId: moodleCmId ? parseInt(moodleCmId) : null }
+        : { ...rest, ...extras };
 
       const res = await fetch(url, {
         method,
@@ -227,6 +246,44 @@ export function CourseSyllabusManager({
                 <option value="">ללא שיוך</option>
                 {semesters.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+            </div>
+          </div>
+
+          {/* Schedule + media (relevant mainly for lessons) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">תאריך ושעת המפגש</label>
+              <input
+                type="datetime-local"
+                name="scheduledAt"
+                value={formData.scheduledAt}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">🎥 URL הקלטה</label>
+              <input
+                type="url"
+                dir="ltr"
+                name="recordingUrl"
+                value={formData.recordingUrl}
+                onChange={handleChange}
+                placeholder="https://stream..."
+                className="w-full border rounded px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">📺 קישור Zoom</label>
+              <input
+                type="url"
+                dir="ltr"
+                name="zoomJoinUrl"
+                value={formData.zoomJoinUrl}
+                onChange={handleChange}
+                placeholder="https://zoom.us/j/..."
+                className="w-full border rounded px-3 py-1.5 text-sm"
+              />
             </div>
           </div>
 

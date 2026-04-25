@@ -17,6 +17,7 @@ export async function PATCH(
         hebrewStartDate: body.hebrewStartDate || null,
         hours: body.hours || null,
         mainLecturerId: body.mainLecturerId || null,
+        recordingsFolderUrl: body.recordingsFolderUrl !== undefined ? (body.recordingsFolderUrl || null) : undefined,
       }
     });
     

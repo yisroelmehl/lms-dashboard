@@ -103,11 +103,9 @@ export default function StudentDashboard() {
                   </h3>
                   <p className="text-sm text-blue-100 mt-0.5">{upcoming.ns!.label}</p>
                 </div>
-                {upcoming.course.moodleUrl && (
+                {upcoming.course.id && (
                   <a
-                    href={upcoming.course.moodleUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/portal/courses/${upcoming.course.id}`}
                     className="bg-white text-blue-700 hover:bg-blue-50 font-medium px-5 py-2.5 rounded-lg whitespace-nowrap text-sm shadow-sm"
                   >
                     📺 כניסה למפגש
@@ -156,11 +154,10 @@ export default function StudentDashboard() {
               {student.enrollments.map(({ course }) => {
                 const name = course.fullNameOverride || course.fullNameMoodle || "קורס";
                 const short = course.shortNameMoodle || "";
-                const moodleUrl = course.moodleUrl;
-
                 return (
-                  <div
+                  <a
                     key={course.id}
+                    href={`/portal/courses/${course.id}`}
                     className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start gap-3">
@@ -183,21 +180,10 @@ export default function StudentDashboard() {
                       </div>
                     )}
 
-                    {moodleUrl ? (
-                      <a
-                        href={moodleUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg transition-colors"
-                      >
-                        כניסה לקורס ←
-                      </a>
-                    ) : (
-                      <div className="text-xs text-gray-400 text-center py-1">
-                        הקורס אינו מקושר למודל עדיין
-                      </div>
-                    )}
-                  </div>
+                    <div className="w-full text-center bg-blue-600 text-white text-sm font-medium py-2 rounded-lg">
+                      פתיחת הקורס ←
+                    </div>
+                  </a>
                 );
               })}
             </div>
