@@ -60,13 +60,19 @@ export default function ExamDetailPage({ params }: { params: Promise<{ id: strin
             </span>
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setShowPublishModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center gap-2"
           >
             🚀 פרסם לכיתה
           </button>
+          <Link
+            href={`/exams/${template.id}/submissions`}
+            className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded text-sm hover:bg-blue-100 flex items-center gap-2"
+          >
+            📋 הגשות תלמידים
+          </Link>
           <a href={`/api/exam-templates/${template.id}/export`} target="_blank" className="px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 flex items-center gap-2">
             📄 ייצוא המבחן
           </a>
