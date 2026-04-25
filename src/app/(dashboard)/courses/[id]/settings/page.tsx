@@ -6,6 +6,7 @@ import { CourseGeneralSettingsForm } from "@/components/courses/course-general-s
 import { CourseRequirementsForm } from "@/components/courses/course-requirements-form";
 import { CourseSemestersManager } from "@/components/courses/course-semesters-manager";
 import { CourseSyllabusManager } from "@/components/courses/course-syllabus-manager";
+import { CourseSyncMediaButton } from "@/components/courses/course-sync-media-button";
 import { CourseTagsPicker } from "@/components/courses/course-tags-picker";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,10 @@ export default async function CourseSettingsPage({
           courseId={course.id} 
           initialSemesters={course.semesters} 
         />
+
+        {course.moodleCourseId && (
+          <CourseSyncMediaButton courseId={course.id} />
+        )}
 
         <CourseSyllabusManager
           courseId={course.id}

@@ -171,7 +171,20 @@ export interface MoodleCourseSection {
   section: number;
   summary: string;
   visible: number;
-  modules: { id: number; name: string; modname: string; url?: string }[];
+  modules: {
+    id: number;
+    name: string;
+    modname: string;
+    url?: string;
+    description?: string;
+    contents?: Array<{
+      type?: string;
+      filename?: string;
+      fileurl?: string;
+      content?: string;
+    }>;
+    dates?: Array<{ label: string; timestamp: number }>;
+  }[];
 }
 
 /**
