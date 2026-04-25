@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { ReassignModal } from "@/components/exam-templates/reassign-modal";
 
 interface Student {
   id: string;
@@ -40,12 +41,22 @@ export default function ExamSubmissionsPage({ params }: { params: Promise<{ id: 
 
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [reassigning, setReassigning] = useState<AssignmentRow | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     fetch(`/api/exam-templates/${templateId}/assignments`)
       .then(r => r.json())
       .then(d => setAssignments(d.assignments || []))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+    fetch(`/api/exam-templates/${templateId}`)
+      .then(r => r.json())
+      .then(d => setCourseId(d.template?.courseId || null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId]);
 
   if (loading) return <div className="p-8 text-center text-gray-500">טוען...</div>;
@@ -65,15 +76,32 @@ export default function ExamSubmissionsPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <Section title="הגשות לבדיקה" rows={submitted} templateId={templateId} />
+      <Section title="הגשות לבדיקה" rows={submitted} templateId={templateId} onReassign={setReassigning} />
       <div className="h-8" />
-      <Section title="ממתינים להגשה" rows={pending} templateId={templateId} pending />
+      <Section title="ממתינים להגשה" rows={pending} templateId={templateId} pending onReassign={setReassigning} />
+
+      {reassigning && (
+        <ReassignModal
+          studentId={reassigning.student.id}
+          studentName={studentName(reassigning.student)}
+          originalSlotKey={reassigning.slotKey}
+          originalAttempt={reassigning.attempt}
+          originalTemplateId={templateId}
+          defaultCourseId={courseId}
+          onClose={() => setReassigning(null)}
+          onAssigned={() => { setReassigning(null); load(); alert("ההקצאה נוצרה בהצלחה"); }}
+        />
+      )}
     </div>
   );
 }
 
-function Section({ title, rows, templateId, pending = false }: {
-  title: string; rows: AssignmentRow[]; templateId: string; pending?: boolean;
+function Section({ title, rows, templateId, pending = false, onReassign }: {
+  title: string;
+  rows: AssignmentRow[];
+  templateId: string;
+  pending?: boolean;
+  onReassign: (a: AssignmentRow) => void;
 }) {
   if (rows.length === 0) {
     return (
@@ -120,7 +148,7 @@ function Section({ title, rows, templateId, pending = false }: {
                 <td className="px-4 py-3">
                   <StatusBadge a={a} />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 flex items-center gap-3 justify-end">
                   {a.submission?.id ? (
                     <Link
                       href={`/exams/${templateId}/submissions/${a.submission.id}`}
@@ -129,6 +157,13 @@ function Section({ title, rows, templateId, pending = false }: {
                       צפה ←
                     </Link>
                   ) : null}
+                  <button
+                    onClick={() => onReassign(a)}
+                    className="text-xs text-orange-600 hover:underline"
+                    title="צור מועד נוסף לתלמיד"
+                  >
+                    מועד נוסף
+                  </button>
                 </td>
               </tr>
             ))}
