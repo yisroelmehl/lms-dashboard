@@ -89,6 +89,16 @@ export default function StudentDashboard() {
         {/* Quick links */}
         <section className="grid grid-cols-2 gap-3">
           <a
+            href="/portal/profile"
+            className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow"
+          >
+            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-xl">👤</div>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">הכרטיסייה שלי</p>
+              <p className="text-xs text-gray-500">פרטים, ציונים, נוכחות</p>
+            </div>
+          </a>
+          <a
             href="/portal/exams"
             className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow"
           >
