@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createStudentSession, SESSION_COOKIE } from "@/lib/student-session";
 
+const BASE_URL = process.env.NEXTAUTH_URL || "https://lms-dashboard-qx2u.onrender.com";
+
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  if (!token) return NextResponse.redirect(new URL("/portal?error=invalid", req.url));
+  if (!token) return NextResponse.redirect(`${BASE_URL}/portal?error=invalid`);
 
   const link = await prisma.studentMagicLink.findUnique({ where: { token } });
 
   if (!link || link.usedAt || link.expiresAt < new Date()) {
-    return NextResponse.redirect(new URL("/portal?error=expired", req.url));
+    return NextResponse.redirect(`${BASE_URL}/portal?error=expired`);
   }
 
   await prisma.studentMagicLink.update({
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const jwt = await createStudentSession(link.studentId);
 
-  const res = NextResponse.redirect(new URL("/portal/dashboard", req.url));
+  const res = NextResponse.redirect(`${BASE_URL}/portal/dashboard`);
   res.cookies.set(SESSION_COOKIE, jwt, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
