@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -66,17 +67,14 @@ export async function PATCH(
     perQuestion?: Array<{ questionId: string; score: number; max: number; feedback?: string }>;
   };
 
-  const data: {
-    grade?: number;
-    teacherFeedback?: string;
-    aiPerQuestion?: typeof perQuestion;
-    reviewedAt?: Date;
-    gradingStatus?: string;
-  } = { reviewedAt: new Date(), gradingStatus: "graded" };
+  const data: Prisma.ExamSubmissionUpdateInput = {
+    reviewedAt: new Date(),
+    gradingStatus: "graded",
+  };
 
   if (typeof grade === "number") data.grade = grade;
   if (typeof teacherFeedback === "string") data.teacherFeedback = teacherFeedback;
-  if (Array.isArray(perQuestion)) data.aiPerQuestion = perQuestion;
+  if (Array.isArray(perQuestion)) data.aiPerQuestion = perQuestion as unknown as Prisma.InputJsonValue;
 
   const updated = await prisma.examSubmission.update({ where: { id }, data });
   return NextResponse.json({ submission: updated });
